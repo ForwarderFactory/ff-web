@@ -60,9 +60,9 @@ void ff::prepare_wd() {
     const auto check_if_exists = [](const std::string& path) -> bool {
         return std::filesystem::exists(path);
     };
-    const auto remove_all_in_directory = [&check_if_exists](const std::string& path) -> bool {
+    const auto remove_all_in_directory = [&check_if_exists](const std::string& path) -> void {
         if (!check_if_exists(path)) {
-            return true;
+            return;
         }
 
         for (const auto& entry : std::filesystem::directory_iterator(path)) {
@@ -71,8 +71,6 @@ void ff::prepare_wd() {
 #endif
             std::filesystem::remove(entry.path());
         }
-
-        return true;
     };
 
     if (!check_if_exists(ff::settings.session_directory)) {
@@ -170,22 +168,6 @@ void ff::prepare_wd() {
         ff::logger.write_to_log(limhamn::logger::type::notice, "The database file directory was created.\n");
     }
 
-    if (!check_if_exists(ff::settings.logo_file) && !ff::settings.logo_file.empty()) {
-        std::filesystem::path logo_file_path{ff::settings.logo_file};
-        std::filesystem::path logo_file_directory{logo_file_path.parent_path()};
-
-        if (!check_if_exists(logo_file_directory)) {
-            ff::logger.write_to_log(limhamn::logger::type::notice, "The logo file directory does not exist. Creating it.\n");
-
-            if (!create_directory(logo_file_directory)) {
-                ff::logger.write_to_log(limhamn::logger::type::error, "Failed to create the logo file directory. Do I have adequate permissions? Unrecoverable error.\n");
-                std::exit(EXIT_FAILURE);
-            }
-        }
-
-        ff::logger.write_to_log(limhamn::logger::type::warning, "The logo file does not exist.\n");
-    }
-
     if (!check_if_exists(ff::settings.favicon_file) && !ff::settings.favicon_file.empty()) {
         std::filesystem::path favicon_file_path{ff::settings.favicon_file};
         std::filesystem::path favicon_file_directory{favicon_file_path.parent_path()};
@@ -266,7 +248,6 @@ void ff::start_server() {
             ff::logger.write_to_log(limhamn::logger::type::access, "Request received from " + request.ip_address + " to " + request.endpoint + " received, handling it.\n");
 
             const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&)>> handlers{
-                {virtual_logo_path, ff::handle_virtual_logo_endpoint},
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
                 {virtual_stylesheet_path, ff::handle_virtual_stylesheet_endpoint},
                 {virtual_script_path, ff::handle_virtual_script_endpoint},
@@ -289,7 +270,6 @@ void ff::start_server() {
                 {"/api/get_profile", ff::handle_api_get_profile},
             };
             const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&)>> setup_handlers{
-                {virtual_logo_path, ff::handle_virtual_logo_endpoint},
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
                 {virtual_stylesheet_path, ff::handle_virtual_stylesheet_endpoint},
                 {virtual_script_path, ff::handle_virtual_script_endpoint},

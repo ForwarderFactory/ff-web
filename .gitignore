@@ -1,5 +1,6 @@
 *.log
 *.db
+*.yaml
 audio/
 data/
 sessions/

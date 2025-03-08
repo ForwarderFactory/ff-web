@@ -27,7 +27,6 @@ namespace ff {
         std::string html_file{"/etc/ff/html/index.html"};
         std::string css_file{"/etc/ff/css/ff.css"};
         std::string script_file{"/etc/ff/js/ff.js"};
-        std::string logo_file{"/etc/ff/img/logo.svg"};
         std::string favicon_file{"/etc/ff/img/favicon.svg"};
         bool public_registration{true};
         std::vector<std::pair<std::string, std::string>> custom_paths{
@@ -56,7 +55,6 @@ namespace ff {
         std::string html_file{"./html/index.html"};
         std::string css_file{"./css/ff.css"};
         std::string script_file{"./js/ff.js"};
-        std::string logo_file{"./img/logo.svg"};
         std::string favicon_file{"./img/favicon.svg"};
         bool public_registration{true};
         std::vector<std::pair<std::string, std::string>> custom_paths{
@@ -170,6 +168,23 @@ namespace ff {
         std::string user_agent{};
     };
 
+    class StaticExists {
+        std::vector<std::pair<std::string, bool>> paths{};
+    public:
+        explicit StaticExists() = default;
+        ~StaticExists() = default;
+        [[nodiscard]] bool is_file(const std::string& path) {
+#ifdef FF_DEBUG
+            return std::filesystem::exists(path);
+#else
+            for (const auto& it : this->paths) if (it.first == path) return it.second;
+            paths.emplace_back(path, std::filesystem::exists(path));
+            return paths.back().second;
+#endif
+        }
+
+    };
+
     class CacheManager {
         using FileContent = std::string;
         using FileName = std::string;
@@ -199,6 +214,7 @@ namespace ff {
     inline Settings settings{};
     inline limhamn::logger::logger logger{};
     inline CacheManager cache_manager{};
+    inline StaticExists static_exists{};
     inline bool fatal{false};
 
     class Database {
@@ -290,7 +306,6 @@ namespace ff {
     };
 
     inline static const std::string virtual_stylesheet_path = "/css/index.css";
-    inline static const std::string virtual_logo_path = "/img/logo.svg";
     inline static const std::string virtual_font_path = "/fonts/font.ttf";
     inline static const std::string virtual_favicon_path = "/img/favicon.svg";
     inline static const std::string virtual_script_path = "/js/index.js";
@@ -338,7 +353,6 @@ namespace ff {
     limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, Database& db);
     limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db);
     limhamn::http::server::response handle_setup_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_virtual_logo_endpoint(const limhamn::http::server::request& request, Database& db);
     limhamn::http::server::response handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db);
     limhamn::http::server::response handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db);
     limhamn::http::server::response handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db);

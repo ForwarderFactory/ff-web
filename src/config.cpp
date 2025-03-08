@@ -56,7 +56,6 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["filesystem"]["html_file"]) settings.html_file = config["filesystem"]["html_file"].as<std::string>();
         if (config["filesystem"]["css_file"]) settings.css_file = config["filesystem"]["css_file"].as<std::string>();
         if (config["filesystem"]["js_file"]) settings.script_file = config["filesystem"]["js_file"].as<std::string>();
-        if (config["filesystem"]["logo_file"]) settings.logo_file = config["filesystem"]["logo_file"].as<std::string>();
         if (config["filesystem"]["favicon_file"]) settings.favicon_file = config["filesystem"]["favicon_file"].as<std::string>();
         if (config["filesystem"]["access_file"]) settings.access_file = config["filesystem"]["access_file"].as<std::string>();
         if (config["filesystem"]["warning_file"]) settings.warning_file = config["filesystem"]["warning_file"].as<std::string>();
@@ -203,7 +202,6 @@ std::string ff::generate_default_config() {
     ss << "#   html_file: The path to the HTML file.\n";
     ss << "#   css_file: The path to the CSS file.\n";
     ss << "#   js_file: The path to the JS file.\n";
-    ss << "#   logo_file: The path to the logo file.\n";
     ss << "#   favicon_file: The path to the favicon file.\n";
     ss << "filesystem:\n";
     ss << "  session_directory: \"" << ff::settings.session_directory << "\"\n";
@@ -212,7 +210,6 @@ std::string ff::generate_default_config() {
     ss << "  html_file: \"" << ff::settings.html_file << "\"\n";
     ss << "  css_file: \"" << ff::settings.css_file << "\"\n";
     ss << "  js_file: \"" << ff::settings.script_file << "\"\n";
-    ss << "  logo_file: \"" << ff::settings.logo_file << "\"\n";
     ss << "  favicon_file: \"" << ff::settings.favicon_file << "\"\n";
     ss << "  access_file: \"" << ff::settings.access_file << "\"\n";
     ss << "  warning_file: \"" << ff::settings.warning_file << "\"\n";

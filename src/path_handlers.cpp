@@ -11,7 +11,7 @@ limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::se
     const auto prepare_file = [](const std::string& path) -> std::string {
         static const std::string temp_file = settings.temp_directory + "/index.html";
 
-        if (std::filesystem::exists(temp_file)) {
+        if (static_exists.is_file(temp_file)) {
             return temp_file;
         }
 
@@ -27,7 +27,7 @@ limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::se
         if (domain.find('/') != std::string::npos) {
             domain = domain.substr(0, domain.find('/'));
         }
-        static const std::vector<std::pair<std::string, std::string>> find_replace_table = {
+        const std::vector<std::pair<std::string, std::string>> find_replace_table = {
             {"{{ff_title}}", settings.title},
             {"{{ff_description}}", settings.description},
             {"{{ff_domain}}", domain},
@@ -191,6 +191,8 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
 
     if (status == AccountCreationStatus::Success) {
         std::filesystem::remove(settings.temp_directory + "/index.html");
+        ff::cache_manager = ff::CacheManager{};
+        ff::static_exists = ff::StaticExists{};
         ff::needs_setup = false;
         response.http_status = 204;
         return response;
@@ -223,30 +225,13 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
     }
 }
 
-limhamn::http::server::response ff::handle_virtual_logo_endpoint(const limhamn::http::server::request& request, Database& db) {
-    limhamn::http::server::response response{};
-
-    response.content_type = "image/svg+xml";
-    response.http_status = 200;
-
-    if (settings.logo_file.empty() || !std::filesystem::exists(settings.logo_file)) {
-        response.http_status = 200;
-        response.body = "";
-        return response;
-    }
-
-    response.body = ff::cache_manager.open_file(settings.logo_file);
-
-    return response;
-}
-
 limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "image/svg+xml";
     response.http_status = 200;
 
-    if (settings.favicon_file.empty() || !std::filesystem::exists(settings.favicon_file)) {
+    if (settings.favicon_file.empty() || !static_exists.is_file(settings.favicon_file)) {
         response.http_status = 200;
         response.body = "";
         return response;
@@ -263,39 +248,13 @@ limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const lim
     response.content_type = "text/css";
     response.http_status = 200;
 
-    if (settings.css_file.empty() || !std::filesystem::exists(settings.css_file)) {
+    if (settings.css_file.empty() || !static_exists.is_file(settings.css_file)) {
         response.http_status = 200;
         response.body = "";
         return response;
     }
 
-    // TODO: Just like the name, this function is UGLY AS FUCK, and does not belong anywhere near
-    // a project like this. But I simply cannot be bothered to write a CSS minifier myself, nor
-    // am I aware of any C++ library for doing such a thing, and I am therefore just going to call uglifyjs.
-    const auto uglify_file = [](const std::string& path) -> std::string {
-        static const std::string temp_file = settings.temp_directory + "/ff_temp.css";
-        if (std::filesystem::exists(temp_file)) {
-            return temp_file;
-        }
-        if (std::system("which uglifyjs > /dev/null") != 0) {
-            return path;
-        }
-
-        std::filesystem::copy_file(path, temp_file);
-
-        // run uglifyjs on the file
-        std::string command = "uglifyjs " + temp_file + " -o " + temp_file;
-        std::system(command.c_str());
-
-        return temp_file;
-    };
-
-#if FF_DEBUG
     response.body = ff::cache_manager.open_file(settings.css_file);
-#else
-    std::string path = uglify_file(settings.css_file);
-    response.body = ff::cache_manager.open_file(path);
-#endif
 
     return response;
 }
@@ -311,7 +270,7 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
     // am I aware of any C++ library for doing such a thing, and I am therefore just going to call uglifyjs.
     const auto uglify_file = [](const std::string& path) -> std::string {
         static const std::string temp_file = settings.temp_directory + "/ff_temp.js";
-        if (std::filesystem::exists(temp_file)) {
+        if (static_exists.is_file(temp_file)) {
             return temp_file;
         }
         if (std::system("which uglifyjs > /dev/null") != 0) {
