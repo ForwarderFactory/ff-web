@@ -4,58 +4,65 @@
 #include <bygg/bygg.hpp>
 #include <nlohmann/json.hpp>
 
-limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, Database& db, const SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, Database& db) {
     using namespace bygg::HTML;
     limhamn::http::server::response response{};
 
-    response.content_type = "text/html";
-    response.http_status = 200;
-    Section sect{Tag::Html, Property{"lang", "en"},
-        ff::get_site_head(request, site_properties),
-        Section{Tag::Body,
-            Element{Tag::H1, make_properties(Property{"id", "page-header"}, Property{"class", "center"}), "Forwarder Factory"},
-            Section{Tag::Div, make_properties(Property{"class", "content"}, Property{"id", "content"})}
+    const auto prepare_file = [](const std::string& path) -> std::string {
+        static const std::string temp_file = settings.temp_directory + "/index.html";
+
+        if (std::filesystem::exists(temp_file)) {
+            return temp_file;
         }
+
+        std::filesystem::copy_file(path, temp_file);
+
+        // get domain from site url
+        std::string domain = settings.site_url;
+        if (domain.find("https://") != std::string::npos) {
+            domain = domain.substr(8);
+        } else if (domain.find("http://") != std::string::npos) {
+            domain = domain.substr(7);
+        }
+        if (domain.find('/') != std::string::npos) {
+            domain = domain.substr(0, domain.find('/'));
+        }
+        static const std::vector<std::pair<std::string, std::string>> find_replace_table = {
+            {"{{ff_title}}", settings.title},
+            {"{{ff_description}}", settings.description},
+            {"{{ff_domain}}", domain},
+            {"{{ff_favicon_path}}", virtual_favicon_path},
+            {"{{ff_css_path}}", virtual_stylesheet_path},
+            {"{{ff_js_path}}", virtual_script_path},
+                {"{{ff_body_replace}}", needs_setup ? "<script>setup();</script>" : ""},
+            {"\n", ""},
+            {"\t", ""},
+        };
+
+        auto contents = open_file(temp_file);
+        for (const auto& it : find_replace_table) {
+            size_t pos = 0;
+            while ((pos = contents.find(it.first, pos)) != std::string::npos) {
+                contents.replace(pos, it.first.length(), it.second);
+                pos += it.second.length();
+            }
+        }
+
+        std::ofstream file(temp_file, std::ios::out);
+        file << contents;
+        file.close();
+
+        return temp_file;
     };
 
-    static constexpr int body_index = 1; /* deduced from looking at the structure; maybe it's better to use lookup functions? */
-    static constexpr int content_index = 1; /* same as above */
-    auto& ref = sect.at_section(body_index).at_section(content_index);
-
-    std::vector<Section> sl;
-    sl.push_back(ff::get_link_box({.title = "Browse", .description = "Browse channels uploaded by others.", .location = "", .color = "", .background_color = "", .id = "browse-button", .classes = "", .onclick = "show_browse_button()"}));
-    if (!ff::username_is_stored(request)) {
-        sl.push_back(ff::get_link_box({.title = "Login", .description = "Login to your account.", .location = "", .color = "", .background_color = "", .id = "login-button", .classes = "", .onclick = "show_login()"}));
-        if (settings.public_registration) {
-            sl.push_back(ff::get_link_box({.title = "Register", .description = "Register for an account.", .location = "", .color = "", .background_color = "", .id = "register-button", .classes = "", .onclick = "show_register()"}));
-        }
-    } else {
-        sl.push_back(ff::get_link_box({.title = "Upload", .description = "Upload a channel to share with others.", .location = "", .color = "", .background_color = "", .id = "upload-button", .classes = "", .onclick = "show_upload()"}));
-        sl.push_back(ff::get_link_box({.title = "Log out", .description = "Log out of your account.", .location = "", .color = "", .background_color = "", .id = "logout-button", .classes = "", .onclick = "show_logout_button()"}));
-    }
-    sl.push_back(ff::get_link_box({.title = "Credits", .description = "See the Forwarder Factory credits.", .location = "", .color = "", .background_color = "", .id = "credits-button", .classes = "", .onclick = "show_credits_button()"}));
-
-    const auto username = request.session.find("username") != request.session.end() ? request.session.at("username") : "";
-    if (!username.empty()) {
-        const auto type = get_user_type(db, username);
-        if (type == UserType::Administrator) {
-            sl.push_back(ff::get_link_box({.title = "Administration", .description = "Administer Forwarder Factory, like the God you are.", .location = "", .color = "", .background_color = "", .id = "admin-button", .classes = "", .onclick = "show_admin_button()"}));
-        }
-    }
-
-    ref.push_back(ff::get_grid(sl, "", "initial-link-grid"));
-    response.body = Document(sect).get<std::string>(
-#if FF_DEBUG
-        Formatting::Pretty
-#else
-        Formatting::None
-#endif
-        );
+    response.content_type = "text/html";
+    response.http_status = 200;
+    response.body = ff::cache_manager.open_file(prepare_file(settings.html_file));
 
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     if (request.body.empty()) {
@@ -102,41 +109,11 @@ limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn
     return response;
 }
 
-limhamn::http::server::response ff::handle_setup_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
-    limhamn::http::server::response response{};
-
-    if (!ff::needs_setup) {
-        response.location = "/";
-        return response;
-    }
-
-    response.content_type = "text/html";
-    response.http_status = 200;
-
-    using namespace bygg::HTML;
-
-    Section sect{Tag::Html, Property{"lang", "en"},
-        ff::get_site_head(request, site_properties),
-        Section{Tag::Body,
-            Element{Tag::H1, make_properties(Property{"id", "page-header"}, Property{"class", "center"}), "Forwarder Factory"},
-            Section{Tag::Div, make_properties(Property{"class", "content"}, Property{"id", "content"})},
-            Element{Tag::Script, "setup()"},
-        }
-    };
-
-    response.body = Document(sect).get<std::string>(
-#if FF_DEBUG
-    Formatting::Pretty
-#else
-    Formatting::None
-#endif
-    );
-
-    return response;
+limhamn::http::server::response ff::handle_setup_endpoint(const limhamn::http::server::request& request, Database& db) {
+    return handle_root_endpoint(request, db);
 }
 
-limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db,
-    const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -165,7 +142,7 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
     nlohmann::json input_json;
     try {
         input_json = nlohmann::json::parse(request.body);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         response.http_status = 400;
         nlohmann::json json;
         json["error"] = "FF_INVALID_JSON";
@@ -213,6 +190,7 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
     );
 
     if (status == AccountCreationStatus::Success) {
+        std::filesystem::remove(settings.temp_directory + "/index.html");
         ff::needs_setup = false;
         response.http_status = 204;
         return response;
@@ -243,11 +221,9 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
         response.http_status = 400;
         return response;
     }
-
-    return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_logo_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_virtual_logo_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "image/svg+xml";
@@ -264,7 +240,7 @@ limhamn::http::server::response ff::handle_virtual_logo_endpoint(const limhamn::
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "image/svg+xml";
@@ -281,7 +257,7 @@ limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limham
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "text/css";
@@ -296,7 +272,7 @@ limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const lim
     // TODO: Just like the name, this function is UGLY AS FUCK, and does not belong anywhere near
     // a project like this. But I simply cannot be bothered to write a CSS minifier myself, nor
     // am I aware of any C++ library for doing such a thing, and I am therefore just going to call uglifyjs.
-    const auto uglifyFile = [](const std::string& path) -> std::string {
+    const auto uglify_file = [](const std::string& path) -> std::string {
         static const std::string temp_file = settings.temp_directory + "/ff_temp.css";
         if (std::filesystem::exists(temp_file)) {
             return temp_file;
@@ -317,29 +293,23 @@ limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const lim
 #if FF_DEBUG
     response.body = ff::cache_manager.open_file(settings.css_file);
 #else
-    std::string path = uglifyFile(settings.css_file);
+    std::string path = uglify_file(settings.css_file);
     response.body = ff::cache_manager.open_file(path);
 #endif
 
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response;
 
     response.content_type = "text/javascript";
     response.http_status = 200;
 
-    if (settings.script_file.empty() || !std::filesystem::exists(settings.script_file)) {
-        response.http_status = 200;
-        response.body = "";
-        return response;
-    }
-
     // TODO: Just like the name, this function is UGLY AS FUCK, and does not belong anywhere near
     // a project like this. But I simply cannot be bothered to write a JS minifier myself, nor
     // am I aware of any C++ library for doing such a thing, and I am therefore just going to call uglifyjs.
-    const auto uglifyFile = [](const std::string& path) -> std::string {
+    const auto uglify_file = [](const std::string& path) -> std::string {
         static const std::string temp_file = settings.temp_directory + "/ff_temp.js";
         if (std::filesystem::exists(temp_file)) {
             return temp_file;
@@ -360,14 +330,14 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
 #if FF_DEBUG
     response.body = ff::cache_manager.open_file(settings.script_file);
 #else
-    std::string path = uglifyFile(settings.script_file);
+    std::string path = uglify_file(settings.script_file);
     response.body = ff::cache_manager.open_file(path);
 #endif
 
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_register_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_api_try_register_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -495,7 +465,7 @@ limhamn::http::server::response ff::handle_api_try_register_endpoint(const limha
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -604,7 +574,7 @@ limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn:
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "application/json";
@@ -615,14 +585,14 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
         bool is_forwarder{false}; // if true, must be a forwarder
         bool accepted{false}; // if true, must be accepted
         bool needs_review{false}; // if true, must need review
-        std::string search_string{""}; // if not empty, must contain this string somewhere
-        std::string title_id_string{""}; // if not empty, must match this title id
-        std::string uploader{""}; // if not empty, must match this uploader
-        std::string author{""}; // if not empty, must match this author
+        std::string search_string{}; // if not empty, must contain this string somewhere
+        std::string title_id_string{}; // if not empty, must match this title id
+        std::string uploader{}; // if not empty, must match this uploader
+        std::string author{}; // if not empty, must match this author
         int type{-1}; // if not -1, must match this type (1 = channel, 0 = forwarder)
-        std::string category{""}; // if not empty, must match this category
+        std::string category{}; // if not empty, must match this category
         std::vector<std::string> categories{}; // if not empty, must match one of these categories
-        std::string location{""}; // if not empty, must match this location
+        std::string location{}; // if not empty, must match this location
         int64_t submitted_before{-1}; // if not -1, must be submitted before this time
         int64_t submitted_after{-1}; // if not -1, must be submitted after this time
         std::pair<int64_t, int64_t> submitted_between{-1, -1}; // if not -1, must be submitted between these times
@@ -817,13 +787,13 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
                     }
                 }
             }
+            bool found = false;
             if (!filter.categories.empty()) {
                 for (const auto& category : filter.categories) {
                     if (meta.find("categories") != meta.end() && meta.at("categories").is_array()) {
-                        bool found = false;
-                        for (const auto& it : meta.at("categories")) {
-                            if (it.is_string()) {
-                                std::string cat{it.get<std::string>()};
+                        for (const auto& it_category : meta.at("categories")) {
+                            if (it_category.is_string()) {
+                                std::string cat{it_category.get<std::string>()};
                                 std::transform(cat.begin(), cat.end(), cat.begin(), ::tolower);
                                 if (cat == category) {
                                     found = true;
@@ -831,12 +801,16 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
                                 }
                             }
                         }
-                        if (!found) {
-                            continue;
-                        }
+
+                        if (found) break;
                     }
                 }
+
+                if (!found) {
+                    continue;
+                }
             }
+
             if (!filter.category.empty()) {
                 if (meta.find("category") != meta.end() && meta.at("category").is_string()) {
                     std::transform(filter.category.begin(), filter.category.end(), filter.category.begin(), ::tolower);
@@ -900,7 +874,7 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
 
 // this endpoint requires auth and cookies
 // in the future, we should allow other kinds of auth for this endpoint, so that third party clients can use it
-limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -980,7 +954,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     nlohmann::json input;
     try {
         input = nlohmann::json::parse(request.body);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
 #ifdef FF_DEBUG
         logger.write_to_log(limhamn::logger::type::notice, "Failed to parse JSON.\n");
 #endif
@@ -1029,7 +1003,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
             // return 204;
             response.http_status = 204;
             return response;
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
 #if FF_DEBUG
             logger.write_to_log(limhamn::logger::type::error, "Help I got caught.\n");
 #endif
@@ -1045,7 +1019,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_update_profile(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties) {
+limhamn::http::server::response ff::handle_api_update_profile(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     if (request.body.empty()) {
@@ -1090,7 +1064,7 @@ limhamn::http::server::response ff::handle_api_update_profile(const limhamn::htt
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& prop) {
+limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::server::request& request, Database& db) {
     limhamn::http::server::response response{};
 
     if (request.method != "POST") {

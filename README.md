@@ -22,7 +22,6 @@ Don't know how realistic this is, but here's a list of things that I want to see
 
 - Boost (beast, asio, system, url) - for networking
 - OpenSSL - SSL/TLS and general cryptography
-- [bygg](https://jacobnilsson.com/bygg.html) - for constructing HTML structures (automatically downloaded and built)
 - yaml-cpp - for configuration files
 - SQLite3 - for database (optional, if PostgreSQL is enabled)
 - PostgreSQL - for database (optional, if SQLite3 is enabled)
@@ -75,20 +74,6 @@ please let us know!
 
 You can override credentials in your configuration file. Note that SQLite3 may be
 enabled by default.
-
-## Note to developers
-
-When I got started with this project, I intended to utilize bygg for constructing HTML structures. As the project developed and
-I started utilizing JavaScript more and more, I started to create elements dynamically, as opposed to constructing them in C++.
-One part of me is unsatisfied with this (you know, eating your own dog food and all that), but I think this approach works
-better for frontend UX.
-
-In the future, perhaps eliminating bygg as a dependency would be a good idea and go all out on the JavaScript side of
-things, exclusively using C++ for backend, and using backend as little as possible (push the performance burden to the client
-instead of the server).
-
-Also, I am currently suffering from an identity crisis surrounding the use of `snake_case` and `camelCase`. Somebody
-please convince me to be consistent. For the moment, the C++ uses only `snake_case` and JavaScript uses both. I'm sorry.
 
 ## Contributing
 

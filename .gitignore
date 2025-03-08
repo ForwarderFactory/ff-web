@@ -1,0 +1,10 @@
+*.log
+*.db
+audio/
+data/
+sessions/
+img/
+tmp/
+cmake-*
+*build*
+.idea

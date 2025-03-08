@@ -119,6 +119,26 @@ void ff::prepare_wd() {
         }
     }
 
+    if (!check_if_exists(ff::settings.html_file)) {
+        std::filesystem::path html_file_path{ff::settings.html_file};
+        std::filesystem::path html_file_directory{html_file_path.parent_path()};
+
+        ff::logger.write_to_log(limhamn::logger::type::notice, "The HTML file directory does not exist. Creating it.\n");
+        if (!create_directory(html_file_directory)) {
+            log_error("Failed to create the HTML file directory. Do I have adequate permissions? Unrecoverable error.\n");
+        }
+        ff::logger.write_to_log(limhamn::logger::type::notice, "The HTML file directory was created.\n");
+        ff::logger.write_to_log(limhamn::logger::type::warning, "The HTML file does not exist. Creating a blank file. ff-web will not operate correctly without an HTML file!!\n");
+
+        std::ofstream html_file{ff::settings.html_file};
+        if (html_file.is_open() == false) {
+            ff::logger.write_to_log(limhamn::logger::type::warning, "HTML file could not be opened.\n");
+        } else {
+            html_file << "The sysadmin responsible for this site has not set up an index file. If you intended to use this instance solely for the API, you can ignore this message.\n";
+            html_file.close();
+        }
+    }
+
     if (!check_if_exists(ff::settings.script_file)) {
         std::filesystem::path script_file_path{ff::settings.script_file};
         std::filesystem::path script_file_directory{script_file_path.parent_path()};
@@ -139,8 +159,8 @@ void ff::prepare_wd() {
         }
     }
 
-    if (!check_if_exists(ff::settings.database_file) && !ff::settings.enabled_database) {
-        std::filesystem::path database_file_path{ff::settings.database_file};
+    if (!check_if_exists(ff::settings.sqlite_database_file) && !ff::settings.enabled_database) {
+        std::filesystem::path database_file_path{ff::settings.sqlite_database_file};
         std::filesystem::path database_file_directory{database_file_path.parent_path()};
 
         ff::logger.write_to_log(limhamn::logger::type::notice, "The database file directory does not exist. Creating it.\n");
@@ -216,7 +236,7 @@ void ff::start_server() {
 #endif
         } else {
 #ifdef FF_ENABLE_SQLITE
-            database->get_sqlite().open(settings.database_file);
+            database->get_sqlite().open(settings.sqlite_database_file);
 #endif
         }
 
@@ -230,16 +250,6 @@ void ff::start_server() {
         if (!ff::ensure_admin_account_exists(*database)) {
             ff::needs_setup = true;
         }
-
-        ff::site_properties = {
-            .title = settings.title,
-            .css_path = virtual_stylesheet_path,
-            .js_path = virtual_script_path,
-            .img_path = virtual_logo_path,
-            .favicon_path = virtual_favicon_path,
-            .footer_html = settings.footer_html,
-            .description = settings.description,
-        };
 
         limhamn::http::server::server(limhamn::http::server::server_settings{
             .port = settings.port,
@@ -255,7 +265,7 @@ void ff::start_server() {
             }, [&](const limhamn::http::server::request& request) -> limhamn::http::server::response {
             ff::logger.write_to_log(limhamn::logger::type::access, "Request received from " + request.ip_address + " to " + request.endpoint + " received, handling it.\n");
 
-            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&, const ff::SiteProperties&)>> handlers{
+            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&)>> handlers{
                 {virtual_logo_path, ff::handle_virtual_logo_endpoint},
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
                 {virtual_stylesheet_path, ff::handle_virtual_stylesheet_endpoint},
@@ -278,7 +288,7 @@ void ff::start_server() {
                 {"/api/update_profile", ff::handle_api_update_profile},
                 {"/api/get_profile", ff::handle_api_get_profile},
             };
-            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&, const ff::SiteProperties&)>> setup_handlers{
+            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&)>> setup_handlers{
                 {virtual_logo_path, ff::handle_virtual_logo_endpoint},
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
                 {virtual_stylesheet_path, ff::handle_virtual_stylesheet_endpoint},
@@ -295,7 +305,7 @@ void ff::start_server() {
                     if (!std::filesystem::exists(it.second)) {
                         response.content_type = "text/html";
                         response.http_status = 404;
-                        response.body = bygg::HTML::Element(bygg::HTML::Tag::P, {}, "404 Not Found").get<std::string>();
+                        response.body = "<p>404 Not Found</p>";
 
                         return response;
                     }
@@ -309,13 +319,13 @@ void ff::start_server() {
             }
 
             if (needs_setup && setup_handlers.find(request.endpoint) != setup_handlers.end()) {
-                return setup_handlers.at(request.endpoint)(request, *database, site_properties);
+                return setup_handlers.at(request.endpoint)(request, *database);
             } else if (needs_setup) {
-                return setup_handlers.at("/setup")(request, *database, site_properties);
+                return setup_handlers.at("/setup")(request, *database);
             }
 
             if (handlers.find(request.endpoint) != handlers.end()) {
-                return handlers.at(request.endpoint)(request, *database, site_properties);
+                return handlers.at(request.endpoint)(request, *database);
             }
 
             // check if a file upload exists and if so, download and serve
@@ -350,7 +360,7 @@ void ff::start_server() {
                 file_path = file_path.lexically_normal(); // normalize the path
 
                 if (file_path.string().find("/view/") == 0) {
-                    return handlers.at("/")(request, *database, site_properties);
+                    return handlers.at("/")(request, *database);
                 }
             }
 
@@ -378,7 +388,7 @@ void ff::start_server() {
                         limhamn::http::server::response resp;
                         resp.content_type = "text/html";
                         resp.http_status = 500;
-                        resp.body = bygg::HTML::Element(bygg::HTML::Tag::P, {}, "An error occurred.").get<std::string>();
+                        resp.body = "<p>500 Internal Server Error</p>";
                         return resp;
                     }
                 }
@@ -388,7 +398,7 @@ void ff::start_server() {
 
             response.content_type = "text/html";
             response.http_status = 404;
-            response.body = bygg::HTML::Element(bygg::HTML::Tag::P, {}, "404 Not Found").get<std::string>();
+            response.body = "<p>404 Not Found</p>";
 
             return response;
         });

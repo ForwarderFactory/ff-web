@@ -10,7 +10,6 @@
 #define LIMHAMN_HTTP_UTILS_IMPL
 #include <limhamn/http/http_server.hpp>
 #include <limhamn/http/http_utils.hpp>
-#include <bygg/bygg.hpp>
 
 namespace ff {
     struct Settings {
@@ -21,10 +20,11 @@ namespace ff {
         std::string notice_file{"/var/log/ff/notice.log"};
         bool output_to_std{false};
         bool halt_on_error{false};
-        std::string database_file{"/var/db/ff/ff.db"};
+        std::string sqlite_database_file{"/var/db/ff/ff.db"};
         std::string session_directory{"/var/lib/ff/sessions"};
         std::string data_directory{"/var/lib/ff/data"};
         std::string temp_directory{"/var/tmp/ff"};
+        std::string html_file{"/etc/ff/html/index.html"};
         std::string css_file{"/etc/ff/css/ff.css"};
         std::string script_file{"/etc/ff/js/ff.js"};
         std::string logo_file{"/etc/ff/img/logo.svg"};
@@ -47,12 +47,13 @@ namespace ff {
         std::string warning_file{"./warning.log"};
         std::string error_file{"./error.log"};
         std::string notice_file{"./notice.log"};
-        std::string database_file{"./ff-debug.db"};
+        std::string sqlite_database_file{"./ff-debug.db"};
         bool output_to_std{true};
         bool halt_on_error{false};
         std::string session_directory{"./sessions"};
         std::string data_directory{"./data"};
         std::string temp_directory{"./tmp"};
+        std::string html_file{"./html/index.html"};
         std::string css_file{"./css/ff.css"};
         std::string script_file{"./js/ff.js"};
         std::string logo_file{"./img/logo.svg"};
@@ -85,7 +86,6 @@ namespace ff {
         std::string session_cookie_name{"ff_session"};
         std::string title{"Forwarder Factory"};
         std::string description{"Forwarder Factory is a community dedicated to preserving and sharing Nintendo- and Wii-related content."};
-        std::string footer_html{"<p>Website copyright (c) Jacob Nilsson</p>\n<p>Content on this website owned by their respective owners.</p>"};
         int default_user_type{0};
         bool preview_files{true};
         std::string email_username{};
@@ -151,27 +151,6 @@ namespace ff {
         Administrator = 1,
     };
 
-    struct SiteProperties {
-        std::string title{};
-        std::string css_path{};
-        std::string js_path{};
-        std::string img_path{};
-        std::string favicon_path{};
-        std::string footer_html{};
-        std::string description{};
-    };
-
-    struct LinkBoxProperties {
-        std::string title{};
-        std::string description{};
-        std::string location{};
-        std::string color{};
-        std::string background_color{};
-        std::string id{};
-        std::string classes{};
-        std::string onclick{};
-    };
-
     struct FileConstruct {
         std::string path{};
         std::string name{};
@@ -194,7 +173,7 @@ namespace ff {
     class CacheManager {
         using FileContent = std::string;
         using FileName = std::string;
-        std::vector<std::pair<FileName, FileContent>> cache{}; // filename, content
+        std::vector<std::pair<FileName, FileContent>> cache{};
     public:
         explicit CacheManager() = default;
         ~CacheManager() = default;
@@ -219,7 +198,6 @@ namespace ff {
 
     inline Settings settings{};
     inline limhamn::logger::logger logger{};
-    inline SiteProperties site_properties{};
     inline CacheManager cache_manager{};
     inline bool fatal{false};
 
@@ -241,7 +219,7 @@ namespace ff {
 
         bool enabled_type = false; // false = sqlite, true = postgres
     public:
-        Database(bool type) : enabled_type(type) {}
+        explicit Database(bool type) : enabled_type(type) {}
         std::vector<std::unordered_map<std::string, std::string>> query(const std::string& query) {
             if (!this->enabled_type) {
 #if FF_DEBUG
@@ -296,12 +274,8 @@ namespace ff {
                 return POSTGRES_HANDLE.exec(query, args...);
             }
         }
-        bool good() {
-            if (!this->enabled_type) {
-                return SQLITE_HANDLE.good();
-            } else {
-                return POSTGRES_HANDLE.good();
-            }
+        [[nodiscard]] bool good() const {
+            return this->enabled_type ? POSTGRES_HANDLE.good() : SQLITE_HANDLE.good();
         }
 #if FF_ENABLE_SQLITE
         limhamn::database::sqlite3_database& get_sqlite() {
@@ -343,7 +317,6 @@ namespace ff {
     Settings load_settings(const std::string& _config_file);
     std::string generate_default_config();
     void setup_database(Database& database);
-    bygg::HTML::Section get_site_head(const limhamn::http::server::request& req, const SiteProperties& properties);
     std::string open_file(const std::string& file_path);
     bool username_is_stored(const limhamn::http::server::request& request);
     bool ensure_valid_creds(Database& database, const std::string& username, const std::string& password);
@@ -352,8 +325,6 @@ namespace ff {
     bool ensure_admin_account_exists(Database& database);
     int get_user_id(Database& database, const std::string& username);
     UserType get_user_type(Database& database, const std::string& username);
-    bygg::HTML::Section get_grid(const std::vector<bygg::HTML::Section>& sections, const std::string& classes = {}, const std::string& id = {});
-    bygg::HTML::Section get_link_box(const LinkBoxProperties& p);
     bool validate_image(const std::string& path);
     bool validate_video(const std::string& path);
     bool convert_to_webm(const std::string& input, const std::string& output);
@@ -364,18 +335,18 @@ namespace ff {
     RetrievedFile download_file(Database& db, const ff::UserProperties& prop, const std::string& file_key);
     bool is_file(Database& db, const std::string& file_key);
 
-    limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_setup_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_virtual_logo_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_try_register_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_try_login_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_try_upload_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
-    limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, Database& db, const ff::SiteProperties& site_properties);
+    limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_setup_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_virtual_logo_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_try_register_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_try_login_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_try_upload_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, Database& db);
 } // namespace ff

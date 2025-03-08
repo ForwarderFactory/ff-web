@@ -19,7 +19,6 @@ set(PROJECT_SOURCE_FILES
     src/database.cpp
     src/upload_manager.cpp
     src/account_manager.cpp
-    src/template_handler.cpp
     src/path_handlers.cpp
     src/scrypto.cpp
     src/av_io.cpp
@@ -29,7 +28,6 @@ include_directories(include)
 include_directories(libs)
 
 add_subdirectory(libs/libbcrypt)
-add_subdirectory(libs/limhamn)
 
 include_directories(libs/libbcrypt/include)
 include_directories(libs/limhamn/include)
@@ -58,16 +56,6 @@ if (!FF_ENABLE_SQLITE AND !FF_ENABLE_POSTGRESQL)
     message(FATAL_ERROR "No database backend enabled")
 endif()
 
-include (FetchContent)
-FetchContent_Declare(
-    bygg
-    GIT_REPOSITORY https://github.com/jacnils/bygg.git
-    GIT_TAG        main
-    CMAKE_ARGS -DBYGG_BUILD_LIBXML2=ON -DBUILD_SHARED_LIBS=ON
-)
-FetchContent_MakeAvailable(bygg)
-add_library(bygg::bygg ALIAS bygg)
-
 add_compile_definitions(FF_VERSION="${PROJECT_VERSION}")
 
 if(e_debug)
@@ -81,18 +69,18 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     yaml-cpp::yaml-cpp
     OpenSSL::SSL
     OpenSSL::Crypto
-    bygg::bygg
     bcrypt
     nlohmann_json::nlohmann_json
     ImageMagick::Magick++
     ${FFMPEG_LIBRARIES}
 )
 
+# some systems require explicit linking to iconv, others don't
+# this is a bit hacky but seems to work well on both ubuntu and macos
 find_library(ICONV_LIB iconv)
 if (ICONV_LIB)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${ICONV_LIB})
 endif()
-
 if (FF_ENABLE_SQLITE)
     target_link_libraries(${PROJECT_NAME} PRIVATE SQLite::SQLite3)
 endif()

@@ -174,7 +174,11 @@ function hide_initial() {
         }
     }
 
-    // hide #browse-search and #browse-filter-button if they exist
+    const grids = document.getElementsByClassName('grid');
+    for (let i = 0; i < grids.length; i++) {
+        grids[i].style.display = 'none';
+    }
+
     const search = document.getElementById('browse-search');
     if (search) {
         search.style.display = 'none';
@@ -184,13 +188,11 @@ function hide_initial() {
         filter.style.display = 'none';
     }
 
-    // hide grid
-    const grids = document.getElementsByClassName('grid');
-    for (let i = 0; i < grids.length; i++) {
-        grids[i].style.display = 'none';
+    const title = document.getElementById('page-header');
+    if (title) {
+        title.style.display = 'block';
     }
 
-    // hide blacken
     const blacken = document.getElementById('blacken');
     if (blacken) {
         blacken.style.display = 'none';
@@ -279,8 +281,7 @@ function create_window(id, close_button = true, moveable = true, close_on_click_
         window.appendChild(close);
     }
 
-    const content = document.getElementById('content');
-    content.appendChild(window);
+    document.body.appendChild(window);
 
     return window;
 }
@@ -2625,6 +2626,127 @@ function setup(_error = "") {
     win.appendChild(document.createElement('br'));
     win.appendChild(submit);
 }
+function get_grid(elements) {
+    const container = document.createElement('div');
+    container.className = 'grid';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'row';
+    container.style.flexWrap = 'wrap';
+    container.style.gap = '10px';
+    container.style.paddingTop = '10px';
+    container.style.justifyContent = 'center';
+
+    container.style.position = 'absolute';
+    container.style.top = '50%';
+    container.style.left = '50%';
+    container.style.transform = 'translate(-50%, -50%)';
+
+    elements.forEach(element => {
+        element.className += ' grid-item';
+        element.style.padding = '10px';
+        element.style.flex = '1 1 50px';
+        element.style.boxSizing = 'border-box';
+        container.appendChild(element);
+    });
+
+    return container;
+}
+
+function get_link_box(p) {
+    const link_box = document.createElement('div');
+    link_box.className = 'link_box' + (p.classes ? ' ' + p.classes : '');
+
+    if (p.location) {
+        link_box.setAttribute('onclick', `location.href='${p.location}';`);
+    } else if (p.onclick) {
+        link_box.setAttribute('onclick', p.onclick);
+    }
+
+    if (p.id) {
+        link_box.id = p.id;
+    }
+
+    if (p.background_color || p.color) {
+        let style = '';
+        if (p.background_color) {
+            style += `background-color: ${p.background_color};`;
+        }
+        if (p.color) {
+            style += `color: ${p.color};`;
+        }
+        link_box.setAttribute('style', style);
+    }
+
+    const title = document.createElement('h2');
+    title.className = 'link_box_title';
+    title.textContent = p.title;
+
+    const description = document.createElement('p');
+    description.className = 'link_box_description';
+    description.textContent = p.description;
+
+    link_box.appendChild(title);
+    link_box.appendChild(description);
+
+    return link_box;
+}
+
+function init_page() {
+    let list = [];
+    list.push(get_link_box({
+        title: "Browse",
+        description: "Browse channels uploaded by others.",
+        background_color: "",
+        id: "browse-button",
+        onclick: "show_browse_button()"
+    }));
+
+    if (get_cookie("username") === null) {
+        list.push(get_link_box({
+            title: "Log in",
+            description: "Log in to your account.",
+            id: "login-button",
+            onclick: "show_login()"
+        }));
+        list.push(get_link_box({
+            title: "Register",
+            description: "Register a new account.",
+            id: "register-button",
+            onclick: "show_register()"
+        }));
+    } else {
+        if (get_cookie("user_type") === "1") {
+            list.push(get_link_box({
+                title: "Admin",
+                description: "Access the admin panel.",
+                id: "admin-button",
+                onclick: "show_admin_button()"
+            }));
+        }
+        list.push(get_link_box({
+            title: "Upload",
+            description: "Upload a forwarder or channel.",
+            id: "upload-button",
+            onclick: "show_upload()"
+        }));
+        list.push(get_link_box({
+            title: "Log out",
+            description: "Log out of your account.",
+            id: "logout-button",
+            onclick: "show_logout()"
+        }));
+    }
+
+    list.push(get_link_box({
+        title: "Credits",
+        description: "View the credits for Forwarder Factory.",
+        id: "credits-button",
+        onclick: "show_credits_button()"
+    }));
+
+    const grid = get_grid(list, 'initial-link-grid');
+    document.body.appendChild(grid);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     // todo: find replacement that doesn't utilize kit nonsense.
@@ -2632,6 +2754,8 @@ document.addEventListener('DOMContentLoaded', () => {
     include('https://kit.fontawesome.com/aa55cd1c33.js');
 
     WSCBackgroundRepeatingSpawner();
+
+    init_page();
 
     // required since we're not redirecting on address bar override
     window.addEventListener('popstate', () => {

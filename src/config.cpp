@@ -53,6 +53,7 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["filesystem"]["session_directory"]) settings.session_directory = config["filesystem"]["session_directory"].as<std::string>();
         if (config["filesystem"]["data_directory"]) settings.data_directory = config["filesystem"]["data_directory"].as<std::string>();
         if (config["filesystem"]["temp_directory"]) settings.temp_directory = config["filesystem"]["temp_directory"].as<std::string>();
+        if (config["filesystem"]["html_file"]) settings.html_file = config["filesystem"]["html_file"].as<std::string>();
         if (config["filesystem"]["css_file"]) settings.css_file = config["filesystem"]["css_file"].as<std::string>();
         if (config["filesystem"]["js_file"]) settings.script_file = config["filesystem"]["js_file"].as<std::string>();
         if (config["filesystem"]["logo_file"]) settings.logo_file = config["filesystem"]["logo_file"].as<std::string>();
@@ -62,7 +63,7 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["filesystem"]["error_file"]) settings.error_file = config["filesystem"]["error_file"].as<std::string>();
         if (config["filesystem"]["notice_file"]) settings.notice_file = config["filesystem"]["notice_file"].as<std::string>();
         if (config["database"]["type"]) settings.enabled_database = config["database"]["type"].as<std::string>() == "postgresql";
-        if (config["sqlite3"]["database_file"]) settings.database_file = config["sqlite3"]["database_file"].as<std::string>();
+        if (config["sqlite3"]["sqlite_database_file"]) settings.sqlite_database_file = config["sqlite3"]["sqlite_database_file"].as<std::string>();
         if (config["postgresql"]["database"]) settings.psql_database = config["postgresql"]["database"].as<std::string>();
         if (config["postgresql"]["username"]) settings.psql_username = config["postgresql"]["username"].as<std::string>();
         if (config["postgresql"]["password"]) settings.psql_password = config["postgresql"]["password"].as<std::string>();
@@ -72,7 +73,6 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["site"]["url"]) settings.site_url = config["site"]["url"].as<std::string>();
         if (config["site"]["title"]) settings.title = config["site"]["title"].as<std::string>();
         if (config["site"]["description"]) settings.description = config["site"]["description"].as<std::string>();
-        if (config["site"]["footer_html"]) settings.footer_html = config["site"]["footer_html"].as<std::string>();
         if (config["upload"]["max_request_size"]) settings.max_request_size = config["upload"]["max_request_size"].as<int64_t>();
         if (config["upload"]["max_file_size_hash"]) settings.max_file_size_hash = config["upload"]["max_file_size_hash"].as<int64_t>();
         if (config["download"]["preview_files"]) settings.preview_files = config["download"]["preview_files"].as<bool>();
@@ -96,8 +96,8 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         }
         if (config["paths"]) {
             for (const auto& n : config["paths"]) {
-                std::string first = n.first.as<std::string>();
-                std::string second = n.second.as<std::string>();
+                auto first = n.first.as<std::string>();
+                auto second = n.second.as<std::string>();
                 if (std::filesystem::is_regular_file(first)) {
                     settings.custom_paths.emplace_back(n.first.as<std::string>(), n.second.as<std::string>());
                 } else {
@@ -200,6 +200,7 @@ std::string ff::generate_default_config() {
     ss << "#   session_directory: The directory where session files are stored.\n";
     ss << "#   data_directory: The directory where data files are stored.\n";
     ss << "#   temp_directory: The directory where temporary files are stored.\n";
+    ss << "#   html_file: The path to the HTML file.\n";
     ss << "#   css_file: The path to the CSS file.\n";
     ss << "#   js_file: The path to the JS file.\n";
     ss << "#   logo_file: The path to the logo file.\n";
@@ -208,6 +209,7 @@ std::string ff::generate_default_config() {
     ss << "  session_directory: \"" << ff::settings.session_directory << "\"\n";
     ss << "  data_directory: \"" << ff::settings.data_directory << "\"\n";
     ss << "  temp_directory: \"" << ff::settings.temp_directory << "\"\n";
+    ss << "  html_file: \"" << ff::settings.html_file << "\"\n";
     ss << "  css_file: \"" << ff::settings.css_file << "\"\n";
     ss << "  js_file: \"" << ff::settings.script_file << "\"\n";
     ss << "  logo_file: \"" << ff::settings.logo_file << "\"\n";
@@ -223,9 +225,9 @@ std::string ff::generate_default_config() {
     ss << "  type: \"" << (ff::settings.enabled_database ? "postgresql" : "sqlite3") << "\"\n";
     ss << "\n";
     ss << "# SQLite3 options:\n";
-    ss << "#   database_file: The path to the SQLite3 database file.\n";
+    ss << "#   sqlite_database_file: The path to the SQLite3 database file.\n";
     ss << "sqlite3:\n";
-    ss << "  database_file: \"" << ff::settings.database_file << "\"\n";
+    ss << "  sqlite_database_file: \"" << ff::settings.sqlite_database_file << "\"\n";
     ss << "\n";
     ss << "# PostgreSQL options:\n";
     ss << "#   database: The PostgreSQL database.\n";
@@ -249,12 +251,10 @@ std::string ff::generate_default_config() {
     ss << "#   url: The URL of the site (e.g. https://example.com).\n";
     ss << "#   title: The title of the site.\n";
     ss << "#   description: The description of the site.\n";
-    ss << "#   footer_html: The HTML to display in the footer.\n";
     ss << "site:\n";
     ss << "  url: \"" << ff::settings.site_url << "\"\n";
     ss << "  title: \"" << ff::settings.title << "\"\n";
     ss << "  description: \"" << ff::settings.description << "\"\n";
-    ss << "  footer_html: \"" << ff::settings.footer_html << "\"\n";
     ss << "\n";
     ss << "# Upload options:\n";
     ss << "#   max_request_size: The maximum request size in bytes. Any larger will be rejected by the server\n";

@@ -47,10 +47,10 @@
     padding: 10px;
 }
 
-.center { /* text */
+.center {
     text-align: center;
 }
-.center_screen, #initial-link-grid { /* div; absolute center */
+.center_screen {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -166,21 +166,6 @@ input, button, select, textarea {
 .link_box_title {
     font-size: 20px;
     margin: 0;
-}
-
-div.grid {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding-top: 10px;
-    justify-content: center;
-}
-
-div.grid-item {
-    padding: 10px;
-    flex: 1 1 50px;
-    box-sizing: border-box;
 }
 
 .fade-in {
