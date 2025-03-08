@@ -1,0 +1,220 @@
+@font-face {
+    font-family: 'font1';
+    src: url('../fonts/font.woff2') format('woff2');
+}
+
+/* buttons */
+#login-button, #login-window {
+    background-color: #a9def9;
+    color: #000;
+}
+#register-button, #register-window {
+    background-color: #ff99c8;
+    color: #000;
+}
+#logout-button {
+    background-color: #f08080;
+    color: #000;
+}
+#upload-button, #upload-window {
+    background-color: #fcf6bd;
+    color: #000;
+}
+#browse-button, #browse-window {
+    background-color: #d0f4de;
+    color: #000;
+}
+#admin-button, #admin-window {
+    background-color: #ffd6ff;
+    color: #000;
+}
+#credits-button, #credits-window {
+    background-color: #000000;
+    color: #fff;
+}
+#view-window {
+    background-color: #f0f0f0;
+    color: #000;
+}
+#logged-in-watermark {
+    color: #000;
+}
+.error {
+    color: #fff;
+    background-color: #f08080;
+    border-radius: 10px;
+    display: inline-block;
+    padding: 10px;
+}
+
+.center { /* text */
+    text-align: center;
+}
+.center_screen, #initial-link-grid { /* div; absolute center */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+* {
+    cursor: url('../img/pointer-moving.png'), auto;
+    font-family: 'font1';
+}
+*:hover {
+    cursor: url('../img/pointer.png'), auto;
+}
+*:active {
+    cursor: url('../img/grab-moving.png'), auto;
+}
+*:active:hover {
+    cursor: url('../img/grab.png'), auto;
+}
+::-webkit-scrollbar {
+    display: none;
+}
+* {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+body {
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+.link_box {
+    background-color: #f0f0f0; /* default, if you don't override through classes or IDs */
+    color: #000000; /* default, if you don't override through classes or IDs */
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 10px;
+    min-width: 300px;
+    text-align: center;
+}
+
+.floating_window {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 10px;
+    padding: 10px;
+    min-width: 300px;
+    min-height: 300px;
+    z-index: 9999;
+    text-align: center;
+    overflow: hidden;
+
+    background-color: #70d6ff;
+    color: #000000;
+}
+
+#browse-window {
+    min-width: 80%;
+    max-width: 80%;
+    min-height: 80%;
+    max-height: 80%;
+}
+
+#view-window {
+    min-width: 70%;
+    max-width: 70%;
+    min-height: 70%;
+    max-height: 70%;
+}
+
+.preview {
+    background-color: #f0f0f0;
+    color: #000000;
+    border-radius: 10px;
+    max-width: 30%; // TODO: Size slider
+}
+
+.preview img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.preview:hover {
+    transform: scale(1.025);
+    transition: transform 0.3s ease;
+}
+
+#browse-filter-button, #browse-search {
+    background-color: #d0f4de;
+    color: #000;
+}
+
+#browse-filter-div {
+    background-color: #ffffff;
+    color: #000;
+}
+
+input, button, select, textarea {
+    background-color: #fafafa;
+    color: #000000;
+    border: none;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.link_box:hover {
+    transform: scale(1.025);
+    transition: transform 0.3s ease;
+}
+
+.link_box_title {
+    font-size: 20px;
+    margin: 0;
+}
+
+div.grid {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 10px;
+    justify-content: center;
+}
+
+div.grid-item {
+    padding: 10px;
+    flex: 1 1 50px;
+    box-sizing: border-box;
+}
+
+.fade-in {
+    opacity: 0;
+    transition: opacity 1s ease-in;
+}
+
+.fade-in.show {
+    opacity: 1;
+}
+
+.fade-out {
+    opacity: 1;
+    transition: opacity 1s ease-out;
+}
+
+.fade-out.hide {
+    opacity: 0;
+}
+
+@keyframes move {
+    0% {
+        transform: translate(0, 0);
+    }
+    100% {
+        transform: translate(calc(100vw * var(--random-x)), calc(100vh * var(--random-y)));
+    }
+}
+
+.star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background-color: white;
+    border-radius: 50%;
+    animation: move 10s linear infinite;
+}
