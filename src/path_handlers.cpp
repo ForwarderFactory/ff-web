@@ -1,11 +1,9 @@
 #include <filesystem>
 #include <ff.hpp>
 #include <scrypto.hpp>
-#include <bygg/bygg.hpp>
 #include <nlohmann/json.hpp>
 
 limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, Database& db) {
-    using namespace bygg::HTML;
     limhamn::http::server::response response{};
 
     const auto prepare_file = [](const std::string& path) -> std::string {

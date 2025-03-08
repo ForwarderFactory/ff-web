@@ -15,6 +15,15 @@ RUN apt-get update && apt-get install -y \
     nlohmann-json3-dev \
     libxml2-dev \
     libc6-dev \
+    imagemagick \
+    libmagick++-dev \
+    ffmpeg \
+    libavcodec-dev \
+    libavformat-dev \
+    libavdevice-dev \
+    libpostproc-dev \
+    libavutil-dev \
+    libswscale-dev \
     nodejs \
     npm \
     && rm -rf /var/lib/apt/lists/* \
