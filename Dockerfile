@@ -39,11 +39,7 @@ RUN mkdir -p /etc/ff /var/log/ff /var/db/ff /var/lib/ff
 
 RUN if [ -d "../js" ]; then cp -r ../js /etc/ff/js; fi
 RUN if [ -d "../css" ]; then cp -r ../css /etc/ff/css; fi
-RUN if [ -d "../audio" ]; then cp -r ../audio /etc/ff/audio; fi
-RUN if [ -d "../fonts" ]; then cp -r ../fonts /etc/ff/fonts; fi
-RUN if [ -d "../img" ]; then cp -r ../img /etc/ff/img; fi
-RUN if [ -d "../ff-web-assets/js" ]; then cp -r ../ff-web-assets/js /etc/ff/js; fi
-RUN if [ -d "../ff-web-assets/css" ]; then cp -r ../ff-web-assets/css /etc/ff/css; fi
+RUN if [ -d "../html" ]; then cp -r ../html /etc/ff/html; fi
 RUN if [ -d "../ff-web-assets/audio" ]; then cp -r ../ff-web-assets/audio /etc/ff/audio; fi
 RUN if [ -d "../ff-web-assets/fonts" ]; then cp -r ../ff-web-assets/fonts /etc/ff/fonts; fi
 RUN if [ -d "../ff-web-assets/img" ]; then cp -r ../ff-web-assets/img /etc/ff/img; fi

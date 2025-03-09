@@ -102,6 +102,8 @@ namespace ff {
         std::vector<std::string> blacklisted_ips{};
         std::vector<std::string> whitelisted_ips{"127.0.0.1"};
         int64_t max_file_size_hash{1024 * 1024 * 1024};
+        bool cache_static{false};
+        bool cache_exists{false};
     };
 
     enum class AccountCreationStatus {
@@ -168,19 +170,21 @@ namespace ff {
         std::string user_agent{};
     };
 
+    inline Settings settings{};
+
     class StaticExists {
         std::vector<std::pair<std::string, bool>> paths{};
     public:
         explicit StaticExists() = default;
         ~StaticExists() = default;
-        [[nodiscard]] bool is_file(const std::string& path) {
-#ifdef FF_DEBUG
-            return std::filesystem::exists(path);
-#else
-            for (const auto& it : this->paths) if (it.first == path) return it.second;
-            paths.emplace_back(path, std::filesystem::exists(path));
-            return paths.back().second;
-#endif
+        [[nodiscard]] bool is_file(const std::string& path, const bool cache = true) {
+            if (settings.cache_exists && cache) {
+                for (const auto& it : this->paths) if (it.first == path) return it.second;
+                paths.emplace_back(path, std::filesystem::exists(path));
+                return paths.back().second;
+            } else {
+                return std::filesystem::exists(path);
+            }
         }
 
     };
@@ -194,8 +198,7 @@ namespace ff {
         ~CacheManager() = default;
 
         [[nodiscard]] FileContent open_file(const FileName& fp, const bool cache = true) { //NOLINT
-#ifndef FF_DEBUG
-            if (cache) {
+            if (cache && settings.cache_static) {
                 for (const auto& it : this->cache) if (it.first == fp) return it.second;
                 if (!std::filesystem::exists(fp)) {
                     throw std::runtime_error{"File does not exist."};
@@ -205,13 +208,12 @@ namespace ff {
                 this->cache.emplace_back(fp, data);
                 return data;
             }
-#endif
+
             std::ifstream file{fp};
             return {std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
         }
     };
 
-    inline Settings settings{};
     inline limhamn::logger::logger logger{};
     inline CacheManager cache_manager{};
     inline StaticExists static_exists{};

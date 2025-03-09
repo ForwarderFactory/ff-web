@@ -282,7 +282,7 @@ void ff::start_server() {
                 if (it.first == request.endpoint) {
                     limhamn::http::server::response response{};
 
-                    if (!std::filesystem::exists(it.second)) {
+                    if (!ff::static_exists.is_file(it.second)) {
                         response.content_type = "text/html";
                         response.http_status = 404;
                         response.body = "<p>404 Not Found</p>";
@@ -290,7 +290,7 @@ void ff::start_server() {
                         return response;
                     }
 
-                    response.body = ff::open_file(it.second);
+                    response.body = ff::cache_manager.open_file(it.second);
                     response.http_status = 200;
                     response.content_type = limhamn::http::utils::get_appropriate_content_type(it.first);
 

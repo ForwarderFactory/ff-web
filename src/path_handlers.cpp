@@ -13,6 +13,7 @@ limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::se
             return temp_file;
         }
 
+        std::filesystem::remove(temp_file);
         std::filesystem::copy_file(path, temp_file);
 
         // get domain from site url
@@ -275,6 +276,7 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
             return path;
         }
 
+        std::filesystem::remove(temp_file);
         std::filesystem::copy_file(path, temp_file);
 
         // run uglifyjs on the file

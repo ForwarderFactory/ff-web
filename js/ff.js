@@ -120,10 +120,10 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creationInterval = 8000) {
     }, creationInterval);
 }
 
-const clickObject = new Audio('/audio/click.wav');
+const click_object = new Audio('/audio/click.wav');
 function play_click() {
-    clickObject.currentTime = 0;
-    clickObject.play();
+    click_object.currentTime = 0;
+    click_object.play();
 }
 
 function hide_all_windows() {

@@ -61,6 +61,8 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["filesystem"]["warning_file"]) settings.warning_file = config["filesystem"]["warning_file"].as<std::string>();
         if (config["filesystem"]["error_file"]) settings.error_file = config["filesystem"]["error_file"].as<std::string>();
         if (config["filesystem"]["notice_file"]) settings.notice_file = config["filesystem"]["notice_file"].as<std::string>();
+        if (config["filesystem"]["cache_static"]) settings.cache_static = config["filesystem"]["cache_static"].as<bool>();
+        if (config["filesystem"]["cache_exists"]) settings.cache_exists = config["filesystem"]["cache_exists"].as<bool>();
         if (config["database"]["type"]) settings.enabled_database = config["database"]["type"].as<std::string>() == "postgresql";
         if (config["sqlite3"]["sqlite_database_file"]) settings.sqlite_database_file = config["sqlite3"]["sqlite_database_file"].as<std::string>();
         if (config["postgresql"]["database"]) settings.psql_database = config["postgresql"]["database"].as<std::string>();
@@ -97,13 +99,15 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
             for (const auto& n : config["paths"]) {
                 auto first = n.first.as<std::string>();
                 auto second = n.second.as<std::string>();
-                if (std::filesystem::is_regular_file(first)) {
+                if (std::filesystem::is_regular_file(second)) {
                     settings.custom_paths.emplace_back(n.first.as<std::string>(), n.second.as<std::string>());
                 } else {
                     // allow * to match all files in a directory
-                    if (first.back() == '*') {
-                        for (const auto& entry : std::filesystem::directory_iterator(first.substr(0, first.size() - 1))) {
-                            settings.custom_paths.emplace_back(entry.path().string(), second);
+                    if (second.back() == '*') {
+                        // /thing/thing/* -> /thing/thing/it
+                        // /thing/thing/* -> /thing/thing/it
+                        for (const auto& entry : std::filesystem::directory_iterator(second.substr(0, second.size() - 1))) {
+                            settings.custom_paths.emplace_back(first + entry.path().filename().string(), entry.path().string());
                         }
                     } else {
                         ff::logger.write_to_log(limhamn::logger::type::warning, "The file " + n.first.as<std::string>() + " does not exist. Skipping.\n");
@@ -203,6 +207,12 @@ std::string ff::generate_default_config() {
     ss << "#   css_file: The path to the CSS file.\n";
     ss << "#   js_file: The path to the JS file.\n";
     ss << "#   favicon_file: The path to the favicon file.\n";
+    ss << "#   access_file: The path to the access log file.\n";
+    ss << "#   warning_file: The path to the warning log file.\n";
+    ss << "#   error_file: The path to the error log file.\n";
+    ss << "#   notice_file: The path to the notice log file.\n";
+    ss << "#   cache_static: Whether to cache static files. (Experimental)\n";
+    ss << "#   cache_exists: Whether to cache the existence of files. (Experimental)\n";
     ss << "filesystem:\n";
     ss << "  session_directory: \"" << ff::settings.session_directory << "\"\n";
     ss << "  data_directory: \"" << ff::settings.data_directory << "\"\n";
@@ -215,6 +225,8 @@ std::string ff::generate_default_config() {
     ss << "  warning_file: \"" << ff::settings.warning_file << "\"\n";
     ss << "  error_file: \"" << ff::settings.error_file << "\"\n";
     ss << "  notice_file: \"" << ff::settings.notice_file << "\"\n";
+    ss << "  cache_static: " << (ff::settings.cache_static ? "true" : "false") << "\n";
+    ss << "  cache_exists: " << (ff::settings.cache_exists ? "true" : "false") << "\n";
     ss << "\n";
     ss << "# Database options:\n";
     ss << "#   type: The type of database to use. (sqlite3, postgresql)\n";
