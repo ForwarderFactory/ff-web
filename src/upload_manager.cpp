@@ -168,13 +168,6 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::ser
 
         db_json["meta"]["type"] = type;
     }
-    // just for compatibility with the old json format
-    if (meta.find("category") != meta.end() && meta.at("category").is_string()) {
-        if (meta.at("category").size() > 100) {
-            return {ff::UploadStatus::Failure, ""};
-        }
-        db_json["meta"]["categories"].push_back(limhamn::http::utils::htmlspecialchars(meta.at("category")));
-    }
     if (meta.find("categories") != meta.end() && meta.at("categories").is_array()) {
         nlohmann::json categories = meta.at("categories");
         for (auto& category : categories) {
@@ -187,7 +180,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::ser
         }
    }
     if (meta.find("location") != meta.end() && meta.at("location").is_string()) {
-        if (meta.at("category").size() > 100) {
+        if (meta.at("location").size() > 100) {
             return {ff::UploadStatus::Failure, ""};
         }
         db_json["meta"]["location"] = limhamn::http::utils::htmlspecialchars(meta.at("location"));

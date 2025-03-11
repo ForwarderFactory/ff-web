@@ -549,7 +549,6 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
         std::string uploader{}; // if not empty, must match this uploader
         std::string author{}; // if not empty, must match this author
         int type{-1}; // if not -1, must match this type (1 = channel, 0 = forwarder)
-        std::string category{}; // if not empty, must match this category
         std::vector<std::string> categories{}; // if not empty, must match one of these categories
         std::string location{}; // if not empty, must match this location
         int64_t submitted_before{-1}; // if not -1, must be submitted before this time
@@ -610,10 +609,6 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
                         filter.categories.push_back(it.get<std::string>());
                     }
                 }
-            }
-            // compatibility
-            if (input_json.at("filter").find("category") != input_json.at("filter").end() && input_json.at("filter").at("category").is_string()) {
-                filter.category = input_json.at("filter").at("category").get<std::string>();
             }
             if (input_json.at("filter").find("location") != input_json.at("filter").end() && input_json.at("filter").at("location").is_string()) {
                 filter.location = input_json.at("filter").at("location").get<std::string>();
@@ -767,17 +762,6 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
 
                 if (!found) {
                     continue;
-                }
-            }
-
-            if (!filter.category.empty()) {
-                if (meta.find("category") != meta.end() && meta.at("category").is_string()) {
-                    std::transform(filter.category.begin(), filter.category.end(), filter.category.begin(), ::tolower);
-                    std::string category{meta.at("category").get<std::string>()};
-                    std::transform(category.begin(), category.end(), category.begin(), ::tolower);
-                    if (category != filter.category) {
-                        continue;
-                    }
                 }
             }
             if (!filter.location.empty()) {

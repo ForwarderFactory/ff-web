@@ -805,7 +805,7 @@ function show_upload(_error = "") {
         author,
         youtube,
         type,
-        category,
+        categories,
         location,
         vwiiCompatible,
         wad,
@@ -833,9 +833,9 @@ function show_upload(_error = "") {
         if (ret.author) json.meta.author = ret.author.value;
         if (ret.youtube) json.meta.youtube = ret.youtube.value;
         if (ret.type) json.meta.type = ret.type.value;
-        if (ret.category) json.meta.category = ret.category.value;
         if (ret.location) json.meta.location = ret.location.value;
         if (ret.vwiiCompatible) json.meta.vwii_compatible = ret.vwiiCompatible.value;
+        if (ret.categories) json.meta.categories = ret.categories.value.split(',');
 
         // create a form object
         const form = new FormData();
@@ -971,7 +971,7 @@ function show_upload(_error = "") {
             if (vwii) upload.removeChild(vwii);
 
             title.innerHTML = 'WAD File';
-            paragraph.innerHTML = 'Okay, phew. Finally, the last step. Please upload the WAD file of the forwarder you are uploading.';
+            paragraph.innerHTML = 'Please upload the WAD file of the forwarder you are uploading.';
             paragraph.innerHTML += '<br>';
             paragraph.innerHTML += 'This is the file that will be installed on the Wii.';
             paragraph.innerHTML += 'Please ensure the WAD file is not corrupt as best you can. Intentionally uploading a corrupt WAD file will result in a ban.';
@@ -1010,16 +1010,16 @@ function show_upload(_error = "") {
 
             const prev_submit = document.getElementById('continue-upload-submit');
             const type = document.getElementById('upload-type');
-            const category = document.getElementById('upload-category');
+            const categories = document.getElementById('upload-categories');
             const location = document.getElementById('upload-location');
 
             if (type) ret.type = type;
-            if (category) ret.category = category;
+            if (categories) ret.categories = categories;
             if (location) ret.location = location;
 
             if (prev_submit) upload.removeChild(prev_submit);
             if (type) upload.removeChild(type);
-            if (category) upload.removeChild(category);
+            if (categories) upload.removeChild(categories);
             if (location) upload.removeChild(location);
 
             title.innerHTML = 'vWii Compatibility';
@@ -1061,7 +1061,7 @@ function show_upload(_error = "") {
             upload.appendChild(submit);
         }
 
-        const ask_for_type_location_category = () => {
+        const ask_for_type_location_categories = () => {
             play_click();
 
             const prev_submit = document.getElementById('continue-upload-submit');
@@ -1075,7 +1075,7 @@ function show_upload(_error = "") {
             if (youtube_preview) upload.removeChild(youtube_preview);
 
             title.innerHTML = 'Type, Location, and Category';
-            paragraph.innerHTML = "We need the type of forwarder you're uploading, the location it forwards to, and the category it belongs to.";
+            paragraph.innerHTML = "We need the type of forwarder you're uploading, the location it forwards to, and the categories it belongs to.";
             paragraph.innerHTML += '<br>';
             paragraph.innerHTML += 'The type is the type of forwarder you are uploading. It can be a forwarder (i.e. it forwards to a program) or a channel (self contained)';
 
@@ -1124,16 +1124,15 @@ function show_upload(_error = "") {
                 }
             });
 
-            // category is just a text field, so that you can search for e.g. all wiiflow forwarders
-            const category = document.createElement('input');
+            const categories = document.createElement('input');
 
-            category.type = 'text';
-            category.name = 'category';
-            category.placeholder = 'Category';
-            category.className = 'upload-input';
-            category.id = 'upload-category';
-            category.style.width = '80%';
-            category.style.marginBottom = '10px';
+            categories.type = 'text';
+            categories.name = 'categories';
+            categories.placeholder = 'Categories (comma separated)';
+            categories.className = 'upload-input';
+            categories.id = 'upload-categories';
+            categories.style.width = '80%';
+            categories.style.marginBottom = '10px';
 
             const submit = document.createElement('button');
 
@@ -1152,7 +1151,7 @@ function show_upload(_error = "") {
 
             upload.appendChild(type);
             upload.appendChild(location);
-            upload.appendChild(category);
+            upload.appendChild(categories);
             upload.appendChild(document.createElement('br'));
             upload.appendChild(submit);
         }
@@ -1229,7 +1228,7 @@ function show_upload(_error = "") {
             submit.className = 'upload-button';
             submit.id = 'continue-upload-submit';
             submit.onclick = () => {
-                ask_for_type_location_category();
+                ask_for_type_location_categories();
             }
 
             upload.appendChild(youtube);
@@ -1689,15 +1688,15 @@ function show_forwarder(id) {
             forwarder_window.appendChild(location);
         }
 
-        const category = document.createElement('p');
-        category.className = 'view_floating_window_category';
-        if (forwarder.meta.category) {
-            category.innerHTML = forwarder.meta.category;
+        const categories = document.createElement('p');
+        categories.className = 'view_floating_window_categories';
+        if (forwarder.meta.categories) {
+            categories.innerHTML = forwarder.meta.categories.join(', ');
             const fa = document.createElement('i');
             fa.className = "fa-solid fa-tag";
             fa.style.marginRight = '5px';
-            category.prepend(fa);
-            forwarder_window.appendChild(category);
+            categories.prepend(fa);
+            forwarder_window.appendChild(categories);
         }
 
         const vwii = document.createElement('p');
@@ -1837,7 +1836,7 @@ function show_browse() {
         title_id_string: '',
         uploader: '',
         type: -1,
-        category: '',
+        categories: [],
         location: '',
         submitted_before: undefined,
         submitted_after: undefined,
@@ -1873,7 +1872,15 @@ function show_browse() {
                     document.body.appendChild(container);
 
                     let parent = document.createElement('div');
+
                     parent.className = 'grid';
+                    parent.style.display = 'flex';
+                    parent.style.flexDirection = 'row';
+                    parent.style.flexWrap = 'wrap';
+                    parent.style.gap = '10px';
+                    parent.style.paddingTop = '10px';
+                    parent.style.justifyContent = 'center';
+
                     container.appendChild(parent);
 
                     let item_c = 0;
@@ -1886,6 +1893,12 @@ function show_browse() {
                         if (item_c === 3) {
                             parent = document.createElement('div');
                             parent.className = 'grid';
+                            parent.style.display = 'flex';
+                            parent.style.flexDirection = 'row';
+                            parent.style.flexWrap = 'wrap';
+                            parent.style.gap = '10px';
+                            parent.style.paddingTop = '10px';
+                            parent.style.justifyContent = 'center';
                             container.appendChild(parent);
                             item_c = 0;
                         }
@@ -1893,6 +1906,9 @@ function show_browse() {
                         const grid = document.createElement('div');
                         grid.className = 'grid-item preview';
                         grid.id = forwarder.id;
+                        grid.style.padding = '10px';
+                        grid.style.flex = '1 1 50px';
+                        grid.style.boxSizing = 'border-box';
 
                         // get page_identifier
                         const page_identifier = forwarder.page_identifier;
@@ -2142,17 +2158,22 @@ function show_browse() {
                 }
             }
 
-            const category = document.createElement('input');
-            category.type = 'text';
-            category.name = 'category';
-            category.placeholder = 'Category (exact match)';
-            category.className = 'browse-filter-input';
-            category.id = 'browse-category-filter';
-            category.style.marginBottom = '10px';
-            category.style.marginRight = '10px';
-            if (filter_data.category) {
-                category.value = filter_data.category;
+            const categories = document.createElement('input');
+            categories.type = 'text';
+            categories.name = 'categories';
+            categories.placeholder = 'Categories (comma separated)';
+            categories.className = 'browse-filter-input';
+            categories.id = 'browse-categories-filter';
+            categories.style.marginBottom = '10px';
+            categories.style.marginRight = '10px';
+
+            if (filter_data.categories) {
+                categories.value = filter_data.categories.join(', ');
             }
+
+            categories.addEventListener('input', () => {
+                filter_data.categories = categories.value.split(',').map(item => item.trim());
+            });
 
             const location = document.createElement('input');
             location.type = 'text';
@@ -2287,8 +2308,8 @@ function show_browse() {
             div.appendChild(type);
             div.appendChild(document.createElement('br'));
 
-            div.appendChild(create_label_for(category, 'Category'));
-            div.appendChild(category);
+            div.appendChild(create_label_for(categories, 'Categories'));
+            div.appendChild(categories);
             div.appendChild(document.createElement('br'));
 
             div.appendChild(create_label_for(location, 'Location'));

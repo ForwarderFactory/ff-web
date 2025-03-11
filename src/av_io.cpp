@@ -25,7 +25,7 @@ bool ff::convert_to_webp(const std::string& input, const std::string& output) {
 // Sadly, I'm too dumb to figure out how to use the FFmpeg API for this and after hours
 // of trying, I'm just going to use system() for now.
 bool ff::convert_to_webm(const std::string& input, const std::string& output) {
-    std::string command = "ffmpeg -i " + input + " -c:v libvpx -b:v 1M -c:a libvorbis -b:a 192k -f webm -loglevel quiet " + output;
+    std::string command = "ffmpeg -i " + input + " -c:v libvpx-vp9 -b:v 1M -c:a libopus -b:a 192k -f webm -loglevel quiet " + output;
     return std::system(command.c_str()) == 0;
 }
 
