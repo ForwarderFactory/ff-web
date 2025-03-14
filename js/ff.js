@@ -342,51 +342,59 @@ function show_login(_error = "") {
 
     hide_initial();
 
-    const login = create_window('login-window');
-    const url = '/api/try_login';
+    /* username/email, password */
+    let ret = {};
 
-    const title = document.createElement('h1');
-    title.innerHTML = 'Login';
-    title.className = 'floating_window_title';
-    title.id = 'login-window-title';
-
-    const paragraph = document.createElement('p');
-    paragraph.innerHTML = 'Welcome back to Forwarder Factory. Please enter your username or associated email address!';
-    paragraph.className = 'floating_window_paragraph';
-    paragraph.id = 'login-window-paragraph';
-
-    login.appendChild(title);
-    login.appendChild(paragraph);
-
-    const username = document.createElement('input');
-    username.type = 'text';
-    username.name = 'username';
-    username.placeholder = 'Username';
-    username.className = 'login-input';
-    username.id = 'login-username';
-    username.onclick = () => {
+    const submit_data = () => {
         play_click();
 
-        const errors = document.getElementsByClassName('error');
-        for (let i = 0; i < errors.length; i++) {
-            const error = errors[i];
-            if (error.id === 'login-error') {
-                login.removeChild(error);
-            }
+        const json = {
+            password: ret.password.value,
+        };
+        if (ret.username.value.includes('@')) {
+            json.email = ret.username.value;
+        } else {
+            json.username = ret.username.value;
         }
+
+        fetch("/api/try_login", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(json),
+        })
+            .then(response => response.json())
+            .then(json => {
+                if (json.error_str) {
+                    show_login(json.error_str);
+                    return;
+                } else if (json.key) {
+                    // a session entry has now been created, this was done by the server so
+                    // we don't need to do anything.
+                    // however, we have a key, though it's only useful if we can't use
+                    // cookies for some reason (e.g. if we're using a different device)
+                    // let's redir to the home page
+                    window.location.href = '/';
+                    return;
+                }
+
+                throw new Error('Invalid response from server: ' + JSON.stringify(json));
+            })
+            /*
+            .then(data => {
+                hide_all_windows();
+            })
+            */
+            .catch((error) => {
+                console.error('Error:', error);
+            });
     }
 
-    login.appendChild(username);
-
-    // create button with callback
-    const submit = document.createElement('button');
-    submit.innerHTML = 'Continue';
-    submit.className = 'login-button';
-    submit.onclick = () => {
+    const ask_for_password = () => {
         play_click();
 
-        login.removeChild(username);
-        login.removeChild(submit);
+        const login = create_window('login-window');
 
         const password = document.createElement('input');
         password.type = 'password';
@@ -404,81 +412,109 @@ function show_login(_error = "") {
                 }
             }
         }
+        if (ret.password !== undefined && ret.password.value !== undefined) {
+            password.value = ret.password.value;
+        }
 
-        title.innerHTML = "Welcome " + username.value + "!";
+        const title = document.createElement('h1');
+        title.innerHTML = "Welcome " + ret.username.value + "!";
+
+        const paragraph = document.createElement('p');
         paragraph.innerHTML = 'Please enter your password!';
 
-        login.appendChild(password);
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'login-button';
+        back.onclick = () => {
+            ret.password = password;
+            ask_for_user();
+        }
+        back.style.marginRight = '10px';
 
+        const submit = document.createElement('button');
         submit.innerHTML = 'Login';
+        submit.className = 'login-button';
         submit.onclick = () => {
-            play_click();
+            ret.password = password;
+            submit_data();
+        }
 
-            const json = {
-                password: password.value,
-            };
-            if (username.value.includes('@')) {
-                json.email = username.value;
-            } else {
-                json.username = username.value;
-            }
-
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(json),
-            })
-                .then(response => response.json())
-                .then(json => {
-                    if (json.error_str) {
-                        show_login(json.error_str);
-                        return;
-                    } else if (json.key) {
-                        // a session entry has now been created, this was done by the server so
-                        // we don't need to do anything.
-                        // however, we have a key, though it's only useful if we can't use
-                        // cookies for some reason (e.g. if we're using a different device)
-                        // let's redir to the home page
-                        window.location.href = '/';
-                        return;
-                    }
-
-                    throw new Error('Invalid response from server: ' + JSON.stringify(json));
-                })
-                /*
-                .then(data => {
-                    hide_all_windows();
-                })
-                */
-                .catch((error) => {
-                    console.error('Error:', error);
-                });
-        };
-
+        login.appendChild(title);
+        login.appendChild(paragraph);
+        login.appendChild(password);
         login.appendChild(document.createElement('br'));
         login.appendChild(document.createElement('br'));
+        login.appendChild(back);
         login.appendChild(submit);
     }
 
-    login.appendChild(document.createElement('br'));
-    login.appendChild(document.createElement('br'));
+    const ask_for_user = () => {
+        const login = create_window('login-window');
 
-    if (_error !== "") {
-        const error = document.createElement('p');
-        error.innerHTML = _error;
-        error.className = 'error';
-        error.id = 'login-error';
+        const title = document.createElement('h1');
+        title.innerHTML = 'Login';
+        title.className = 'floating_window_title';
+        title.id = 'login-window-title';
 
-        const br = document.createElement('br');
-        br.className = 'error';
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Welcome back to Forwarder Factory. Please enter your username or associated email address!';
+        paragraph.className = 'floating_window_paragraph';
+        paragraph.id = 'login-window-paragraph';
 
-        login.appendChild(error);
-        login.appendChild(br);
+        login.appendChild(title);
+        login.appendChild(paragraph);
+
+        const username = document.createElement('input');
+        username.type = 'text';
+        username.name = 'username';
+        username.placeholder = 'Username';
+        username.className = 'login-input';
+        username.id = 'login-username';
+        username.onclick = () => {
+            play_click();
+
+            const errors = document.getElementsByClassName('error');
+            for (let i = 0; i < errors.length; i++) {
+                const error = errors[i];
+                if (error.id === 'login-error') {
+                    login.removeChild(error);
+                }
+            }
+        }
+        if (ret.username !== undefined && ret.username.value !== undefined) {
+            username.value = ret.username.value;
+        }
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'login-button';
+        submit.onclick = () => {
+            ret.username = username;
+            ask_for_password();
+        }
+
+        login.appendChild(title);
+        login.appendChild(paragraph);
+        login.appendChild(username);
+        login.appendChild(document.createElement('br'));
+        login.appendChild(document.createElement('br'));
+        login.appendChild(submit);
+
+        if (_error !== "") {
+            const error = document.createElement('p');
+            error.innerHTML = _error;
+            error.className = 'error';
+            error.id = 'login-error';
+
+            const br = document.createElement('br');
+            br.className = 'error';
+
+            login.appendChild(br);
+            login.appendChild(error);
+        }
     }
 
-    login.appendChild(submit);
+    ask_for_user();
 }
 
 function show_register(_error = ""){
