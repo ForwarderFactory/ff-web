@@ -24,6 +24,12 @@ apt-get update && apt-get install -y \
     ffmpeg \
     imagemagick \
     libmagick++-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavdevice-dev \
+    libpostproc-dev \
+    libavutil-dev \
+    libswscale-dev \
     npm || exit 1
 
 npm install -g uglify-js
@@ -32,13 +38,14 @@ groupadd -r ff-web && useradd -r -g ff-web ff-web
 mkdir -p /etc/ff /var/log/ff /var/db/ff /var/lib/ff
 
 rm -rf ff-web
-git clone --recursive https://github.com/ForwarderFactory/ff-web; cd ff-web
-mkdir -p build && cd build
+git clone --recursive https://github.com/ForwarderFactory/ff-web; cd ff-web || exit 1
+mkdir -p build && cd build || exit 1
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
 make && make install || exit 1
 cd ..; rm -rf build
 cp -r css/ /etc/ff/
 cp -r js/ /etc/ff/
+cp -r html/ /etc/ff/
 
 git clone https://github.com/ForwarderFactory/ff-web-assets .assets/
 cp -r .assets/* /etc/ff/

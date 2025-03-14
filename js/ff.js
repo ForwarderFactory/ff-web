@@ -199,39 +199,70 @@ function hide_initial() {
     }
 }
 
-function create_window(id, close_button = true, moveable = true, close_on_click_outside = false, close_on_escape = true, function_on_close = null) {
-    const windows = document.getElementsByClassName('floating_window');
-    for (let i = 0; i < windows.length; i++) {
-        windows[i].style.display = 'none';
-        while (windows[i].firstChild) {
-            windows[i].removeChild(windows[i].firstChild);
+class WindowProperties {
+    constructor({
+        back_button = null,
+        close_button = true,
+        moveable = false,
+        close_on_click_outside = false,
+        close_on_escape = true,
+        remove_existing = true,
+        function_on_close = null
+    } = {}) {
+        this.back_button = back_button;
+        this.close_button = close_button;
+        this.moveable = moveable;
+        this.close_on_click_outside = close_on_click_outside;
+        this.close_on_escape = close_on_escape;
+        this.remove_existing = remove_existing;
+        this.function_on_close = function_on_close;
+    }
+}
+
+function create_window(id, prop = new WindowProperties()){
+    if (prop.remove_existing) {
+        const windows = document.getElementsByClassName('floating_window');
+        for (let i = 0; i < windows.length; i++) {
+            windows[i].style.display = 'none';
+            while (windows[i].firstChild) {
+                windows[i].removeChild(windows[i].firstChild);
+            }
+        }
+    }
+    // remove existing with same id always
+    const existing = document.getElementById(id);
+    if (existing) {
+        existing.style.display = 'none';
+        while (existing.firstChild) {
+            existing.removeChild(existing.firstChild);
         }
     }
     const window = document.createElement('div');
     window.className = 'floating_window';
     window.id = id;
-    if (close_on_click_outside) {
+    if (prop.close_on_click_outside) {
         window.onclick = (event) => {
             if (event.target === window) {
-                if (function_on_close) {
-                    function_on_close();
+                if (prop.function_on_close) {
+                    prop.function_on_close();
                     return;
                 }
                 hide_all_windows();
             }
         }
     }
-    if (close_on_escape) {
+    if (prop.close_on_escape) {
         document.onkeydown = (event) => {
             if (event.key === 'Escape') {
-                if (function_on_close) {
-                    function_on_close();
+                if (prop.function_on_close) {
+                    prop.function_on_close();
                     return;
                 }
                 hide_all_windows();
             }
         }
     }
+
     window.oncontextmenu = (event) => {
         event.preventDefault();
     }
@@ -241,7 +272,7 @@ function create_window(id, close_button = true, moveable = true, close_on_click_
     let offsetX = 0;
     let offsetY = 0;
 
-    if (moveable) {
+    if (prop.moveable) {
         window.onmousedown = (event) => {
             xpos = event.clientX;
             ypos = event.clientY;
@@ -259,7 +290,7 @@ function create_window(id, close_button = true, moveable = true, close_on_click_
         }
     }
 
-    if (close_button) {
+    if (prop.close_button) {
         const close = document.createElement('a');
         close.innerHTML = '✕';
         close.id = 'window-close';
@@ -271,14 +302,33 @@ function create_window(id, close_button = true, moveable = true, close_on_click_
         close.style.color = 'black';
         close.onclick = () => {
             play_click();
-            if (function_on_close) {
-                function_on_close();
+            if (prop.function_on_close) {
+                prop.function_on_close();
                 return;
             }
             hide_all_windows();
         }
 
         window.appendChild(close);
+    }
+    if (prop.back_button) {
+        const back = document.createElement('a');
+        back.innerHTML = '←';
+        back.id = 'window-back';
+        back.style.position = 'fixed';
+        back.style.padding = '10px';
+        back.style.top = '0';
+        back.style.left = '0';
+        back.style.textDecoration = 'none';
+        back.style.color = 'black';
+        back.onclick = () => {
+            play_click();
+            if (prop.function_on_close) {
+                prop.function_on_close();
+            }
+        }
+
+        window.appendChild(back);
     }
 
     document.body.appendChild(window);
@@ -524,7 +574,7 @@ function show_register(_error = ""){
             const submit_data = (_username, _password, _email) => {
                 play_click();
 
-                if (_password.value !== _confirm.value) {
+                if (_password.value !== confirm.value) {
                     show_register('Passwords do not match!');
                     return;
                 }
@@ -737,62 +787,11 @@ function show_logout() {
     logout.appendChild(next_button);
 }
 
-function show_logout_button() {
-    play_click();
-    show_logout();
-}
-
 function show_upload(_error = "") {
     play_click();
     set_path('/upload');
 
     hide_initial();
-
-    const upload = create_window('upload-window');
-
-    const title = document.createElement('h1');
-    title.innerHTML = 'Upload';
-    title.className = 'floating_window_title';
-    title.id = 'upload-window-title';
-
-    const paragraph = document.createElement('p');
-    paragraph.innerHTML = 'Have some interesting content to share? Upload it here! Please note that all uploads are subject to review.';
-    paragraph.innerHTML += '<br>';
-    paragraph.innerHTML += 'Please ensure your forwarder is not a duplicate of an existing forwarder. ';
-    paragraph.innerHTML += 'Some fields will require knowledge of the forwarder you are uploading. You can obtain all of the information required ';
-    paragraph.innerHTML += 'by using a tool such as ShowMiiWads or CustomizeMii. If you are unsure about anything, please leave it blank.';
-
-    paragraph.className = 'floating_window_paragraph';
-    paragraph.id = 'upload-window-paragraph';
-
-    upload.appendChild(title);
-    upload.appendChild(paragraph);
-
-    const content_type = document.createElement('select');
-    content_type.name = 'content_type';
-    content_type.id = 'content_type';
-    content_type.className = 'upload-input';
-    content_type.style.width = '100%';
-    content_type.style.marginBottom = '10px';
-
-    // TODO: Add support for more things in the future
-    const content_types = ['Forwarder'];
-
-    for (let i = 0; i < content_types.length; i++) {
-        const option = document.createElement('option');
-        option.value = content_types[i];
-        option.innerHTML = content_types[i];
-        content_type.appendChild(option);
-    }
-
-    content_type.addEventListener('change', () => {
-        // TODO: Maybe we can do something cool here?
-        play_click();
-    });
-
-    const button = document.createElement('button');
-    button.innerHTML = 'Continue';
-    button.id = 'upload-continue-button';
 
     let ret = {
         /*
@@ -840,7 +839,6 @@ function show_upload(_error = "") {
         // create a form object
         const form = new FormData();
 
-        // add the json object
         form.append('json', new Blob([JSON.stringify(json)], { type: 'application/json' }));
 
         if (ret.banner && ret.banner.files) {
@@ -886,676 +884,859 @@ function show_upload(_error = "") {
 
         hide_all_windows();
     }
-
-    button.onclick = () => {
+    const finalize_details = () => {
         play_click();
 
-        const content_type = document.getElementById('content_type');
-        const selected_content_type = content_type.options[content_type.selectedIndex].value;
+        const upload = create_window('upload-window');
 
-        // TODO: Add support for more things in the future
-        if (selected_content_type !== 'Forwarder') {
-            throw new Error('Unsupported content type; please email contact@forwarderfactory.com');
+        const title = document.createElement('h1');
+        title.innerHTML = 'Confirm';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = "By submitting this forwarder, you hereby pledge that you have made a good faith effort to ensure that the forwarder is not harmful to users' Wii consoles.";
+        paragraph.innerHTML += " Forwarder Factory reserves the right to ban users who upload harmful, malicious or otherwise dangerous forwarders. ";
+        paragraph.innerHTML += "Forwarder Factory and its members, contributors and affiliates are not responsible for any damages caused by forwarders uploaded to the site. ";
+        paragraph.innerHTML += "Further, we reserve the right to remove any forwarder at any time for any reason, such as but not limited to, a DMCA takedown request.";
+
+        const submit = document.createElement('button');
+
+        submit.innerHTML = 'Submit';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            assemble_request();
         }
 
-        if (selected_content_type) ret.contentType = content_type;
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.style.marginRight = '10px';
+        back.onclick = () => {
+            ask_for_wad();
+        }
 
-        upload.removeChild(content_type);
-        upload.removeChild(button);
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
 
-        title.innerHTML = 'Describe the forwarder';
-        paragraph.innerHTML = 'Please provide a description of the forwarder you are uploading. This will be displayed to users. Utilize your inner marketing skills!';
+    const ask_for_wad = () => {
+        play_click();
 
-        const description = document.createElement('textarea');
-        description.name = 'description';
-        description.placeholder = 'Fill me in!';
-        description.className = 'upload-input';
-        description.id = 'upload-description';
-        description.style.width = '80%';
-        // click = awesomz
-        description.onclick = () => {
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'WAD File';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please upload the WAD file of the forwarder you are uploading.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'This is the file that will be installed on the Wii.';
+        paragraph.innerHTML += 'Please ensure the WAD file is not corrupt as best you can. Intentionally uploading a corrupt WAD file will result in a ban.';
+        paragraph.innerHTML += '<br>';
+
+        const wad = document.createElement('input');
+        wad.type = 'file';
+        wad.name = 'wad';
+        wad.accept = '.wad';
+        wad.className = 'upload-input';
+        wad.id = 'upload-wad';
+        wad.style.width = '80%';
+        wad.style.marginRight = '10px';
+        wad.onclick = () => {
             play_click();
+        }
+
+        // TODO: some kind of serverside banner brick testing?
+        // TODO 2: banner previews? someone smarter than me can do that pretty please
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Upload';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.wad = wad;
+            finalize_details();
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.style.marginRight = '10px';
+        back.onclick = () => {
+            ret.wad = wad;
+            ask_for_vwii_compatibility();
+        }
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(wad);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_vwii_compatibility = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'vWii Compatibility';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Is this forwarder compatible with the Wii U?';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += "If you are unsure, select 'Unknown'.";
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'This will be displayed to users.';
+
+        const vwii = document.createElement('select');
+        vwii.name = 'vwii';
+        vwii.id = 'upload-vwii';
+        vwii.className = 'upload-input';
+        vwii.style.width = '100%';
+        vwii.style.marginBottom = '10px';
+
+        const options = ['Select', 'Yes', 'No', 'Unknown'];
+        for (let i = 0; i < options.length; i++) {
+            const option = document.createElement('option');
+            option.value = options[i];
+            option.innerHTML = options[i];
+            vwii.appendChild(option);
         }
 
         const submit = document.createElement('button');
         submit.innerHTML = 'Continue';
         submit.className = 'upload-button';
         submit.id = 'continue-upload-submit';
-
-        // disable button if description is empty
-        description.addEventListener('input', () => {
-            const submit = document.getElementById('continue-upload-submit');
-            submit.disabled = (description.value === '');
+        submit.disabled = true;
+        vwii.addEventListener('input', () => {
+            submit.disabled = (vwii.options[vwii.selectedIndex].value === 'Select');
         });
-
-        const finalize_details = () => {
-            play_click();
-
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const wad_field = document.getElementById('upload-wad');
-
-            if (wad_field) ret.wad = wad_field;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (wad_field) upload.removeChild(wad_field);
-
-            title.innerHTML = 'Confirm';
-
-            const submit = document.createElement('button');
-
-            submit.innerHTML = 'Submit';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                play_click();
-                assemble_request();
-            }
-
-            paragraph.innerHTML = "By submitting this forwarder, you hereby pledge that you have made a good faith effort to ensure that the forwarder is not harmful to users' Wii consoles.";
-            paragraph.innerHTML += " Forwarder Factory reserves the right to ban users who upload harmful, malicious or otherwise dangerous forwarders. ";
-            paragraph.innerHTML += "Forwarder Factory and its members, contributors and affiliates are not responsible for any damages caused by forwarders uploaded to the site. ";
-            paragraph.innerHTML += "Further, we reserve the right to remove any forwarder at any time for any reason, such as but not limited to, a DMCA takedown request.";
-
-            upload.appendChild(submit);
+        submit.onclick = () => {
+            ret.vwiiCompatible = vwii;
+            ask_for_wad();
         }
 
-        const ask_for_wad = () => {
-            play_click();
-
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const vwii = document.getElementById('upload-vwii');
-
-            if (vwii) ret.vwiiCompatible = vwii;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (vwii) upload.removeChild(vwii);
-
-            title.innerHTML = 'WAD File';
-            paragraph.innerHTML = 'Please upload the WAD file of the forwarder you are uploading.';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'This is the file that will be installed on the Wii.';
-            paragraph.innerHTML += 'Please ensure the WAD file is not corrupt as best you can. Intentionally uploading a corrupt WAD file will result in a ban.';
-            paragraph.innerHTML += '<br>';
-
-            const wad = document.createElement('input');
-            wad.type = 'file';
-            wad.name = 'wad';
-            wad.accept = '.wad';
-            wad.className = 'upload-input';
-            wad.id = 'upload-wad';
-            wad.style.width = '80%';
-            wad.style.marginRight = '10px';
-            wad.onclick = () => {
-                play_click();
-            }
-
-            // TODO: some kind of serverside banner brick testing?
-            // TODO 2: banner previews? someone smarter than me can do that pretty please
-
-            const submit = document.createElement('button');
-
-            submit.innerHTML = 'Upload';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                finalize_details();
-            }
-
-            upload.appendChild(wad);
-            upload.appendChild(submit);
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.style.marginRight = '10px';
+        back.onclick = () => {
+            ret.vwiiCompatible = vwii;
+            ask_for_type_location_categories();
         }
 
-        const ask_for_vwii_compatibility = () => {
-            play_click();
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(vwii);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
 
-            const prev_submit = document.getElementById('continue-upload-submit');
+    const ask_for_type_location_categories = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Type, Location, and Category';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = "We need the type of forwarder you're uploading, the location it forwards to, and the categories it belongs to.";
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'The type is the type of forwarder you are uploading. It can be a forwarder (i.e. it forwards to a program) or a channel (self contained)';
+
+        const type = document.createElement('select');
+        type.name = 'type';
+        type.id = 'upload-type';
+        type.className = 'upload-input';
+        type.style.width = '80%';
+        type.style.marginBottom = '10px';
+        if (ret.type !== undefined && ret.type.value !== undefined) {
+            type.value = ret.type.value;
+        }
+
+        const types = ['Select', 'Forwarder', 'Channel'];
+        for (let i = 0; i < types.length; i++) {
+            const option = document.createElement('option');
+            option.value = types[i];
+            option.innerHTML = types[i];
+            type.appendChild(option);
+        }
+
+        const location = document.createElement('input');
+        location.type = 'text';
+        location.name = 'location';
+        location.placeholder = 'Location (e.g. SD:/apps/usbloader_gx/boot.dol or USB:/apps/usbloader_gx/boot.dol or both)';
+        location.className = 'upload-input';
+        location.id = 'upload-location';
+        location.style.width = '80%';
+        location.style.marginBottom = '10px';
+        location.style.display = 'none';
+        if (ret.location !== undefined && ret.location.value !== undefined) {
+            location.value = ret.location.value;
+        }
+
+        let unset = false;
+
+        // if it's a forwarder, ask for location
+        type.addEventListener('change', () => {
             const type = document.getElementById('upload-type');
-            const categories = document.getElementById('upload-categories');
+            const selected_type = type.options[type.selectedIndex].value;
             const location = document.getElementById('upload-location');
 
-            if (type) ret.type = type;
-            if (categories) ret.categories = categories;
-            if (location) ret.location = location;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (type) upload.removeChild(type);
-            if (categories) upload.removeChild(categories);
-            if (location) upload.removeChild(location);
-
-            title.innerHTML = 'vWii Compatibility';
-
-            paragraph.innerHTML = 'Is this forwarder compatible with the Wii U?';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += "If you are unsure, select 'Unknown'.";
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'This will be displayed to users.';
-
-            const vwii = document.createElement('select');
-            vwii.name = 'vwii';
-            vwii.id = 'upload-vwii';
-            vwii.className = 'upload-input';
-            vwii.style.width = '100%';
-            vwii.style.marginBottom = '10px';
-
-            const options = ['Select', 'Yes', 'No', 'Unknown'];
-            for (let i = 0; i < options.length; i++) {
-                const option = document.createElement('option');
-                option.value = options[i];
-                option.innerHTML = options[i];
-                vwii.appendChild(option);
+            if (selected_type === 'Forwarder') {
+                unset = false;
+                location.style.display = '';
+            } else if (selected_type === 'Channel') {
+                unset = false;
+                location.style.display = 'none';
+            } else if (selected_type === 'Select') {
+                unset = true;
+                location.style.display = 'none';
             }
+        });
 
-            const submit = document.createElement('button');
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.disabled = true;
-            vwii.addEventListener('input', () => {
-                submit.disabled = (vwii.options[vwii.selectedIndex].value === 'Select');
-            });
-            submit.onclick = () => {
-                ask_for_wad();
-            }
+        const categories = document.createElement('input');
 
-            upload.appendChild(vwii);
-            upload.appendChild(submit);
+        categories.type = 'text';
+        categories.name = 'categories';
+        categories.placeholder = 'Categories (comma separated)';
+        categories.className = 'upload-input';
+        categories.id = 'upload-categories';
+        categories.style.width = '80%';
+        categories.style.marginBottom = '10px';
+        if (ret.categories !== undefined && ret.categories.value !== undefined) {
+            categories.value = ret.categories.value;
         }
 
-        const ask_for_type_location_categories = () => {
-            play_click();
-
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const youtube = document.getElementById('upload-youtube');
-            const youtube_preview = document.getElementById('upload-youtube-preview');
-
-            if (youtube) ret.youtube = youtube;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (youtube) upload.removeChild(youtube);
-            if (youtube_preview) upload.removeChild(youtube_preview);
-
-            title.innerHTML = 'Type, Location, and Category';
-            paragraph.innerHTML = "We need the type of forwarder you're uploading, the location it forwards to, and the categories it belongs to.";
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'The type is the type of forwarder you are uploading. It can be a forwarder (i.e. it forwards to a program) or a channel (self contained)';
-
-            const type = document.createElement('select');
-            type.name = 'type';
-            type.id = 'upload-type';
-            type.className = 'upload-input';
-            type.style.width = '80%';
-            type.style.marginBottom = '10px';
-
-            const types = ['Select', 'Forwarder', 'Channel'];
-            for (let i = 0; i < types.length; i++) {
-                const option = document.createElement('option');
-                option.value = types[i];
-                option.innerHTML = types[i];
-                type.appendChild(option);
-            }
-
-            const location = document.createElement('input');
-            location.type = 'text';
-            location.name = 'location';
-            location.placeholder = 'Location (e.g. SD:/apps/usbloader_gx/boot.dol or USB:/apps/usbloader_gx/boot.dol or both)';
-            location.className = 'upload-input';
-            location.id = 'upload-location';
-            location.style.width = '80%';
-            location.style.marginBottom = '10px';
-            location.style.display = 'none';
-
-            let unset = false;
-
-            // if it's a forwarder, ask for location
-            type.addEventListener('change', () => {
-                const type = document.getElementById('upload-type');
-                const selected_type = type.options[type.selectedIndex].value;
-                const location = document.getElementById('upload-location');
-
-                if (selected_type === 'Forwarder') {
-                    unset = false;
-                    location.style.display = '';
-                } else if (selected_type === 'Channel') {
-                    unset = false;
-                    location.style.display = 'none';
-                } else if (selected_type === 'Select') {
-                    unset = true;
-                    location.style.display = 'none';
-                }
-            });
-
-            const categories = document.createElement('input');
-
-            categories.type = 'text';
-            categories.name = 'categories';
-            categories.placeholder = 'Categories (comma separated)';
-            categories.className = 'upload-input';
-            categories.id = 'upload-categories';
-            categories.style.width = '80%';
-            categories.style.marginBottom = '10px';
-
-            const submit = document.createElement('button');
-
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                ask_for_vwii_compatibility();
-            }
-
-            // disable button if type is unset
-            type.addEventListener('input', () => {
-                const submit = document.getElementById('continue-upload-submit');
-                submit.disabled = unset;
-            });
-
-            upload.appendChild(type);
-            upload.appendChild(location);
-            upload.appendChild(categories);
-            upload.appendChild(document.createElement('br'));
-            upload.appendChild(submit);
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.style.marginRight = '10px';
+        back.onclick = () => {
+            ret.categories = categories;
+            ret.location = location;
+            ret.type = type;
+            ask_for_youtube();
         }
 
-        const ask_for_youtube = () => {
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.categories = categories;
+            ret.location = location;
+            ret.type = type;
+            ask_for_vwii_compatibility();
+        }
+
+        // disable button if type is unset
+        type.addEventListener('input', () => {
+            const submit = document.getElementById('continue-upload-submit');
+            submit.disabled = unset;
+        });
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(type);
+        upload.appendChild(location);
+        upload.appendChild(categories);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_youtube = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'YouTube Video (Optional)';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'If you have a YouTube video showcasing your forwarder, please provide the video URL here. This will be displayed on the forwarder page.';
+
+        const youtube = document.createElement('input');
+        youtube.type = 'text';
+        youtube.name = 'youtube';
+        youtube.placeholder = 'YouTube Video URL';
+        youtube.className = 'upload-input';
+        youtube.id = 'upload-youtube';
+        youtube.style.width = '80%';
+        youtube.style.marginRight = '10px';
+        youtube.onclick = () => {
             play_click();
+        }
+        if (ret.youtube !== undefined && ret.youtube.value !== undefined) {
+            youtube.value = ret.youtube.value;
+        }
 
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const author = document.getElementById('upload-author');
-
-            if (author) ret.author = author;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (author) upload.removeChild(author);
-
-            title.innerHTML = 'YouTube Video (Optional)';
-            paragraph.innerHTML = 'If you have a YouTube video showcasing your forwarder, please provide the video URL here. This will be displayed on the forwarder page.';
-
-            const youtube = document.createElement('input');
-            youtube.type = 'text';
-            youtube.name = 'youtube';
-            youtube.placeholder = 'YouTube Video URL';
-            youtube.className = 'upload-input';
-            youtube.id = 'upload-youtube';
-            youtube.style.width = '80%';
-            youtube.style.marginRight = '10px';
-            youtube.onclick = () => {
-                play_click();
+        // embed a preview of the video on input
+        youtube.addEventListener('input', () => {
+            const url = youtube.value;
+            let video_id = url.split('v=')[1];
+            const ampersand_position = video_id.indexOf('&');
+            if (ampersand_position !== -1) {
+                video_id = video_id.substring(0, ampersand_position);
             }
 
-            // embed a preview of the video on input
-            youtube.addEventListener('input', () => {
-                const url = youtube.value;
-                let video_id = url.split('v=')[1];
-                const ampersand_position = video_id.indexOf('&');
-                if (ampersand_position !== -1) {
-                    video_id = video_id.substring(0, ampersand_position);
-                }
-
-                // if missing youtube.com, remove the preview
-                if (!url.includes('youtube.com')) {
-                    const preview = document.getElementById('upload-youtube-preview');
-                    if (preview) {
-                        upload.removeChild(preview);
-                    }
-                    return;
-                }
-
+            // if missing youtube.com, remove the preview
+            if (!url.includes('youtube.com')) {
                 const preview = document.getElementById('upload-youtube-preview');
                 if (preview) {
                     upload.removeChild(preview);
                 }
-
-                const iframe = document.createElement('iframe');
-                iframe.src = `https://www.youtube.com/embed/${video_id}`;
-                iframe.style.width = '100%';
-                iframe.style.height = '200px';
-                iframe.style.maxWidth = '50%';
-                iframe.style.marginBottom = '10px';
-                iframe.style.borderRadius = '5px';
-
-                iframe.id = 'upload-youtube-preview';
-                upload.appendChild(iframe);
-                upload.appendChild(document.createElement('br'));
-
-                // remove and re-add the button so it's at the bottom
-                const submit = document.getElementById('continue-upload-submit');
-                upload.removeChild(submit);
-                upload.appendChild(submit);
-            });
-
-            const submit = document.createElement('button');
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                ask_for_type_location_categories();
             }
 
-            upload.appendChild(youtube);
-            upload.appendChild(submit);
-        }
-
-        const ask_for_author = () => {
-            play_click();
-
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const banner = document.getElementById('upload-banner');
-            const img = document.getElementById('upload-banner-preview');
-
-            if (banner) ret.banner = banner;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (banner) upload.removeChild(banner);
-            if (img) upload.removeChild(img);
-
-            title.innerHTML = 'Author';
-            paragraph.innerHTML = 'Please provide the author of the forwarder you are uploading. This will be displayed to users.';
-            paragraph.innerHTML += "If you don't know, leave it blank. Do not put your own name here, unless you are the author of the forwarder.";
-
-            const author = document.createElement('input');
-            author.type = 'text';
-            author.name = 'author';
-            author.placeholder = 'Author';
-            author.className = 'upload-input';
-            author.id = 'upload-author';
-            author.style.width = '50%';
-            author.style.marginBottom = '10px';
-            author.onclick = () => {
-                play_click();
+            const preview = document.getElementById('upload-youtube-preview');
+            if (preview) {
+                upload.removeChild(preview);
             }
 
-            const submit = document.createElement('button');
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                ask_for_youtube();
-            }
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://www.youtube.com/embed/${video_id}`;
+            iframe.style.width = '100%';
+            iframe.style.height = '200px';
+            iframe.style.maxWidth = '50%';
+            iframe.style.marginBottom = '10px';
+            iframe.style.borderRadius = '5px';
 
-            upload.appendChild(author);
+            iframe.id = 'upload-youtube-preview';
+            upload.appendChild(iframe);
             upload.appendChild(document.createElement('br'));
+
+            const submit = document.getElementById('continue-upload-submit');
+            const back = document.getElementById('back-upload-button');
+            upload.removeChild(submit);
+            upload.removeChild(back);
+            upload.appendChild(back);
             upload.appendChild(submit);
+        });
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.style.marginRight = '10px';
+        back.onclick = () => {
+            ret.youtube = youtube;
+            ask_for_author();
         }
 
-        const ask_for_banner = () => {
-            play_click();
-
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const icon = document.getElementById('upload-icon');
-            const img = document.getElementById('upload-icon-preview');
-
-            if (icon) ret.icon = icon;
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (icon) upload.removeChild(icon);
-            if (img) upload.removeChild(img);
-
-            title.innerHTML = 'Upload a Banner';
-            paragraph.innerHTML = 'Please upload a banner. This can be a screenshot or animated GIF of what is displayed upon clicking on the icon on the Wii menu.<br>This will be displayed at the top of the forwarder page.';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'The banner may be any image or video file. For the best chances of your forwarder being accepted, please ensure it does not contain significant parts of the Wii menu.';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'Try and capture the essence of your forwarder in a single image.';
-
-            const banner = document.createElement('input');
-            banner.type = 'file';
-            banner.name = 'banner';
-            banner.accept = 'image/*,video/*';
-            banner.className = 'upload-input';
-            banner.id = 'upload-banner';
-            banner.style.width = '80%';
-            banner.style.marginRight = '10px';
-            banner.onclick = () => {
-                play_click();
-            }
-
-            // on select, add a preview of the image on the page
-            banner.addEventListener('change', () => {
-                const file = banner.files[0];
-                const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    if (file.type.includes('video')) {
-                        const video = document.createElement('video');
-                        video.src = e.target.result;
-                        video.style.width = '100%';
-                        video.style.maxWidth = '300px';
-                        video.style.height = 'auto';
-                        video.style.marginBottom = '10px';
-                        video.style.borderRadius = '5px';
-                        video.controls = true;
-
-                        const preview = document.getElementById('upload-banner-preview');
-                        if (preview) {
-                            upload.removeChild(preview);
-                        }
-
-                        upload.appendChild(video);
-                        upload.appendChild(document.createElement('br'));
-                        video.id = 'upload-banner-preview';
-                    } else {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.style.width = '100%';
-                        img.style.maxWidth = '300px';
-                        img.style.height = 'auto';
-                        img.style.marginBottom = '10px';
-                        img.style.borderRadius = '5px';
-
-                        const preview = document.getElementById('upload-banner-preview');
-                        if (preview) {
-                            upload.removeChild(preview);
-                        }
-
-                        upload.appendChild(img);
-                        upload.appendChild(document.createElement('br'));
-                        img.id = 'upload-banner-preview';
-                    }
-
-                    // remove and re-add the button so it's at the bottom
-                    const submit = document.getElementById('continue-upload-submit');
-                    upload.removeChild(submit);
-                    upload.appendChild(submit);
-                }
-
-                reader.readAsDataURL(file);
-            });
-
-            const submit = document.createElement('button');
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                ask_for_author();
-            }
-
-            upload.appendChild(banner);
-            upload.appendChild(submit);
-        }
-
-        const ask_for_icon = () => {
-            play_click();
-
-            const prev_submit = document.getElementById('continue-upload-submit');
-            const title_input = document.getElementById('upload-title');
-            const title_id_input = document.getElementById('upload-title-id');
-
-            if (title_input) ret.title = title_input;
-            if (title_id_input) ret.titleID = title_id_input;
-
-            if (prev_submit) upload.removeChild(prev_submit);
-            if (title_input) upload.removeChild(title_input);
-            if (title_id_input) upload.removeChild(title_id_input);
-
-            title.innerHTML = 'Upload an Icon';
-            paragraph.innerHTML = 'Please upload an icon for your forwarder. This will be displayed when people are browsing for forwarders.';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'The icon may be any image file. For the best chances of your forwarder being accepted, please ensure it does not contain significant parts of the Wii menu.';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'Try and capture the essence of your forwarder in a single image.';
-            paragraph.innerHTML += '<br>';
-
-            const icon = document.createElement('input');
-            icon.type = 'file';
-            icon.name = 'icon';
-            icon.accept = 'image/*,video/*';
-            icon.className = 'upload-input';
-            icon.id = 'upload-icon';
-            icon.style.width = '80%';
-            icon.style.marginRight = '10px';
-            icon.onclick = () => {
-                play_click();
-            }
-
-            // on select, add a preview of the image on the page
-            // client side so fuck validation, worst case i guess the client can fuck up his own computer
-            icon.addEventListener('change', () => {
-                const file = icon.files[0];
-                const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    if (file.type.includes('video')) {
-                        const video = document.createElement('video');
-                        video.src = e.target.result;
-                        video.style.width = '100%';
-                        video.style.maxWidth = '300px';
-                        video.style.height = 'auto';
-                        video.style.marginBottom = '10px';
-                        video.style.borderRadius = '5px';
-                        video.controls = true;
-
-                        const preview = document.getElementById('upload-icon-preview');
-                        if (preview) {
-                            upload.removeChild(preview);
-                        }
-
-                        upload.appendChild(video);
-                        upload.appendChild(document.createElement('br'));
-                        video.id = 'upload-icon-preview';
-                    } else {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.style.width = '100%';
-                        img.style.maxWidth = '300px';
-                        img.style.height = 'auto';
-                        img.style.marginBottom = '10px';
-                        img.style.borderRadius = '5px';
-
-                        const preview = document.getElementById('upload-icon-preview');
-                        if (preview) {
-                            upload.removeChild(preview);
-                        }
-
-                        upload.appendChild(img);
-                        upload.appendChild(document.createElement('br'));
-                        img.id = 'upload-icon-preview';
-                    }
-
-                    // remove and re-add the button so it's at the bottom
-                    const submit = document.getElementById('continue-upload-submit');
-                    upload.removeChild(submit);
-                    upload.appendChild(submit);
-                }
-
-                reader.readAsDataURL(file);
-            });
-
-            const submit = document.createElement('button');
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.onclick = () => {
-                ask_for_banner();
-            }
-
-            upload.appendChild(icon);
-            upload.appendChild(submit);
-        }
-
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
         submit.onclick = () => {
-            play_click();
-
-            const description = document.getElementById('upload-description');
-            const prev_submit = document.getElementById('continue-upload-submit');
-
-            ret.description = description;
-
-            if (description) upload.removeChild(description);
-            if (prev_submit) upload.removeChild(prev_submit);
-
-            title.innerHTML = 'Title and Title ID';
-            paragraph.innerHTML = 'Please provide a title and title ID for your forwarder. The title ID is a unique identifier for your forwarder and is made up of four characters, A-Z and 0-9.';
-            paragraph.innerHTML += '<br><br>';
-            paragraph.innerHTML += 'The title is what will be displayed to users when they search for your forwarder. A good suggestion is what is displayed hovering over the forwarder in the Wii System Menu.';
-            paragraph.innerHTML += '<br>';
-            paragraph.innerHTML += 'Example: "Internet Channel" and "HAAA"';
-
-            const title_input = document.createElement('input');
-            title_input.type = 'text';
-            title_input.name = 'title';
-            title_input.placeholder = 'Title';
-            title_input.className = 'upload-input';
-            title_input.id = 'upload-title';
-            title_input.style.width = '50%';
-            title_input.style.marginBottom = '10px';
-            title_input.onclick = () => {
-                play_click();
-            }
-            const title_id_input = document.createElement('input');
-            title_id_input.type = 'text';
-            title_id_input.name = 'title_id';
-            title_id_input.placeholder = 'Title ID';
-            title_id_input.className = 'upload-input';
-            title_id_input.id = 'upload-title-id';
-            title_id_input.style.width = '20%';
-            title_id_input.style.marginLeft = '10px';
-            title_id_input.onclick = () => {
-                play_click();
-            }
-
-            // prevent it from being too long or containing invalid characters
-            title_id_input.addEventListener('input', () => {
-                title_id_input.value = title_id_input.value.toUpperCase();
-                title_id_input.value = title_id_input.value.replace(/[^A-Z0-9]/, '');
-                title_id_input.value = title_id_input.value.substring(0, 4);
-
-                submit.disabled = (title_input.value === '' || title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
-            });
-            title_input.addEventListener('input', () => {
-                title_input.value = title_input.value.substring(0, 30);
-                submit.disabled = (title_input.value === '' || title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
-            });
-
-            upload.appendChild(title_input);
-            upload.appendChild(title_id_input);
-
-            const submit = document.createElement('button');
-            submit.innerHTML = 'Continue';
-            submit.className = 'upload-button';
-            submit.id = 'continue-upload-submit';
-            submit.disabled = (title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
-            submit.onclick = () => {
-                ask_for_icon();
-            }
-
-            upload.appendChild(document.createElement('br'));
-            upload.appendChild(submit);
+            ret.youtube = youtube;
+            ask_for_type_location_categories();
         }
 
-        upload.appendChild(description);
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(youtube);
         upload.appendChild(document.createElement('br'));
         upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
         upload.appendChild(submit);
-    };
-
-    upload.appendChild(content_type);
-    upload.appendChild(button);
-
-    if (_error) {
-        const error = document.createElement('p');
-        error.classList = 'error';
-        error.innerHTML = _error;
-        upload.appendChild(error);
     }
+
+    const ask_for_author = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Author';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please provide the author of the forwarder you are uploading. This will be displayed to users.';
+        paragraph.innerHTML += "If you don't know, leave it blank. Do not put your own name here, unless you are the author of the forwarder.";
+
+        const author = document.createElement('input');
+        author.type = 'text';
+        author.name = 'author';
+        author.placeholder = 'Author';
+        author.className = 'upload-input';
+        author.id = 'upload-author';
+        author.style.width = '50%';
+        author.style.marginBottom = '10px';
+        author.onclick = () => {
+            play_click();
+        }
+
+        if (ret.author !== undefined && ret.author.value !== undefined) {
+            author.value = ret.author.value;
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.style.marginRight = '10px';
+        back.onclick = () => {
+            ret.author = author;
+            ask_for_banner();
+        }
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.author = author;
+            ask_for_youtube();
+        }
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(author);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_banner = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Upload a Banner';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please upload a banner. This can be a screenshot or animated GIF of what is displayed upon clicking on the icon on the Wii menu.<br>This will be displayed at the top of the forwarder page.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'The banner may be any image or video file. For the best chances of your forwarder being accepted, please ensure it does not contain significant parts of the Wii menu.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'Try and capture the essence of your forwarder in a single image.';
+
+        const banner = document.createElement('input');
+        banner.type = 'file';
+        banner.name = 'banner';
+        banner.accept = 'image/*,video/*';
+        banner.className = 'upload-input';
+        banner.id = 'upload-banner';
+        banner.style.width = '80%';
+        banner.style.marginRight = '10px';
+        banner.onclick = () => {
+            play_click();
+        }
+
+        // on select, add a preview of the image on the page
+        banner.addEventListener('change', () => {
+            const file = banner.files[0];
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                if (file.type.includes('video')) {
+                    const video = document.createElement('video');
+                    video.src = e.target.result;
+                    video.style.width = '100%';
+                    video.style.maxWidth = '300px';
+                    video.style.height = 'auto';
+                    video.style.marginBottom = '10px';
+                    video.style.borderRadius = '5px';
+                    video.controls = true;
+
+                    const preview = document.getElementById('upload-banner-preview');
+                    if (preview) {
+                        upload.removeChild(preview);
+                    }
+
+                    upload.appendChild(video);
+                    upload.appendChild(document.createElement('br'));
+                    video.id = 'upload-banner-preview';
+                } else {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '100%';
+                    img.style.maxWidth = '300px';
+                    img.style.height = 'auto';
+                    img.style.marginBottom = '10px';
+                    img.style.borderRadius = '5px';
+
+                    const preview = document.getElementById('upload-banner-preview');
+                    if (preview) {
+                        upload.removeChild(preview);
+                    }
+
+                    upload.appendChild(img);
+                    upload.appendChild(document.createElement('br'));
+                    img.id = 'upload-banner-preview';
+                }
+
+                const submit = document.getElementById('continue-upload-submit');
+                const back = document.getElementById('back-upload-button');
+                upload.removeChild(submit);
+                upload.removeChild(back);
+                upload.appendChild(back);
+                upload.appendChild(submit);
+            }
+
+            reader.readAsDataURL(file);
+        });
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.banner = banner;
+            ask_for_author();
+        }
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.onclick = () => {
+            ret.banner = banner;
+            ask_for_icon();
+        }
+        back.style.marginRight = '10px';
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(banner);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_icon = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Upload an Icon';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please upload an icon for your forwarder. This will be displayed when people are browsing for forwarders.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'The icon may be any image file. For the best chances of your forwarder being accepted, please ensure it does not contain significant parts of the Wii menu.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'Try and capture the essence of your forwarder in a single image.';
+        paragraph.innerHTML += '<br>';
+
+        const icon = document.createElement('input');
+        icon.type = 'file';
+        icon.name = 'icon';
+        icon.accept = 'image/*,video/*';
+        icon.className = 'upload-input';
+        icon.id = 'upload-icon';
+        icon.style.width = '80%';
+        icon.style.marginRight = '10px';
+        icon.onclick = () => {
+            play_click();
+        }
+
+        // on select, add a preview of the image on the page
+        // client side so fuck validation, worst case i guess the client can fuck up his own computer
+        icon.addEventListener('change', () => {
+            const file = icon.files[0];
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                if (file.type.includes('video')) {
+                    const video = document.createElement('video');
+                    video.src = e.target.result;
+                    video.style.width = '100%';
+                    video.style.maxWidth = '300px';
+                    video.style.height = 'auto';
+                    video.style.marginBottom = '10px';
+                    video.style.borderRadius = '5px';
+                    video.controls = true;
+
+                    const preview = document.getElementById('upload-icon-preview');
+                    if (preview) {
+                        upload.removeChild(preview);
+                    }
+
+                    upload.appendChild(video);
+                    upload.appendChild(document.createElement('br'));
+                    video.id = 'upload-icon-preview';
+                } else {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '100%';
+                    img.style.maxWidth = '300px';
+                    img.style.height = 'auto';
+                    img.style.marginBottom = '10px';
+                    img.style.borderRadius = '5px';
+
+                    const preview = document.getElementById('upload-icon-preview');
+                    if (preview) {
+                        upload.removeChild(preview);
+                    }
+
+                    upload.appendChild(img);
+                    upload.appendChild(document.createElement('br'));
+                    img.id = 'upload-icon-preview';
+                }
+
+                const submit = document.getElementById('continue-upload-submit');
+                const back = document.getElementById('back-upload-button');
+                upload.removeChild(submit);
+                upload.removeChild(back);
+                upload.appendChild(back);
+                upload.appendChild(submit);
+            }
+
+            reader.readAsDataURL(file);
+        });
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.icon = icon;
+            ask_for_banner();
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.onclick = () => {
+            ret.icon = icon;
+            ask_for_description();
+        }
+        back.style.marginRight = '10px';
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(icon);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_description = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Description';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please provide a description for your forwarder. This will be displayed on the forwarder page.';
+
+        const input = document.createElement('textarea');
+        input.name = 'description';
+        input.placeholder = 'Description';
+        input.className = 'upload-input';
+        input.id = 'upload-description';
+        input.style.width = '80%';
+        input.style.height = '200px';
+        if (ret.description !== undefined && ret.description.value !== undefined) {
+            input.value = ret.description.value;
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.onclick = () => {
+            ret.description = input.value;
+            ask_for_title();
+        }
+        back.style.marginRight = '10px';
+
+        const submit = document.createElement('button');
+
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.description = input;
+            ask_for_icon();
+        }
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(input);
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_title = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Title and Title ID';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please provide a title and title ID for your forwarder. The title ID is a unique identifier for your forwarder and is made up of four characters, A-Z and 0-9.';
+        paragraph.innerHTML += '<br><br>';
+        paragraph.innerHTML += 'The title is what will be displayed to users when they search for your forwarder. A good suggestion is what is displayed hovering over the forwarder in the Wii System Menu.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'Example: "Internet Channel" and "HAAA"';
+
+        const title_input = document.createElement('input');
+        title_input.type = 'text';
+        title_input.name = 'title';
+        title_input.placeholder = 'Title';
+        title_input.className = 'upload-input';
+        title_input.id = 'upload-title';
+        title_input.style.width = '50%';
+        title_input.style.marginBottom = '10px';
+        title_input.onclick = () => {
+            play_click();
+        }
+        if (ret.title !== undefined && ret.title.value !== undefined) {
+            title_input.value = ret.title.value;
+        }
+
+        const title_id_input = document.createElement('input');
+        title_id_input.type = 'text';
+        title_id_input.name = 'title_id';
+        title_id_input.placeholder = 'Title ID';
+        title_id_input.className = 'upload-input';
+        title_id_input.id = 'upload-title-id';
+        title_id_input.style.width = '20%';
+        title_id_input.style.marginLeft = '10px';
+        if (ret.titleID !== undefined) {
+            title_id_input.value = ret.titleID.value;
+        }
+
+        title_id_input.onclick = () => {
+            play_click();
+        }
+
+        // prevent it from being too long or containing invalid characters
+        title_id_input.addEventListener('input', () => {
+            title_id_input.value = title_id_input.value.toUpperCase();
+            title_id_input.value = title_id_input.value.replace(/[^A-Z0-9]/, '');
+            title_id_input.value = title_id_input.value.substring(0, 4);
+
+            submit.disabled = (title_input.value === '' || title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
+        });
+        title_input.addEventListener('input', () => {
+            title_input.value = title_input.value.substring(0, 30);
+            submit.disabled = (title_input.value === '' || title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
+        });
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.onclick = () => {
+            ret.title = title_input;
+            ret.titleID = title_id_input;
+            ask_for_content_type();
+        }
+        back.style.marginRight = '10px';
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.disabled = (title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
+        submit.onclick = () => {
+            ret.title = title_input;;
+            ret.titleID = title_id_input;
+            ask_for_description();
+        }
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(title_input);
+        upload.appendChild(title_id_input);
+
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    }
+
+    const ask_for_content_type = () => {
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Upload';
+        title.className = 'floating_window_title';
+        title.id = 'upload-window-title';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Have some interesting content to share? Upload it here! Please note that all uploads are subject to review.';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += 'Please ensure your forwarder is not a duplicate of an existing forwarder. ';
+        paragraph.innerHTML += 'Some fields will require knowledge of the forwarder you are uploading. You can obtain all of the information required ';
+        paragraph.innerHTML += 'by using a tool such as ShowMiiWads or CustomizeMii. If you are unsure about anything, please leave it blank.';
+
+        paragraph.className = 'floating_window_paragraph';
+        paragraph.id = 'upload-window-paragraph';
+
+        const content_type = document.createElement('select');
+        content_type.name = 'content_type';
+        content_type.id = 'content_type';
+        content_type.className = 'upload-input';
+        content_type.style.width = '100%';
+        content_type.style.marginBottom = '10px';
+
+        const content_types = ['Forwarder'];
+        for (let i = 0; i < content_types.length; i++) {
+            const option = document.createElement('option');
+            option.value = content_types[i];
+            option.innerHTML = content_types[i];
+            content_type.appendChild(option);
+        }
+
+        content_type.addEventListener('change', () => {
+            // TODO: Maybe we can do something cool here?
+            play_click();
+        });
+
+        const button = document.createElement('button');
+        button.innerHTML = 'Continue';
+        button.id = 'upload-continue-button';
+        button.onclick = () => {
+            // TODO: Handle future content types
+            // if (content_type.options[content_type.selectedIndex].value === 'Forwarder') {
+            ask_for_title();
+        }
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(content_type);
+        upload.appendChild(button);
+
+        if (_error) {
+            const error = document.createElement('p');
+            error.classList = 'error';
+            error.innerHTML = _error;
+            upload.appendChild(document.createElement('br'));
+            upload.appendChild(document.createElement('br'));
+            upload.appendChild(error);
+        }
+    }
+
+    ask_for_content_type();
 }
 
 function show_forwarder(id) {
@@ -1580,7 +1761,6 @@ function show_forwarder(id) {
             .then(response => {
                 if (response.status === 204) {
                     show_forwarder(id);
-                    return;
                 }
             })
             .catch((error) => {
@@ -1996,7 +2176,7 @@ function show_browse() {
                     });
 
                     // if no forwarders, display a message
-                    if (forwarders.length === 0) {
+                    if (forwarders.size() === 0) {
                         const noResults = document.createElement('h2');
                         noResults.innerHTML = 'No results found. Why don\'t you find it for us?';
                         noResults.id = 'browse-no-results';
@@ -2397,11 +2577,6 @@ function show_browse() {
     document.body.prepend(filter_button);
 }
 
-function show_browse_button() { // called by the browse button, my IDE is dumb (in fairness it can't understand bygg syntax)
-    play_click();
-    show_browse();
-}
-
 function show_admin() {
     set_path('/admin');
     hide_initial();
@@ -2419,11 +2594,6 @@ function show_admin() {
     unfinished.className = 'admin-unfinished';
     admin.appendChild(unfinished);
 }
-function show_admin_button() { // called by the admin button, my IDE is dumb (in fairness it can't understand bygg syntax)
-    play_click();
-    show_admin();
-}
-
 const generate_stars = (n, w) => {
     for (let i = 0; i < n; i++) {
         const star = document.createElement('div');
@@ -2448,7 +2618,7 @@ function show_credits() {
     set_path('/');
     hide_initial();
 
-    const credits = create_window('credits-window', false, false, true, true);
+    const credits = create_window('credits-window', {back_button: null, close_button: false, moveable: false, close_on_click_outside: true, close_on_escape: true});
     credits.style.overflow = "hidden";
     credits.style.minWidth = "80%";
     credits.style.minHeight = "80%";
@@ -2549,17 +2719,10 @@ function show_credits() {
     document.body.appendChild(blacken);
 }
 
-function show_credits_button() {
-    play_click();
-    show_credits();
-}
-
 function setup(_error = "") {
-    console.log('Setting up Forwarder Factory...');
-
     hide_initial();
 
-    const win = create_window('setup-window', false);
+    const win = create_window('setup-window', {back_button: null, close_button: false, close_on_escape: false, close_on_click_outside: false});
 
     const title = document.createElement('h1');
     title.innerHTML = 'Setup';
@@ -2639,7 +2802,7 @@ function setup(_error = "") {
 
     if (_error) {
         const error = document.createElement('p');
-        error.classList = 'error';
+        error.className = 'error';
         error.innerHTML = _error;
         win.appendChild(error);
     }
@@ -2675,7 +2838,7 @@ function get_grid(elements) {
 
 function get_link_box(p) {
     const link_box = document.createElement('div');
-    link_box.className = 'link_box' + (p.classes ? ' ' + p.classes : '');
+    link_box.className = 'link_box';
 
     if (p.location) {
         link_box.setAttribute('onclick', `location.href='${p.location}';`);
@@ -2719,7 +2882,7 @@ function init_page() {
         description: "Browse channels uploaded by others.",
         background_color: "",
         id: "browse-button",
-        onclick: "show_browse_button()"
+        onclick: "show_browse()"
     }));
 
     if (get_cookie("username") === null) {
@@ -2741,7 +2904,7 @@ function init_page() {
                 title: "Admin",
                 description: "Access the admin panel.",
                 id: "admin-button",
-                onclick: "show_admin_button()"
+                onclick: "show_admin()"
             }));
         }
         list.push(get_link_box({
@@ -2762,7 +2925,7 @@ function init_page() {
         title: "Credits",
         description: "View the credits for Forwarder Factory.",
         id: "credits-button",
-        onclick: "show_credits_button()"
+        onclick: "show_credits()"
     }));
 
     const grid = get_grid(list, 'initial-link-grid');
