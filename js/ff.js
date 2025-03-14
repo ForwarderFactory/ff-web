@@ -523,52 +523,135 @@ function show_register(_error = ""){
 
     hide_initial();
 
-    const register = create_window('register-window');
-    const url = '/api/try_register';
+    let ret = {};
 
-    const title = document.createElement('h1');
-    title.innerHTML = 'Register';
-    title.className = 'floating_window_title';
-    title.id = 'register-window-title';
-
-    const paragraph = document.createElement('p');
-    paragraph.innerHTML = 'Welcome to Forwarder Factory. Please enter your desired username!';
-    paragraph.className = 'floating_window_paragraph';
-    paragraph.id = 'register-window-paragraph';
-
-    register.appendChild(title);
-    register.appendChild(paragraph);
-
-    const username = document.createElement('input');
-    username.type = 'text';
-    username.name = 'username';
-    username.placeholder = 'Username';
-    username.className = 'login-input';
-    username.id = 'register-username';
-
-    username.onclick = () => {
+    const submit_data = () => {
         play_click();
 
-        const errors = document.getElementsByClassName('error');
-        for (let i = 0; i < errors.length; i++) {
-            const error = errors[i];
-            if (error.id === 'register-error') {
-                register.removeChild(error);
-            }
+        if (ret.password.value !== ret.confirm.value) {
+            show_register('Passwords do not match!');
+            return;
         }
+
+        const data = {
+            username: ret.username.value,
+            password: ret.password.value,
+            email: ret.email.value,
+        };
+
+        fetch("/api/try_register", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        })
+            .then(response => {
+                if (response.status === 204) { // success without email verification needed
+                    hide_all_windows();
+                }
+
+                return response.json();
+            })
+            .then(json => {
+                if (json && json.error_str) {
+                    show_register(json.error_str);
+                    return;
+                } else if (json && json.note && json.note === "FF_EMAIL_VERIFICATION_REQUIRED") {
+                    const congrats = create_window('congrats-window');
+
+                    const title = document.createElement('h1');
+                    title.innerHTML = 'Congratulations!';
+                    title.className = 'floating_window_title';
+                    title.id = 'congrats-window-title';
+
+                    const paragraph = document.createElement('p');
+                    paragraph.innerHTML = 'You have successfully registered! Before you can log in, you must verify your email address. Please check your email for a verification link.';
+                    paragraph.className = 'floating_window_paragraph';
+                    paragraph.id = 'congrats-window-paragraph';
+
+                    const button = document.createElement('button');
+                    button.innerHTML = 'Close';
+                    button.className = 'congrats-button';
+                    button.onclick = () => {
+                        play_click();
+                        hide_all_windows();
+                    }
+
+                    congrats.appendChild(title);
+                    congrats.appendChild(paragraph);
+                    congrats.appendChild(button);
+                }
+
+                if (json) {
+                    throw new Error('Invalid response from server: ' + JSON.stringify(json));
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
     }
 
-    register.appendChild(username);
-
-    const submit = document.createElement('button');
-    submit.innerHTML = 'Continue';
-    submit.className = 'register-button';
-
-    submit.onclick = () => {
+    const ask_for_confirm = () => {
         play_click();
 
-        register.removeChild(username);
-        register.removeChild(submit);
+        const register = create_window('register-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = "Welcome " + ret.username.value + "!";
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please confirm your password!';
+
+        const confirm = document.createElement('input');
+        confirm.type = 'password';
+        confirm.name = 'password';
+        confirm.placeholder = 'Confirm password';
+        confirm.className = 'register-input';
+        confirm.id = 'register-confirm-password';
+        confirm.onclick = () => {
+            play_click();
+        }
+        if (ret.confirm !== undefined && ret.confirm.value !== undefined) {
+            confirm.value = ret.confirm.value;
+        }
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'register-button';
+        submit.onclick = () => {
+            ret.confirm = confirm;
+            submit_data();
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'register-button';
+        back.onclick = () => {
+            ret.confirm = confirm;
+            ask_for_password();
+        }
+        back.style.marginRight = '10px';
+
+        register.appendChild(title);
+        register.appendChild(paragraph);
+        register.appendChild(confirm);
+        register.appendChild(document.createElement('br'));
+        register.appendChild(document.createElement('br'));
+        register.appendChild(back);
+        register.appendChild(submit);
+    }
+
+    const ask_for_password = () => {
+        play_click();
+
+        const register = create_window('register-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = "Welcome " + ret.username.value + "!";
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please enter your password!';
 
         const password = document.createElement('input');
         password.type = 'password';
@@ -576,165 +659,159 @@ function show_register(_error = ""){
         password.placeholder = 'Password';
         password.className = 'register-input';
         password.id = 'register-password';
-
         password.onclick = () => {
             play_click();
         }
-
-        title.innerHTML = "Welcome " + username.value + "!";
-        paragraph.innerHTML = 'Please enter your password!';
-
-        register.appendChild(password);
-
-        submit.innerHTML = 'Continue';
-
-        submit.onclick = () => {
-            play_click();
-
-            const confirm = document.createElement('input');
-            confirm.type = 'password';
-            confirm.name = 'confirm';
-            confirm.placeholder = 'Confirm Password';
-            confirm.className = 'register-input';
-            confirm.id = 'register-confirm';
-
-            confirm.onclick = () => {
-                play_click();
-            }
-
-            title.innerHTML = "Welcome " + username.value + "!";
-            paragraph.innerHTML = 'Please confirm your password!';
-
-            register.appendChild(confirm);
-
-            const submit_data = (_username, _password, _email) => {
-                play_click();
-
-                if (_password.value !== confirm.value) {
-                    show_register('Passwords do not match!');
-                    return;
-                }
-
-                const data = {
-                    username: _username.value,
-                    password: _password.value,
-                    email: _email.value,
-                };
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data),
-                })
-                    .then(response => {
-                        if (response.status === 204) { // success without email verification needed
-                            hide_all_windows();
-                        }
-
-                        return response.json();
-                    })
-                    .then(json => {
-                        if (json && json.error_str) {
-                            show_register(json.error_str);
-                            return;
-                        } else if (json && json.note && json.note === "FF_EMAIL_VERIFICATION_REQUIRED") {
-                            const congrats = create_window('congrats-window');
-
-                            const title = document.createElement('h1');
-                            title.innerHTML = 'Congratulations!';
-                            title.className = 'floating_window_title';
-                            title.id = 'congrats-window-title';
-
-                            const paragraph = document.createElement('p');
-                            paragraph.innerHTML = 'You have successfully registered! Before you can log in, you must verify your email address. Please check your email for a verification link.';
-                            paragraph.className = 'floating_window_paragraph';
-                            paragraph.id = 'congrats-window-paragraph';
-
-                            const button = document.createElement('button');
-                            button.innerHTML = 'Close';
-                            button.className = 'congrats-button';
-                            button.onclick = () => {
-                                play_click();
-                                hide_all_windows();
-                            }
-
-                            congrats.appendChild(title);
-                            congrats.appendChild(paragraph);
-                            congrats.appendChild(button);
-                        }
-
-                        if (json) {
-                            throw new Error('Invalid response from server: ' + JSON.stringify(json));
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('Error:', error);
-                    });
-            }
-
-            submit.innerHTML = 'Continue';
-            submit.onclick = () => {
-                play_click();
-
-                title.innerHTML = "Welcome " + username.value + "!";
-                paragraph.innerHTML = 'Please enter your email address!';
-
-                register.removeChild(password);
-                register.removeChild(confirm);
-                register.removeChild(submit);
-
-                const email = document.createElement('input');
-
-                email.type = 'email';
-                email.name = 'email';
-                email.placeholder = 'Email';
-                email.className = 'register-input';
-                email.id = 'register-email';
-                email.onclick = () => {
-                    play_click();
-                }
-
-                register.appendChild(email);
-
-                submit.innerHTML = 'Register';
-                submit.onclick = () => {
-                    submit_data(username, password, email);
-                }
-
-                register.appendChild(document.createElement('br'));
-                register.appendChild(document.createElement('br'));
-                register.appendChild(submit);
-            }
-
-            register.appendChild(document.createElement('br'));
-            register.appendChild(document.createElement('br'));
-            register.appendChild(submit);
+        if (ret.password !== undefined && ret.password.value !== undefined) {
+            password.value = ret.password.value;
         }
 
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'register-button';
+        submit.onclick = () => {
+            ret.password = password;
+            ask_for_confirm();
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'register-button';
+        back.onclick = () => {
+            ret.password = password;
+            ask_for_username();
+        }
+        back.style.marginRight = '10px';
+
+        register.appendChild(title);
+        register.appendChild(paragraph);
+        register.appendChild(password);
         register.appendChild(document.createElement('br'));
         register.appendChild(document.createElement('br'));
+        register.appendChild(back);
         register.appendChild(submit);
     }
 
-    register.appendChild(document.createElement('br'));
+    const ask_for_username = () => {
+        play_click();
 
-    if (_error !== "") {
-        const error = document.createElement('p');
-        error.innerHTML = _error;
-        error.className = 'error';
-        error.id = 'register-error';
+        const register = create_window('register-window');
 
-        const br = document.createElement('br');
-        br.className = 'error';
+        const title = document.createElement('h1');
+        title.innerHTML = 'Register';
+        title.className = 'floating_window_title';
+        title.id = 'register-window-title';
 
-        register.appendChild(error);
-        register.appendChild(br);
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please enter your desired username!';
+        paragraph.className = 'floating_window_paragraph';
+        paragraph.id = 'register-window-paragraph';
+
+        const username = document.createElement('input');
+        username.type = 'text';
+        username.name = 'username';
+        username.placeholder = 'Username';
+        username.className = 'login-input';
+        username.id = 'register-username';
+        username.onclick = () => {
+            play_click();
+        }
+        if (ret.username !== undefined && ret.username.value !== undefined) {
+            username.value = ret.username.value;
+        }
+
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'register-button';
+        back.onclick = () => {
+            ret.username = username;
+            ask_for_email();
+        }
+        back.style.marginRight = '10px';
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'register-button';
+        submit.onclick = () => {
+            ret.username = username;
+            ask_for_password();
+        }
+
+        register.appendChild(title);
+        register.appendChild(paragraph);
+        register.appendChild(username);
+        register.appendChild(document.createElement('br'));
+        register.appendChild(document.createElement('br'));
+        register.appendChild(back);
+        register.appendChild(submit);
     }
 
-    register.appendChild(document.createElement('br'));
-    register.appendChild(submit);
+    const ask_for_email = () => {
+        play_click();
+
+        const register = create_window('register-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Register';
+        title.className = 'floating_window_title';
+        title.id = 'register-window-title';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Welcome to Forwarder Factory. Please enter your email address!';
+        paragraph.className = 'floating_window_paragraph';
+        paragraph.id = 'register-window-paragraph';
+
+        const email = document.createElement('input');
+        email.type = 'text';
+        email.name = 'username';
+        email.placeholder = 'Email address';
+        email.className = 'login-input';
+        email.id = 'register-email';
+        email.onclick = () => {
+            play_click();
+
+            const errors = document.getElementsByClassName('error');
+            for (let i = 0; i < errors.length; i++) {
+                const error = errors[i];
+                if (error.id === 'register-error') {
+                    register.removeChild(error);
+                }
+            }
+        }
+        if (ret.email !== undefined && ret.email.value !== undefined) {
+            email.value = ret.email.value;
+        }
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'register-button';
+        submit.onclick = () => {
+            ret.email = email;
+            ask_for_username();
+        }
+
+        register.appendChild(title);
+        register.appendChild(paragraph);
+        register.appendChild(email);
+        register.appendChild(document.createElement('br'));
+        register.appendChild(document.createElement('br'));
+        register.appendChild(submit);
+
+        if (_error !== "") {
+            const error = document.createElement('p');
+            error.innerHTML = _error;
+            error.className = 'error';
+            error.id = 'register-error';
+
+            const br = document.createElement('br');
+            br.className = 'error';
+
+            register.appendChild(br);
+            register.appendChild(error);
+        }
+    }
+
+    ask_for_email();
 }
 
 function is_logged_in() {
@@ -1695,7 +1772,7 @@ function show_upload(_error = "") {
         submit.id = 'continue-upload-submit';
         submit.disabled = (title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
         submit.onclick = () => {
-            ret.title = title_input;;
+            ret.title = title_input;
             ret.titleID = title_id_input;
             ask_for_description();
         }
