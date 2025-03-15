@@ -93,7 +93,9 @@ body {
 }
 
 .floating_window {
-    position: absolute;
+    position: fixed;
+    min-width: 300px;
+    min-height: 100px;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -101,7 +103,7 @@ body {
     padding: 10px;
     z-index: 9999;
     text-align: center;
-    overflow: hidden;
+    overflow-y: auto;
 
     background-color: #70d6ff;
     color: #000000;

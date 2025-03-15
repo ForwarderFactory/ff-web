@@ -2162,7 +2162,7 @@ function show_browse() {
                     const container = document.createElement('div');
                     container.className = 'container';
                     container.id = 'browse-grid';
-                    document.body.appendChild(container);
+                    browse.appendChild(container);
 
                     let parent = document.createElement('div');
 
