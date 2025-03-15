@@ -1071,6 +1071,18 @@ function show_upload(_error = "") {
             console.error('WAD file is missing or not selected');
         }
 
+        // loading screen
+        const loading = create_window('loading-window', { close_button: false, moveable: false, remove_existing: true, close_on_escape: false, close_on_click_outside: false });
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Uploading...';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'Please wait while we upload your forwarder. This may take a few moments. Please do not close this window.';
+
+        loading.appendChild(title);
+        loading.appendChild(paragraph);
+
         fetch(url, {
             method: 'POST',
             body: form,
@@ -1093,8 +1105,6 @@ function show_upload(_error = "") {
             .catch((error) => {
                 console.error('Error:', error);
             });
-
-        hide_all_windows();
     }
     const finalize_details = () => {
         play_click();
