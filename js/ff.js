@@ -40,7 +40,7 @@ function cookie_exists(name) {
     return get_cookie(name) !== null;
 }
 
-function WSCBackgroundRepeatingSpawner(speed = 0.5, creationInterval = 8000) {
+function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
     const spawnCount = 10; /* hacky as fuck */
 
     const images = document.querySelectorAll(`img.background-image`);
@@ -48,8 +48,8 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creationInterval = 8000) {
         img.remove();
     });
 
-    const cachedImage = new Image();
-    cachedImage.src = '/img/background-logo-1.png';
+    const cached_image = new Image();
+    cached_image.src = '/img/background-logo-1.png';
 
     function create_img(topOffset, rightOffset) {
         const img = document.createElement('img');
@@ -61,14 +61,14 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creationInterval = 8000) {
         img.style.opacity = '0.2';
         img.style.zIndex = '-9999';
         img.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
-        img.src = cachedImage.src;
+        img.src = cached_image.src;
 
         img.style.userSelect = 'none';
         img.draggable = false;
 
         document.body.appendChild(img);
 
-        const moveImage = () => {
+        const move_image = () => {
             const rect = img.getBoundingClientRect();
             if (rect.top > window.innerHeight || rect.left < -rect.width) {
                 img.remove();
@@ -77,13 +77,13 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creationInterval = 8000) {
             img.style.top = `${parseFloat(img.style.top) + speed}px`;
             img.style.right = `${parseFloat(img.style.right) + speed}px`;
 
-            requestAnimationFrame(moveImage);
+            requestAnimationFrame(move_image);
         };
 
-        moveImage();
+        move_image();
     }
 
-    const imageSpawner = (topOffset, rightOffset) => {
+    const image_spawner = (topOffset, rightOffset) => {
         const horizontalSpacing = 400;
         const numberOfColumns = Math.floor((window.innerWidth / horizontalSpacing) * 2);
 
@@ -98,26 +98,26 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creationInterval = 8000) {
     // It's fine unless you're running this on a penium 4, then you might see some lag
     // and a minor nuclear explosion in your parents' basement
     for (let i = 0; i < spawnCount; i++) {
-        const topOffset = -200 + i * speed * creationInterval / 30;
-        const rightOffset = -500 + i * speed * creationInterval / 30;
-        imageSpawner(topOffset, rightOffset);
+        const topOffset = -200 + i * speed * creation_interval / 30;
+        const rightOffset = -500 + i * speed * creation_interval / 30;
+        image_spawner(topOffset, rightOffset);
     }
 
     // on resize, remove all images and re-spawn them
     window.onresize = () => {
-        WSCBackgroundRepeatingSpawner(speed, creationInterval);
+        WSCBackgroundRepeatingSpawner(speed, creation_interval);
     }
 
     // if we switch tabs, restart
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            WSCBackgroundRepeatingSpawner(speed, creationInterval);
+            WSCBackgroundRepeatingSpawner(speed, creation_interval);
         }
     });
 
     setInterval(() => {
-        imageSpawner(-200, -500);
-    }, creationInterval);
+        image_spawner(-200, -500);
+    }, creation_interval);
 }
 
 const click_object = new Audio('/audio/click.wav');
@@ -881,6 +881,55 @@ function print_beta() {
     span.style.userSelect = 'none';
 
     document.body.appendChild(span);
+}
+
+function print_discord() {
+    const url = "https://discord.gg/TuDcKUdqDS";
+    const img = document.createElement('img');
+    img.src = '/img/discord.svg';
+    img.className = 'discord-watermark';
+    img.id = 'discord-watermark';
+
+    /* bottom left */
+    img.style.position = 'absolute';
+    img.style.bottom = '0';
+    img.style.left = '0';
+    img.style.maxWidth = '25px';
+    img.style.maxHeight = '25px';
+    img.style.padding = '10px';
+    img.style.userSelect = 'none';
+    img.style.cursor = 'pointer';
+    /* on hover, scale */
+    img.onmouseover = () => {
+        img.style.transform = 'scale(1.1)';
+    }
+    img.onmouseleave = () => {
+        img.style.transform = 'scale(1.0)';
+    }
+    img.onclick = () => {
+        const w = create_window('discord-window');
+
+        const logo = document.createElement('img');
+        logo.src = '/img/discord.svg';
+        logo.style.width = '50px';
+        logo.style.height = '50px';
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Join our Discord server!';
+        title.className = 'floating_window_title';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = "Join our Discord server to chat with other users, get help, share cool things, and more."
+        paragraph.innerHTML += "<br/><br/><small>Content shared on Discord does not necessarily reflect the views of Forwarder Factory. Please be aware of Discord's Terms of Service before using the service.</small>";
+
+        w.appendChild(logo);
+        w.appendChild(title);
+        w.appendChild(paragraph);
+
+        window.open(url, '_blank');
+    }
+
+    document.body.appendChild(img);
 }
 
 function print_username() {
@@ -3125,4 +3174,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     print_username();
     print_beta();
+    print_discord();
 });
