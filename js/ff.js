@@ -336,6 +336,32 @@ function create_window(id, prop = new WindowProperties()){
     return window;
 }
 
+function show_terms() {
+    play_click();
+    const terms = create_window('terms-window');
+
+    const title = document.createElement('h1');
+    title.innerHTML = 'Terms of Service';
+
+    const paragraph = document.createElement('p');
+    let terms_str = "By contributing, logging in and/or registering to this website (hereinafter referred to as 'Forwarder Factory'), you agree to the following terms of service:";
+    terms_str += "<br>1. Forwarder Factory, its contributors and its members shall not be held responsible for any damages caused by the use of files, software, information, or any other content found on this website.";
+    terms_str += "<br>2. Forwarder Factory reserves the right to remove any content at any time for any reason, including but not limited to, a DMCA takedown request.";
+    terms_str += "<br>3. Forwarder Factory reserves the right to ban users who upload harmful, malicious or otherwise dangerous content.";
+    terms_str += "<br>4. Forwarder Factory reserves the right to change these terms at any time without notice.";
+    terms_str += "<br>5. Forwarder Factory cannot guarantee it will keep your data safe, and it shall not be held responsible for any data breaches. We therefore highly urge our users not to use the same password on Forwarder Factory as they do on other websites. Data breaches are not expected, but they are possible, and we want to be transparent about it.";
+    terms_str += "<br>6. Any data you submit to Forwarder Factory may be stored indefinitely, until a request for deletion is received. Forwarder Factory will not sell your data to third parties.";
+    terms_str += " In the event of a data breach, we will attempt to notify all affected users as soon as possible, within reason.";
+    terms_str += "<br>European Union: By using this website, you agree to the use of cookies. We only use cookies for session management, not for tracking or advertising purposes. You have the right to request that your data be deleted at any time, and we will comply with any such requests. Send requests in the form of an email to contact@forwarderfactory.com.";
+    terms_str += "<br>Note: Forwarder Factory is not affiliated with Nintendo. All trademarks are property of their respective owners.";
+    terms_str += "<br>Forwarder Factory is hosted in Sweden, and is therefore subject to Swedish law. Uploads that do not comply with Swedish law will be removed on sight, as we are legally required to do so.";
+
+    paragraph.innerHTML = terms_str;
+
+    terms.appendChild(title);
+    terms.appendChild(paragraph);
+}
+
 function show_login(_error = "") {
     play_click();
     set_path('/login');
@@ -512,6 +538,18 @@ function show_login(_error = "") {
             login.appendChild(br);
             login.appendChild(error);
         }
+
+        const notice = document.createElement('p');
+        notice.innerHTML += "By using this service, you agree to our ";
+
+        const terms = document.createElement('a');
+        terms.innerHTML = "Terms of Service";
+        terms.onclick = () => show_terms();
+        terms.style.cursor = 'pointer';
+        terms.style.textDecoration = 'underline';
+
+        notice.appendChild(terms);
+        login.appendChild(notice);
     }
 
     ask_for_user();
@@ -809,6 +847,18 @@ function show_register(_error = ""){
             register.appendChild(br);
             register.appendChild(error);
         }
+
+        const notice = document.createElement('p');
+        notice.innerHTML += "By using this service, you agree to our ";
+
+        const terms = document.createElement('a');
+        terms.innerHTML = "Terms of Service";
+        terms.onclick = () => show_terms();
+        terms.style.cursor = 'pointer';
+        terms.style.textDecoration = 'underline';
+
+        notice.appendChild(terms);
+        register.appendChild(notice);
     }
 
     ask_for_email();
