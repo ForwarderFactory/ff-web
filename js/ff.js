@@ -2387,11 +2387,13 @@ function show_browse() {
                         grid.appendChild(icon);
                         grid.appendChild(title);
 
-                        const fa = document.createElement('i');
-                        fa.className = 'fa-solid fa-user';
-                        fa.style.marginRight = '5px';
-                        author.prepend(fa);
-                        grid.appendChild(author);
+                        if (meta.author && meta.author !== '') {
+                            const fa = document.createElement('i');
+                            fa.className = 'fa-solid fa-user';
+                            fa.style.marginRight = '5px';
+                            author.prepend(fa);
+                            grid.appendChild(author);
+                        }
                         grid.appendChild(type);
 
                         parent.appendChild(grid);
