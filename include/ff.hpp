@@ -9,7 +9,6 @@
 #define LIMHAMN_HTTP_SERVER_IMPL
 #define LIMHAMN_HTTP_UTILS_IMPL
 #include <limhamn/http/http_server.hpp>
-#include <limhamn/http/http_utils.hpp>
 
 namespace ff {
     struct Settings {
@@ -106,6 +105,8 @@ namespace ff {
         int64_t max_file_size_hash{1024 * 1024 * 1024};
         bool cache_static{false};
         bool cache_exists{false};
+        bool convert_images_to_webp{true};
+        bool convert_videos_to_webm{false};
     };
 
     enum class AccountCreationStatus {

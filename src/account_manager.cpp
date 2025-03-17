@@ -3,6 +3,7 @@
 #define LIMHAMN_SMTP_CLIENT_IMPL
 #include <limhamn/smtp/smtp_client.hpp>
 #include <nlohmann/json.hpp>
+#include <limhamn/http/http_utils.hpp>
 
 bool ff::username_is_stored(const limhamn::http::server::request& request) {
     return request.session.find("username") != request.session.end();

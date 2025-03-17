@@ -8,6 +8,7 @@
 #include <ff.hpp>
 #include <scrypto.hpp>
 #include <nlohmann/json.hpp>
+#include <limhamn/http/http_utils.hpp>
 
 void ff::print_help(const bool stream) {
     std::stringstream ss;

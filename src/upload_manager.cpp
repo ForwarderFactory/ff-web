@@ -2,6 +2,7 @@
 #include <scrypto.hpp>
 #include <ff.hpp>
 #include <nlohmann/json.hpp>
+#include <limhamn/http/http_utils.hpp>
 
 /*
  * Warning: This function performs absolutely no credential checks. That should be performed
@@ -211,39 +212,46 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::ser
     std::string icon_ext{};
     if (ff::validate_image(banner_path)) {
         db_json["meta"]["banner_type"] = "image";
-        if (!ff::convert_to_webp(banner_path, banner_path)) {
-            return {ff::UploadStatus::Failure, ""};
+        if (settings.convert_images_to_webp) {
+            if (!ff::convert_to_webp(banner_path, banner_path)) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            banner_ext = ".webp";
         }
-        banner_ext = ".webp";
     } else if (ff::validate_video(banner_path)) {
         db_json["meta"]["banner_type"] = "video";
-        const std::string out_p = ff::get_temp_path();
-        if (!ff::convert_to_webm(banner_path, out_p)) {
-            return {ff::UploadStatus::Failure, ""};
+        if (settings.convert_videos_to_webm) {
+            const std::string out_p = ff::get_temp_path();
+            if (!ff::convert_to_webm(banner_path, out_p)) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            std::filesystem::remove(banner_path);
+            std::filesystem::rename(out_p, banner_path);
+            banner_ext = ".webm";
         }
-        std::filesystem::remove(banner_path);
-        std::filesystem::rename(out_p, banner_path);
-        banner_ext = ".webm";
     } else {
         return {ff::UploadStatus::Failure, ""};
     }
 
     if (ff::validate_image(icon_path)) {
         db_json["meta"]["icon_type"] = "image";
-        if (!ff::convert_to_webp(icon_path, icon_path)) {
-            return {ff::UploadStatus::Failure, ""};
+        if (settings.convert_images_to_webp) {
+            if (!ff::convert_to_webp(icon_path, icon_path)) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            icon_ext = ".webp";
         }
-        icon_ext = ".webp";
     } else if (ff::validate_video(icon_path)) {
         db_json["meta"]["icon_type"] = "video";
-        db_json["meta"]["icon_type"] = "video";
-        const std::string out_p = ff::get_temp_path();
-        if (!ff::convert_to_webm(icon_path, out_p)) {
-            return {ff::UploadStatus::Failure, ""};
+        if (settings.convert_videos_to_webm) {
+            const std::string out_p = ff::get_temp_path();
+            if (!ff::convert_to_webm(icon_path, out_p)) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            std::filesystem::remove(icon_path);
+            std::filesystem::rename(out_p, icon_path);
+            icon_ext = ".webm";
         }
-        std::filesystem::remove(icon_path);
-        std::filesystem::rename(out_p, icon_path);
-        icon_ext = ".webm";
     } else {
         return {ff::UploadStatus::Failure, ""};
     }

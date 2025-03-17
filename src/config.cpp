@@ -76,6 +76,8 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["site"]["description"]) settings.description = config["site"]["description"].as<std::string>();
         if (config["upload"]["max_request_size"]) settings.max_request_size = config["upload"]["max_request_size"].as<int64_t>();
         if (config["upload"]["max_file_size_hash"]) settings.max_file_size_hash = config["upload"]["max_file_size_hash"].as<int64_t>();
+        if (config["upload"]["convert_images_to_webp"]) settings.convert_images_to_webp = config["upload"]["convert_images_to_webp"].as<bool>();
+        if (config["upload"]["convert_videos_to_webm"]) settings.convert_videos_to_webm = config["upload"]["convert_videos_to_webm"].as<bool>();
         if (config["download"]["preview_files"]) settings.preview_files = config["download"]["preview_files"].as<bool>();
         if (config["smtp"]["server"]) settings.smtp_server = config["smtp"]["server"].as<std::string>();
         if (config["smtp"]["port"]) settings.smtp_port = config["smtp"]["port"].as<int>();
@@ -268,9 +270,13 @@ std::string ff::generate_default_config() {
     ss << "# Upload options:\n";
     ss << "#   max_request_size: The maximum request size in bytes. Any larger will be rejected by the server\n";
     ss << "#   max_file_size_hash: The maximum file size in bytes that can be hashed. Any larger will not be hashed.\n";
+    ss << "#   convert_images_to_webp: Whether to convert images to WebP format. Has a minor performance impact.\n";
+    ss << "#   convert_videos_to_webm: Whether to convert videos to WebM format. Has a relatively major performance impact; disable on low end hardware or servers without dedicated GPUs. For reference, even my M1 MacBook Air struggles. In the future, we should add faster presets as options here.\n";
     ss << "upload:\n";
     ss << "  max_request_size: " << ff::settings.max_request_size << "\n";
     ss << "  max_file_size_hash: " << ff::settings.max_file_size_hash << "\n";
+    ss << "  convert_images_to_webp: " << (ff::settings.convert_images_to_webp ? "true" : "false") << "\n";
+    ss << "  convert_videos_to_webm: " << (ff::settings.convert_videos_to_webm ? "true" : "false") << "\n";
     ss << "\n";
     ss << "# Download options:\n";
     ss << "#   preview_files: Whether to preview files in the browser when downloading them.\n";
