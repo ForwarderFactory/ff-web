@@ -1097,6 +1097,7 @@ function show_upload(_error = "") {
                 }
                 if (json.id) {
                     show_forwarder(json.id);
+                    return;
                 }
                 if (json) {
                     throw new Error('Invalid response from server: ' + JSON.stringify(json));
