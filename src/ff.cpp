@@ -207,7 +207,7 @@ void ff::start_server() {
         logger.write_to_log(limhamn::logger::type::notice, "Using database type: " + std::string(settings.enabled_database ? "PostgreSQL" : "SQLite") + "\n");
 #endif
 
-        std::shared_ptr<ff::Database> database = std::make_shared<ff::Database>(settings.enabled_database);
+        std::shared_ptr<ff::database> database = std::make_shared<ff::database>(settings.enabled_database);
 
         if (settings.enabled_database) {
 #ifdef FF_ENABLE_POSTGRESQL
@@ -248,7 +248,7 @@ void ff::start_server() {
             }, [&](const limhamn::http::server::request& request) -> limhamn::http::server::response {
             ff::logger.write_to_log(limhamn::logger::type::access, "Request received from " + request.ip_address + " to " + request.endpoint + " received, handling it.\n");
 
-            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&)>> handlers{
+            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, ff::database&)>> handlers{
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
                 {virtual_stylesheet_path, ff::handle_virtual_stylesheet_endpoint},
                 {virtual_script_path, ff::handle_virtual_script_endpoint},
@@ -270,7 +270,7 @@ void ff::start_server() {
                 {"/api/update_profile", ff::handle_api_update_profile},
                 {"/api/get_profile", ff::handle_api_get_profile},
             };
-            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, Database&)>> setup_handlers{
+            const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, ff::database&)>> setup_handlers{
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
                 {virtual_stylesheet_path, ff::handle_virtual_stylesheet_endpoint},
                 {virtual_script_path, ff::handle_virtual_script_endpoint},

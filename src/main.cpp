@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         config_file = c.arguments.at(++c.index);
     });
     arg.push_back("-gc|--generate-config|/gc|/generate-config", [&](const limhamn::argument_manager::collection& c) {std::cout << ff::generate_default_config(); std::exit(EXIT_SUCCESS);});
-    arg.execute([](const std::string& arg) {});
+    arg.execute([](const std::string&) {});
 
     ff::settings = ff::load_settings(config_file);
 

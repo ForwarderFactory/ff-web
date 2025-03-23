@@ -222,7 +222,7 @@ namespace ff {
     inline StaticExists static_exists{};
     inline bool fatal{false};
 
-    class Database {
+    class database {
 #if FF_ENABLE_SQLITE
         limhamn::database::sqlite3_database sqlite{};
 #define SQLITE_HANDLE this->sqlite
@@ -240,7 +240,7 @@ namespace ff {
 
         bool enabled_type = false; // false = sqlite, true = postgres
     public:
-        explicit Database(bool type) : enabled_type(type) {}
+        explicit database(bool type) : enabled_type(type) {}
         std::vector<std::unordered_map<std::string, std::string>> query(const std::string& query) {
             if (!this->enabled_type) {
 #if FF_DEBUG
@@ -317,55 +317,55 @@ namespace ff {
     inline bool needs_setup{false};
 
     void start_server();
-    std::string get_json_from_table(Database& db, const std::string& table, const std::string& key, const std::string& value);
-    bool set_json_in_table(Database& db, const std::string& table, const std::string& key, const std::string& value, const std::string& json);
-    void insert_into_user_table(Database& database, const std::string& username, const std::string& password,
+    std::string get_json_from_table(database& db, const std::string& table, const std::string& key, const std::string& value);
+    bool set_json_in_table(database& db, const std::string& table, const std::string& key, const std::string& value, const std::string& json);
+    void insert_into_user_table(database& database, const std::string& username, const std::string& password,
         const std::string& key, const std::string& email, int64_t created_at, int64_t updated_at, const std::string& ip_address,
         const std::string& user_agent, UserType user_type, const std::string& json);
-    std::pair<LoginStatus, std::string> try_login(Database& database, const std::string& username, const std::string& password,
+    std::pair<LoginStatus, std::string> try_login(database& database, const std::string& username, const std::string& password,
         const std::string& ip_address, const std::string& user_agent, limhamn::http::server::response& response);
-    AccountCreationStatus make_account(Database& database, const std::string& username, const std::string& password, const std::string& email,
+    AccountCreationStatus make_account(database& database, const std::string& username, const std::string& password, const std::string& email,
         const std::string& ip_address, const std::string& user_agent, UserType user_type);
-    std::pair<UploadStatus, std::string> try_upload(const limhamn::http::server::request& req, Database& db);
-    ProfileUpdateStatus update_profile(const limhamn::http::server::request& req, Database& db);
+    std::pair<UploadStatus, std::string> try_upload(const limhamn::http::server::request& req, database& db);
+    ProfileUpdateStatus update_profile(const limhamn::http::server::request& req, database& db);
 
-    std::string get_email_from_username(Database& database, const std::string& username);
-    std::string get_username_from_email(Database& database, const std::string& email);
+    std::string get_email_from_username(database& database, const std::string& username);
+    std::string get_username_from_email(database& database, const std::string& email);
     void print_help(bool stream = false);
     void print_version(bool stream = false);
     void prepare_wd();
     Settings load_settings(const std::string& _config_file);
     std::string generate_default_config();
-    void setup_database(Database& database);
+    void setup_database(database& database);
     std::string open_file(const std::string& file_path);
     bool username_is_stored(const limhamn::http::server::request& request);
-    bool ensure_valid_creds(Database& database, const std::string& username, const std::string& password);
-    bool verify_key(Database& database, const std::string& username, const std::string& key);
-    bool user_is_verified(Database& database, const std::string& username);
-    bool ensure_admin_account_exists(Database& database);
-    int get_user_id(Database& database, const std::string& username);
-    UserType get_user_type(Database& database, const std::string& username);
+    bool ensure_valid_creds(database& database, const std::string& username, const std::string& password);
+    bool verify_key(database& database, const std::string& username, const std::string& key);
+    bool user_is_verified(database& database, const std::string& username);
+    bool ensure_admin_account_exists(database& database);
+    int get_user_id(database& database, const std::string& username);
+    UserType get_user_type(database& database, const std::string& username);
     bool validate_image(const std::string& path);
     bool validate_video(const std::string& path);
     bool convert_to_webm(const std::string& input, const std::string& output);
     bool convert_to_webp(const std::string& input, const std::string& output);
     std::string get_temp_path();
 
-    std::string upload_file(Database& db, const ff::FileConstruct& c);
-    RetrievedFile download_file(Database& db, const ff::UserProperties& prop, const std::string& file_key);
-    bool is_file(Database& db, const std::string& file_key);
+    std::string upload_file(database& db, const ff::FileConstruct& c);
+    RetrievedFile download_file(database& db, const ff::UserProperties& prop, const std::string& file_key);
+    bool is_file(database& db, const std::string& file_key);
 
-    limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_setup_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_try_register_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_try_login_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_try_upload_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, Database& db);
-    limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, Database& db);
+    limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_setup_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_virtual_script_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_try_register_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_try_login_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_try_upload_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, database& db);
 } // namespace ff

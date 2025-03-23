@@ -9,7 +9,7 @@ bool ff::username_is_stored(const limhamn::http::server::request& request) {
     return request.session.find("username") != request.session.end();
 }
 
-bool ff::ensure_admin_account_exists(Database& database) {
+bool ff::ensure_admin_account_exists(database& database) {
     for (auto& it : database.query("SELECT * FROM users WHERE user_type = ?;", static_cast<int>(UserType::Administrator))) {
         return true;
     }
@@ -17,7 +17,7 @@ bool ff::ensure_admin_account_exists(Database& database) {
     return false;
 }
 
-bool ff::verify_key(Database& database, const std::string& username, const std::string& key) {
+bool ff::verify_key(database& database, const std::string& username, const std::string& key) {
     for (auto& it : database.query("SELECT * FROM users WHERE username = ? AND key = ?;", username, key)) {
         if (it.empty()) {
             return false;
@@ -29,7 +29,7 @@ bool ff::verify_key(Database& database, const std::string& username, const std::
     return false;
 }
 
-bool ff::ensure_valid_creds(Database& database, const std::string& username, const std::string& password) {
+bool ff::ensure_valid_creds(database& database, const std::string& username, const std::string& password) {
     if (username.empty() || password.empty()) {
         return false;
     }
@@ -49,7 +49,7 @@ bool ff::ensure_valid_creds(Database& database, const std::string& username, con
     return false;
 }
 
-int ff::get_user_id(Database& database, const std::string& username) {
+int ff::get_user_id(database& database, const std::string& username) {
     for (const auto& it : database.query("SELECT id FROM users WHERE username = ?;", username)) {
         if (it.empty()) {
             return -1;
@@ -61,7 +61,7 @@ int ff::get_user_id(Database& database, const std::string& username) {
     return -1;
 }
 
-ff::UserType ff::get_user_type(Database& database, const std::string& username) {
+ff::UserType ff::get_user_type(database& database, const std::string& username) {
     for (const auto& it : database.query("SELECT user_type FROM users WHERE username = ?;", username)) {
         if (it.empty()) {
             return ff::UserType::Undefined;
@@ -79,7 +79,7 @@ ff::UserType ff::get_user_type(Database& database, const std::string& username) 
     return ff::UserType::Undefined;
 }
 
-bool ff::user_is_verified(Database& database, const std::string& username) {
+bool ff::user_is_verified(database& database, const std::string& username) {
     if (settings.enable_email_verification == false) {
         return true;
     }
@@ -106,7 +106,7 @@ bool ff::user_is_verified(Database& database, const std::string& username) {
     return false;
 }
 
-std::string ff::get_email_from_username(Database& database, const std::string& username) {
+std::string ff::get_email_from_username(database& database, const std::string& username) {
     for (const auto& it : database.query("SELECT email FROM users WHERE username = ?;", username)) {
         if (it.empty()) {
             return "";
@@ -118,7 +118,7 @@ std::string ff::get_email_from_username(Database& database, const std::string& u
     return "";
 }
 
-std::string ff::get_username_from_email(Database& database, const std::string& email) {
+std::string ff::get_username_from_email(database& database, const std::string& email) {
     for (const auto& it : database.query("SELECT username FROM users WHERE email = ?;", email)) {
         if (it.empty()) {
             return "";
@@ -131,7 +131,7 @@ std::string ff::get_username_from_email(Database& database, const std::string& e
 }
 
 // Warning: This function does not check credentials, nor does it check if the user already exists, or if the values are valid or even safe.
-void ff::insert_into_user_table(Database& database, const std::string& username, const std::string& password,
+void ff::insert_into_user_table(database& database, const std::string& username, const std::string& password,
         const std::string& key, const std::string& email, const int64_t created_at, const int64_t updated_at, const std::string& ip_address,
         const std::string& user_agent, UserType user_type, const std::string& json) {
 
@@ -162,7 +162,7 @@ void ff::insert_into_user_table(Database& database, const std::string& username,
     }
 }
 
-std::pair<ff::LoginStatus, std::string> ff::try_login(Database& database, const std::string& username, const std::string& password,
+std::pair<ff::LoginStatus, std::string> ff::try_login(database& database, const std::string& username, const std::string& password,
         const std::string& ip_address, const std::string& user_agent, limhamn::http::server::response& response) {
     const std::string base_username{username};
     const std::string base_password{password};
@@ -218,7 +218,7 @@ std::pair<ff::LoginStatus, std::string> ff::try_login(Database& database, const 
 
 // Warning: This function does not check credentials or anything. That should be done before calling this function.
 // If such case is not taken, it may be possible to create an account with elevated privileges.
-ff::AccountCreationStatus ff::make_account(Database& database, const std::string& username, const std::string& password,
+ff::AccountCreationStatus ff::make_account(database& database, const std::string& username, const std::string& password,
         const std::string& email, const std::string& ip_address, const std::string& user_agent, UserType user_type) {
     const std::string base_username{username};
     const std::string base_password{password};
@@ -328,7 +328,7 @@ ff::AccountCreationStatus ff::make_account(Database& database, const std::string
 }
 
 
-ff::ProfileUpdateStatus ff::update_profile(const limhamn::http::server::request& request, Database& db) {
+ff::ProfileUpdateStatus ff::update_profile(const limhamn::http::server::request& request, database& db) {
     std::string json{};
     std::string username{};
     std::string icon_path{};

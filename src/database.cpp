@@ -2,7 +2,7 @@
 #include <scrypto.hpp>
 #include <nlohmann/json.hpp>
 
-void ff::setup_database(Database& database) {
+void ff::setup_database(database& database) {
     std::string primary = "id INTEGER PRIMARY KEY";
     if (ff::settings.enabled_database) {
         primary = "id SERIAL PRIMARY KEY";
@@ -46,7 +46,7 @@ void ff::setup_database(Database& database) {
     }
 }
 
-std::string ff::upload_file(Database& db, const ff::FileConstruct& c) {
+std::string ff::upload_file(database& db, const ff::FileConstruct& c) {
     if (!db.good()) {
         throw std::runtime_error{"Database is not good."};
     }
@@ -67,7 +67,7 @@ std::string ff::upload_file(Database& db, const ff::FileConstruct& c) {
     json["downloads"] = 0;
     json["downloaders"] = nlohmann::json::array(); /* combine username, ip address, user agent and timestamp */
 
-    const auto check_for_dup = [](Database& db, const std::string& key) -> bool {
+    const auto check_for_dup = [](database& db, const std::string& key) -> bool {
         for (const auto& it : db.query("SELECT * FROM files WHERE file_id = ?;", key)) {
             if (it.empty()) {
                 return false;
@@ -122,7 +122,7 @@ std::string ff::upload_file(Database& db, const ff::FileConstruct& c) {
     return file_key;
 }
 
-bool ff::is_file(Database& db, const std::string& file_key) {
+bool ff::is_file(database& db, const std::string& file_key) {
     if (!db.good()) {
         throw std::runtime_error{"Database is not good."};
     }
@@ -142,7 +142,7 @@ bool ff::is_file(Database& db, const std::string& file_key) {
 
 }
 
-ff::RetrievedFile ff::download_file(Database& db, const ff::UserProperties& prop, const std::string& file_key) {
+ff::RetrievedFile ff::download_file(database& db, const ff::UserProperties& prop, const std::string& file_key) {
     if (!db.good()) {
         throw std::runtime_error{"Database is not good."};
     }
@@ -203,7 +203,7 @@ ff::RetrievedFile ff::download_file(Database& db, const ff::UserProperties& prop
     return f;
 }
 
-std::string ff::get_json_from_table(Database& db, const std::string& table, const std::string& key, const std::string& value) {
+std::string ff::get_json_from_table(database& db, const std::string& table, const std::string& key, const std::string& value) {
     if (!db.good()) {
         throw std::runtime_error{"Database is not good."};
     }
@@ -227,7 +227,7 @@ std::string ff::get_json_from_table(Database& db, const std::string& table, cons
     throw std::runtime_error{"JSON not found."};
 }
 
-bool ff::set_json_in_table(Database& db, const std::string& table, const std::string& key, const std::string& value, const std::string& json) {
+bool ff::set_json_in_table(database& db, const std::string& table, const std::string& key, const std::string& value, const std::string& json) {
     if (!db.good() || table.empty() || key.empty() || value.empty() || json.empty()) {
         return false;
     }

@@ -3,7 +3,7 @@
 #include <scrypto.hpp>
 #include <nlohmann/json.hpp>
 
-limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     const auto prepare_file = [](const std::string& path) -> std::string {
@@ -61,7 +61,7 @@ limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::se
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     if (request.body.empty()) {
@@ -108,11 +108,11 @@ limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn
     return response;
 }
 
-limhamn::http::server::response ff::handle_setup_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_setup_endpoint(const limhamn::http::server::request& request, database& db) {
     return handle_root_endpoint(request, db);
 }
 
-limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -224,7 +224,7 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
     }
 }
 
-limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "image/svg+xml";
@@ -241,7 +241,7 @@ limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limham
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "text/css";
@@ -258,7 +258,7 @@ limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const lim
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response;
 
     response.content_type = "text/javascript";
@@ -296,7 +296,7 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_register_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_try_register_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -424,7 +424,7 @@ limhamn::http::server::response ff::handle_api_try_register_endpoint(const limha
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -533,7 +533,7 @@ limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn:
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "application/json";
@@ -817,7 +817,7 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
 
 // this endpoint requires auth and cookies
 // in the future, we should allow other kinds of auth for this endpoint, so that third party clients can use it
-limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -962,7 +962,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_update_profile(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_update_profile(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     if (request.body.empty()) {
@@ -1007,7 +1007,7 @@ limhamn::http::server::response ff::handle_api_update_profile(const limhamn::htt
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::server::request& request, Database& db) {
+limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     if (request.method != "POST") {

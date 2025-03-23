@@ -8,7 +8,7 @@
  * Warning: This function performs absolutely no credential checks. That should be performed
  * before calling this function.
  */
-std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::server::request& req, Database& db) {
+std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::server::request& req, database& db) {
 
     std::string json{};
     std::string banner_path{};
