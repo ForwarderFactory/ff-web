@@ -676,7 +676,12 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
                 continue;
             }
 
-            nlohmann::json meta = forwarders_json.at("meta");
+            nlohmann::json meta;
+            try {
+                meta = forwarders_json.at("meta");
+            } catch (const std::exception&) {
+                return;
+            }
 
             if (filter.accepted && forwarders_json.find("needs_review") != forwarders_json.end() && forwarders_json.at("needs_review").is_boolean()) {
                 if (forwarders_json.at("needs_review").get<bool>()) {
@@ -921,7 +926,17 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         return response;
     }
 
-    nlohmann::json forwarders = input.at("forwarders");
+    nlohmann::json forwarders;
+    try {
+        forwarders = input.at("forwarders");
+    } catch (const std::exception&) {
+        nlohmann::json json;
+        json["error"] = "FF_INVALID_JSON";
+        json["error_str"] = "Invalid JSON received";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
     for (const auto& it : forwarders.items()) {
         const std::string& identifier = it.key();
 #if FF_DEBUG
@@ -936,7 +951,18 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         // get json from db
         try {
             if (accepted) {
-                nlohmann::json json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", identifier));
+                nlohmann::json json;
+                try {
+                    json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", identifier));
+                } catch (const std::exception&) {
+                    nlohmann::json json;
+                    json["error_str"] = "Invalid JSON received";
+                    json["error"] = "FF_INVALID_JSON";
+                    response.http_status = 400;
+                    response.body = json.dump();
+                    return response;
+                }
+
                 json["needs_review"] = false;
                 ff::set_json_in_table(db, "forwarders", "identifier", identifier, json.dump());
             } else {
@@ -1053,7 +1079,18 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
         return response;
     }
 
-    nlohmann::json usernames = input.at("usernames");
+    nlohmann::json usernames;
+    try {
+        usernames = input.at("usernames");
+    } catch (const std::exception&) {
+        nlohmann::json json;
+        json["error"] = "FF_INVALID_JSON";
+        json["error_str"] = "Invalid JSON.";
+        response.content_type = "application/json";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
     nlohmann::json response_json;
     response_json["users"] = nlohmann::json::array();
     for (const auto& it : usernames) {

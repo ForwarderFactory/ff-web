@@ -94,7 +94,12 @@ bool ff::user_is_verified(database& database, const std::string& username) {
         }
 
         const auto json = get_json_from_table(database, "users", "username", username);
-        nlohmann::json user_json = nlohmann::json::parse(json);
+        nlohmann::json user_json;
+        try {
+            user_json = nlohmann::json::parse(json);
+        } catch (const std::exception&) {
+            return false;
+        }
 
         if (user_json.find("activated") == user_json.end() || !user_json.at("activated").is_boolean()) {
             return false;

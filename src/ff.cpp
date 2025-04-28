@@ -352,7 +352,12 @@ void ff::start_server() {
                 for (const auto& it : list) {
                     try {
                         const auto json = get_json_from_table(*database, "users", "username", it.at("username"));
-                        nlohmann::json user_json = nlohmann::json::parse(json);
+                        nlohmann::json user_json;
+                        try {
+                            user_json = nlohmann::json::parse(json);
+                        } catch (const std::exception&) {
+                            break;
+                        }
 
                         user_json["activated"] = true;
 
