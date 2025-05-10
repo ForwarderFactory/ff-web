@@ -963,7 +963,7 @@ limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn:
 
     nlohmann::json json{};
 
-    json["forwarders"] = nlohmann::json::array();
+    json["files"] = nlohmann::json::array();
 
     const auto get_files = [&]() -> void {
         nlohmann::json files_json;

@@ -3083,8 +3083,6 @@ function show_sandbox() {
                 .then(text => {
                     const json = JSON.parse(text);
 
-                    console.log("topkek");
-
                     const old = document.getElementById('sandbox-grid');
                     if (old) {
                         old.remove();
