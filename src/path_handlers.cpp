@@ -61,7 +61,7 @@ limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::se
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_try_upload_forwarder_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     if (request.body.empty()) {
@@ -76,7 +76,54 @@ limhamn::http::server::response ff::handle_api_try_upload_endpoint(const limhamn
         return response;
     }
 
-    const std::pair<ff::UploadStatus, std::string> status = ff::try_upload(request, db);
+    const std::pair<ff::UploadStatus, std::string> status = ff::try_upload_forwarder(request, db);
+
+    if (status.first == UploadStatus::Success) {
+        nlohmann::json json;
+        json["id"] = status.second;
+        response.content_type = "application/json";
+        response.http_status = 200;
+        response.body = json.dump();
+    } else {
+        static const std::unordered_map<UploadStatus, std::pair<std::string, std::string>> status_map{
+            {UploadStatus::NoFile, {"FF_NO_FILE", "No file was specified."}},
+            {UploadStatus::Failure, {"FF_FAILURE", "Failed to upload the file."}},
+            {UploadStatus::TooLarge, {"FF_TOO_LARGE", "The file was too large."}},
+            {UploadStatus::InvalidCreds, {"FF_INVALID_CREDS", "Invalid credentials."}},
+        };
+        nlohmann::json json;
+        if (status_map.find(status.first) != status_map.end()) {
+            json["error"] = status_map.at(status.first).first;
+            json["error_str"] = status_map.at(status.first).second;
+        } else {
+            json["error"] = "FF_UNKNOWN_ERROR";
+            json["error_str"] = "Unknown error.";
+        }
+
+        response.content_type = "application/json";
+        response.http_status = 400;
+        response.body = json.dump();
+    }
+
+    return response;
+}
+
+limhamn::http::server::response ff::handle_try_upload_file_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+
+    if (request.body.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "No body.\n");
+#endif
+        response.http_status = 400;
+        nlohmann::json json;
+        json["error"] = "FF_NO_BODY";
+        json["error_str"] = "No body.";
+        response.body = json.dump();
+        return response;
+    }
+
+    const std::pair<ff::UploadStatus, std::string> status = ff::try_upload_file(request, db);
 
     if (status.first == UploadStatus::Success) {
         nlohmann::json json;
@@ -533,7 +580,7 @@ limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn:
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     response.content_type = "application/json";
@@ -820,6 +867,271 @@ limhamn::http::server::response ff::handle_api_get_uploads_endpoint(const limham
     return response;
 }
 
+limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+
+    response.content_type = "application/json";
+    response.http_status = 200;
+
+    // find filter in the json
+    struct Filter {
+        bool accepted{false}; // if true, must be accepted
+        bool needs_review{false}; // if true, must need review
+        std::string search_string{}; // if not empty, must contain this string somewhere
+        std::string filename{}; // if not empty, must have this file
+        std::string title{}; // if not empty, must contain this title
+        std::string uploader{}; // if not empty, must match this uploader
+        std::string author{}; // if not empty, must match this author
+        std::vector<std::string> categories{}; // if not empty, must match one of these categories
+        int64_t submitted_before{-1}; // if not -1, must be submitted before this time
+        int64_t submitted_after{-1}; // if not -1, must be submitted after this time
+        std::pair<int64_t, int64_t> submitted_between{-1, -1}; // if not -1, must be submitted between these times
+        int begin{-1}; // if not -1, start at this index
+        int end{-1}; // if not -1, end at this index
+        std::string identifier{""}; // if not empty, must match this identifier
+    };
+
+    Filter filter{};
+
+    if (request.method == "POST" && !request.body.empty()) {
+        nlohmann::json input_json;
+
+        try {
+            input_json = nlohmann::json::parse(request.body);
+        } catch (const std::exception& e) {
+            response.http_status = 400;
+            response.body = "Bad Request";
+
+            return response;
+        }
+
+        // parse and override the filter
+        if (input_json.find("filter") != input_json.end() && input_json.at("filter").is_object()) {
+            if (input_json.at("filter").find("accepted") != input_json.at("filter").end() && input_json.at("filter").at("accepted").is_boolean()) {
+                filter.accepted = input_json.at("filter").at("accepted").get<bool>();
+            }
+            if (input_json.at("filter").find("needs_review") != input_json.at("filter").end() && input_json.at("filter").at("needs_review").is_boolean()) {
+                filter.needs_review = input_json.at("filter").at("needs_review").get<bool>();
+            }
+            if (input_json.at("filter").find("search_string") != input_json.at("filter").end() && input_json.at("filter").at("search_string").is_string()) {
+                filter.search_string = input_json.at("filter").at("search_string").get<std::string>();
+            }
+            if (input_json.at("filter").find("filename") != input_json.at("filter").end() && input_json.at("filter").at("filename").is_string()) {
+                filter.filename = input_json.at("filter").at("filename").get<std::string>();
+            }
+            if (input_json.at("filter").find("title") != input_json.at("filter").end() && input_json.at("filter").at("title").is_string()) {
+                filter.title = input_json.at("filter").at("title").get<std::string>();
+            }
+            if (input_json.at("filter").find("uploader") != input_json.at("filter").end() && input_json.at("filter").at("uploader").is_string()) {
+                filter.uploader = input_json.at("filter").at("uploader").get<std::string>();
+            }
+            if (input_json.at("filter").find("author") != input_json.at("filter").end() && input_json.at("filter").at("author").is_string()) {
+                filter.author = input_json.at("filter").at("author").get<std::string>();
+            }
+            if (input_json.at("filter").find("categories") != input_json.at("filter").end() && input_json.at("filter").at("categories").is_array()) {
+                for (const auto& it : input_json.at("filter").at("categories")) {
+                    if (it.is_string()) {
+                        filter.categories.push_back(it.get<std::string>());
+                    }
+                }
+            }
+            if (input_json.at("filter").find("submitted_before") != input_json.at("filter").end() && input_json.at("filter").at("submitted_before").is_number_integer()) {
+                filter.submitted_before = input_json.at("filter").at("submitted_before").get<int64_t>();
+            }
+            if (input_json.at("filter").find("submitted_after") != input_json.at("filter").end() && input_json.at("filter").at("submitted_after").is_number_integer()) {
+                filter.submitted_after = input_json.at("filter").at("submitted_after").get<int64_t>();
+            }
+            if (input_json.at("filter").find("submitted_between") != input_json.at("filter").end() && input_json.at("filter").at("submitted_between").is_array()) {
+                if (input_json.at("filter").at("submitted_between").size() == 2) {
+                    if (input_json.at("filter").at("submitted_between").at(0).is_number_integer() && input_json.at("filter").at("submitted_between").at(1).is_number_integer()) {
+                        filter.submitted_between = std::make_pair(input_json.at("filter").at("submitted_between").at(0).get<int64_t>(), input_json.at("filter").at("submitted_between").at(1).get<int64_t>());
+                    }
+                }
+            }
+            if (input_json.at("filter").find("begin") != input_json.at("filter").end() && input_json.at("filter").at("begin").is_number_integer()) {
+                filter.begin = input_json.at("filter").at("begin").get<int>();
+            }
+            if (input_json.at("filter").find("end") != input_json.at("filter").end() && input_json.at("filter").at("end").is_number_integer()) {
+                filter.end = input_json.at("filter").at("end").get<int>();
+            }
+            if (input_json.at("filter").find("identifier") != input_json.at("filter").end() && input_json.at("filter").at("identifier").is_string()) {
+                filter.identifier = input_json.at("filter").at("identifier").get<std::string>();
+            }
+        }
+    }
+
+    nlohmann::json json{};
+
+    json["forwarders"] = nlohmann::json::array();
+
+    const auto get_files = [&]() -> void {
+        nlohmann::json files_json;
+
+        std::vector<std::unordered_map<std::string, std::string>> files;
+        if (!filter.identifier.empty()) {
+            files = db.query("SELECT * FROM sandbox WHERE identifier = ?;", filter.identifier);
+        } else {
+            files = db.query("SELECT * FROM sandbox;");
+        }
+
+        int i = 0;
+        for (const auto& it : files) {
+            if (filter.begin != -1 && i < filter.begin) {
+                continue;
+            } else if (filter.end != -1 && i > filter.end) {
+                break;
+            }
+
+            try {
+                files_json = nlohmann::json::parse(it.at("json"));
+            } catch (const std::exception& e) {
+                continue;
+            }
+
+            if (files_json.find("meta") == files_json.end()) {
+                continue;
+            }
+
+            nlohmann::json meta;
+            try {
+                meta = files_json.at("meta");
+            } catch (const std::exception&) {
+                return;
+            }
+
+            if (filter.accepted && files_json.find("needs_review") != files_json.end() && files_json.at("needs_review").is_boolean()) {
+                if (files_json.at("needs_review").get<bool>()) {
+                    continue;
+                }
+            }
+            if (filter.needs_review && files_json.find("needs_review") != files_json.end() && files_json.at("needs_review").is_boolean()) {
+                if (!files_json.at("needs_review").get<bool>()) {
+                    continue;
+                }
+            }
+            if (!filter.search_string.empty()) {
+                std::string full_str{};
+
+                if (meta.find("title") != meta.end() && meta.at("title").is_string()) {
+                    full_str += meta.at("title").get<std::string>();
+                }
+                if (meta.find("filename") != meta.end() && meta.at("filename").is_string()) {
+                    full_str += meta.at("filename").get<std::string>();
+                }
+                if (meta.find("author") != meta.end() && meta.at("author").is_string()) {
+                    full_str += meta.at("author").get<std::string>();
+                }
+                if (meta.find("description") != meta.end() && meta.at("description").is_string()) {
+                    full_str += meta.at("description").get<std::string>();
+                }
+                if (files_json.find("uploader") != files_json.end() && files_json.at("uploader").is_string()) {
+                    full_str += files_json.at("uploader").get<std::string>();
+                }
+
+                std::transform(full_str.begin(), full_str.end(), full_str.begin(), ::tolower);
+                std::transform(filter.search_string.begin(), filter.search_string.end(), filter.search_string.begin(), ::tolower);
+
+                if (full_str.find(filter.search_string) == std::string::npos) {
+                    continue;
+                }
+            }
+            if (!filter.title.empty()) {
+                if (meta.find("title") != meta.end() && meta.at("title").is_string()) {
+                    std::transform(filter.title.begin(), filter.title.end(), filter.title.begin(), ::tolower);
+                    std::string title{meta.at("title").get<std::string>()};
+                    std::transform(title.begin(), title.end(), title.begin(), ::tolower);
+                    if (title != filter.title) {
+                        continue;
+                    }
+                }
+            }
+            if (!filter.filename.empty()) {
+                if (meta.find("filename") != meta.end() && meta.at("filename").is_string()) {
+                    std::transform(filter.filename.begin(), filter.filename.end(), filter.filename.begin(), ::tolower);
+                    std::string filename{meta.at("filename").get<std::string>()};
+                    std::transform(filename.begin(), filename.end(), filename.begin(), ::tolower);
+                    if (filename != filter.filename) {
+                        continue;
+                    }
+                }
+            }
+            if (!filter.uploader.empty()) {
+                if (files_json.find("uploader") != files_json.end() && files_json.at("uploader").is_string()) {
+                    std::transform(filter.uploader.begin(), filter.uploader.end(), filter.uploader.begin(), ::tolower);
+                    std::string uploader{files_json.at("uploader").get<std::string>()};
+                    std::transform(uploader.begin(), uploader.end(), uploader.begin(), ::tolower);
+                    if (uploader != filter.uploader) {
+                        continue;
+                    }
+                }
+            }
+            if (!filter.author.empty()) {
+                if (meta.find("author") != meta.end() && meta.at("author").is_string()) {
+                    std::transform(filter.author.begin(), filter.author.end(), filter.author.begin(), ::tolower);
+                    std::string author{meta.at("author").get<std::string>()};
+                    std::transform(author.begin(), author.end(), author.begin(), ::tolower);
+                    if (author != filter.author) {
+                        continue;
+                    }
+                }
+            }
+            bool found = false;
+            if (!filter.categories.empty()) {
+                for (const auto& category : filter.categories) {
+                    if (meta.find("categories") != meta.end() && meta.at("categories").is_array()) {
+                        for (const auto& it_category : meta.at("categories")) {
+                            if (it_category.is_string()) {
+                                std::string cat{it_category.get<std::string>()};
+                                std::transform(cat.begin(), cat.end(), cat.begin(), ::tolower);
+                                if (cat == category) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (found) break;
+                    }
+                }
+
+                if (!found) {
+                    continue;
+                }
+            }
+            if (filter.submitted_before != -1) {
+                if (files_json.find("submitted") != files_json.end() && files_json.at("submitted").is_number_integer()) {
+                    if (files_json.at("submitted").get<int64_t>() > filter.submitted_before) {
+                        continue;
+                    }
+                }
+            }
+            if (filter.submitted_after != -1) {
+                if (files_json.find("submitted") != files_json.end() && files_json.at("submitted").is_number_integer()) {
+                    if (files_json.at("submitted").get<int64_t>() < filter.submitted_after) {
+                        continue;
+                    }
+                }
+            }
+            if (filter.submitted_between.first != -1 && filter.submitted_between.second != -1) {
+                if (files_json.find("submitted") != files_json.end() && files_json.at("submitted").is_number_integer()) {
+                    if (files_json.at("submitted").get<int64_t>() < filter.submitted_between.first || files_json.at("submitted").get<int64_t>() > filter.submitted_between.second) {
+                        continue;
+                    }
+                }
+            }
+
+            json["files"].push_back(files_json);
+            ++i;
+        }
+    };
+
+    get_files();
+
+    response.body = json.dump();
+
+    return response;
+}
+
 // this endpoint requires auth and cookies
 // in the future, we should allow other kinds of auth for this endpoint, so that third party clients can use it
 limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, database& db) {
@@ -914,7 +1226,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         return response;
     }
 
-    if (input.find("forwarders") == input.end() || !input.at("forwarders").is_object()) {
+    if ((input.find("forwarders") == input.end() || !input.at("forwarders").is_object()) && (input.find("files") == input.end() || !input.at("files").is_object())) {
 #ifdef FF_DEBUG
         logger.write_to_log(limhamn::logger::type::notice, "No forwarders object.\n");
 #endif
@@ -927,9 +1239,15 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     }
 
     nlohmann::json forwarders;
+    nlohmann::json files;
     try {
         forwarders = input.at("forwarders");
-    } catch (const std::exception&) {
+    } catch (const std::exception&) {}
+    try {
+        files = input.at("files");
+    } catch (const std::exception&) {}
+
+    if (forwarders.empty() && files.empty()) {
         nlohmann::json json;
         json["error"] = "FF_INVALID_JSON";
         json["error_str"] = "Invalid JSON received";
@@ -937,6 +1255,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         response.body = json.dump();
         return response;
     }
+
     for (const auto& it : forwarders.items()) {
         const std::string& identifier = it.key();
 #if FF_DEBUG
@@ -968,10 +1287,6 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
             } else {
                 db.exec("DELETE FROM forwarders WHERE identifier = ?;", identifier);
             }
-
-            // return 204;
-            response.http_status = 204;
-            return response;
         } catch (const std::exception&) {
 #if FF_DEBUG
             logger.write_to_log(limhamn::logger::type::error, "Help I got caught.\n");
@@ -980,11 +1295,45 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         }
     }
 
-    response.http_status = 400;
-    nlohmann::json json;
-    json["error_str"] = "Invalid JSON received";
-    json["error"] = "FF_INVALID_JSON";
-    response.body = json.dump();
+    for (const auto& it : files.items()) {
+        const std::string& identifier = it.key();
+#if FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Identifier: " + identifier + "\n");
+#endif
+        if (files.find(identifier) == files.end() || !files.at(identifier).is_boolean()) {
+            continue;
+        }
+
+        bool accepted = files.at(identifier).get<bool>();
+
+        try {
+            if (accepted) {
+                nlohmann::json json;
+                try {
+                    json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", identifier));
+                } catch (const std::exception&) {
+                    nlohmann::json json;
+                    json["error_str"] = "Invalid JSON received";
+                    json["error"] = "FF_INVALID_JSON";
+                    response.http_status = 400;
+                    response.body = json.dump();
+                    return response;
+                }
+
+                json["needs_review"] = false;
+                ff::set_json_in_table(db, "sandbox", "identifier", identifier, json.dump());
+            } else {
+                db.exec("DELETE FROM sandbox WHERE identifier = ?;", identifier);
+            }
+        } catch (const std::exception&) {
+#if FF_DEBUG
+            logger.write_to_log(limhamn::logger::type::error, "Help I got caught.\n");
+#endif
+            continue;
+        }
+    }
+
+    response.http_status = 201;
     return response;
 }
 

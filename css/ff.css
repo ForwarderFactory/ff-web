@@ -32,6 +32,10 @@
     background-color: #000000;
     color: #fff;
 }
+#sandbox-button, #sandbox-window, #file-window {
+    background-color: #c4c4c4;
+    color: #000;
+}
 #view-window {
     background-color: #f0f0f0;
     color: #000;
@@ -116,6 +120,13 @@ body {
     max-height: 80%;
 }
 
+#sandbox-window {
+    min-width: 80%;
+    max-width: 80%;
+    min-height: 80%;
+    max-height: 80%;
+}
+
 #view-window {
     min-width: 70%;
     max-width: 70%;
@@ -158,6 +169,16 @@ body {
 }
 
 #browse-filter-div {
+    background-color: #ffffff;
+    color: #000;
+}
+
+#sandbox-filter-button, #sandbox-search {
+    background-color: #c4c4c4;
+    color: #000;
+}
+
+#sandbox-filter-div {
     background-color: #ffffff;
     color: #000;
 }

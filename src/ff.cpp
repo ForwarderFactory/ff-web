@@ -255,6 +255,7 @@ void ff::start_server() {
 
                 {"/", ff::handle_root_endpoint},
                 {"/browse", ff::handle_root_endpoint},
+                {"/sandbox", ff::handle_root_endpoint},
                 {"/view", ff::handle_root_endpoint},
                 {"/upload", ff::handle_root_endpoint},
                 {"/login", ff::handle_root_endpoint},
@@ -262,10 +263,12 @@ void ff::start_server() {
                 {"/admin", ff::handle_root_endpoint},
                 {"/try_setup", ff::handle_try_setup_endpoint},
 
-                {"/api/try_upload", ff::handle_api_try_upload_endpoint},
+                {"/api/try_upload_forwarder", ff::handle_try_upload_forwarder_endpoint},
+                {"/api/try_upload_file", ff::handle_try_upload_file_endpoint},
                 {"/api/try_login", ff::handle_api_try_login_endpoint},
                 {"/api/try_register", ff::handle_api_try_register_endpoint},
-                {"/api/get_uploads", ff::handle_api_get_uploads_endpoint},
+                {"/api/get_forwarders", ff::handle_api_get_forwarders_endpoint},
+                {"/api/get_files", ff::handle_api_get_files_endpoint},
                 {"/api/set_approval_for_uploads", ff::handle_api_set_approval_for_uploads_endpoint},
                 {"/api/update_profile", ff::handle_api_update_profile},
                 {"/api/get_profile", ff::handle_api_get_profile},
@@ -343,6 +346,8 @@ void ff::start_server() {
                 if (file_path.string().find("/view/") == 0) {
                     return handlers.at("/")(request, *database);
                 }
+            } else if (file.find("/file/") != std::string::npos) {
+                return handlers.at("/")(request, *database);
             }
 
             // handle activation URLs

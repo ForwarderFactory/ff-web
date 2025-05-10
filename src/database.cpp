@@ -38,6 +38,13 @@ void ff::setup_database(database& database) {
         throw std::runtime_error{"Error creating the forwarders table."};
     }
 
+    // id: the forwarder id
+    // identifier: the page identifier
+    // json: the json of the forwarder
+    if (!database.exec("CREATE TABLE IF NOT EXISTS sandbox (" + primary + ", identifier TEXT NOT NULL, json TEXT NOT NULL);")) {
+        throw std::runtime_error{"Error creating the sandbox table."};
+    }
+
     // id: the file id
     // file_id: identifier of the file, used to retrieve the file
     // json: the json of the file (including actual path)

@@ -326,7 +326,8 @@ namespace ff {
         const std::string& ip_address, const std::string& user_agent, limhamn::http::server::response& response);
     AccountCreationStatus make_account(database& database, const std::string& username, const std::string& password, const std::string& email,
         const std::string& ip_address, const std::string& user_agent, UserType user_type);
-    std::pair<UploadStatus, std::string> try_upload(const limhamn::http::server::request& req, database& db);
+    std::pair<UploadStatus, std::string> try_upload_forwarder(const limhamn::http::server::request& req, database& db);
+    std::pair<UploadStatus, std::string> try_upload_file(const limhamn::http::server::request& req, database& db);
     ProfileUpdateStatus update_profile(const limhamn::http::server::request& req, database& db);
 
     std::string get_email_from_username(database& database, const std::string& username);
@@ -363,8 +364,10 @@ namespace ff {
     limhamn::http::server::response handle_virtual_script_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_try_register_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_try_login_endpoint(const limhamn::http::server::request& request, database& db);
-    limhamn::http::server::response handle_api_try_upload_endpoint(const limhamn::http::server::request& request, database& db);
-    limhamn::http::server::response handle_api_get_uploads_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_try_upload_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_try_upload_file_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_forwarders_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_files_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, database& db);

@@ -4,11 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <limhamn/http/http_utils.hpp>
 
-/*
- * Warning: This function performs absolutely no credential checks. That should be performed
- * before calling this function.
- */
-std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::server::request& req, database& db) {
+std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn::http::server::request& req, database& db) {
 
     std::string json{};
     std::string banner_path{};
@@ -320,6 +316,150 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload(const limhamn::http::ser
         page_identifier = scrypto::generate_random_string(8);
     }
     if (!db.exec("INSERT INTO forwarders (identifier, json) VALUES (?, ?);", page_identifier, db_json.dump())) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+
+    return {ff::UploadStatus::Success, page_identifier};
+}
+
+std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http::server::request& req, database& db) {
+    std::string json{};
+    std::string file_path{};
+    std::string file_name{};
+    std::string username{};
+    bool auth{false};
+
+    if (username_is_stored(req)) { // is session cookie
+        username = req.session.at("username");
+        const std::string key = req.session.at("key");
+
+        if (!verify_key(db, username, key)) {
+            return {ff::UploadStatus::InvalidCreds, ""};
+        }
+        auth = true;
+    }
+
+#ifdef FF_DEBUG
+    logger.write_to_log(limhamn::logger::type::notice, "Attempting to upload a file.\n");
+#endif
+
+    const auto file_handles = limhamn::http::utils::parse_multipart_form_file(req.raw_body, settings.temp_directory + "/%f-%h-%r");
+    for (const auto& it : file_handles) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "File name: " + it.filename + ", Name: " + it.name + "\n");
+#endif
+        if (it.name == "json") {
+            json = ff::open_file(it.path);
+#ifdef FF_DEBUG
+            logger.write_to_log(limhamn::logger::type::notice, "Got JSON\n");
+#endif
+        } else if (it.name == "file") {
+            file_path = it.path;
+            file_name = it.name;
+#ifdef FF_DEBUG
+            logger.write_to_log(limhamn::logger::type::notice, "Got File\n");
+#endif
+        }
+    }
+
+    if (file_path.empty() || json.empty()) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+
+    nlohmann::json user_json;
+    nlohmann::json db_json;
+    try {
+        user_json = nlohmann::json::parse(json);
+    } catch (const std::exception&) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+
+    if (!auth) {
+        if (user_json.find("username") == user_json.end() || !user_json.at("username").is_string()) {
+            return {ff::UploadStatus::InvalidCreds, ""};
+        }
+        if (user_json.find("key") == user_json.end() || !user_json.at("key").is_string()) {
+            return {ff::UploadStatus::InvalidCreds, ""};
+        }
+
+        username = user_json.at("username").get<std::string>();
+        const std::string key = user_json.at("key").get<std::string>();
+
+        if (!verify_key(db, username, key)) {
+            return {ff::UploadStatus::InvalidCreds, ""};
+        }
+    }
+
+    db_json["uploader"] = username;
+    db_json["ratings"] = nlohmann::json::array();
+    db_json["reviews"] = nlohmann::json::array();
+    db_json["submitted"] = scrypto::return_unix_timestamp();
+    db_json["downloads"] = 0;
+    db_json["needs_review"] = get_user_type(db, username) != UserType::Administrator;
+    db_json["meta"] = nlohmann::json::object();
+    db_json["meta"]["categories"] = nlohmann::json::array();
+
+    if (user_json.find("meta") == user_json.end()) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+    if (user_json.is_object() == false) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+
+    nlohmann::json meta = user_json.at("meta");
+
+    db_json["meta"]["filename"] = file_name;
+
+    if (meta.find("description") != meta.end() && meta.at("description").is_string()) {
+        if (meta.at("description").size() > 1000) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+
+        db_json["meta"]["description"] = limhamn::http::utils::htmlspecialchars(meta.at("description"));
+    }
+    if (meta.find("title") != meta.end() && meta.at("title").is_string()) {
+        if (meta.at("title").size() > 255) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+        db_json["meta"]["title"] = limhamn::http::utils::htmlspecialchars(meta.at("title"));
+    }
+    if (meta.find("author") != meta.end() && meta.at("author").is_string()) {
+        db_json["meta"]["author"] = limhamn::http::utils::htmlspecialchars(meta.at("author"));
+    }
+    if (meta.find("categories") != meta.end() && meta.at("categories").is_array()) {
+        nlohmann::json categories = meta.at("categories");
+        for (auto& category : categories) {
+            if (category.is_string()) {
+                if (category.size() > 100) {
+                    return {ff::UploadStatus::Failure, ""};
+                }
+                db_json["meta"]["categories"].push_back(limhamn::http::utils::htmlspecialchars(category));
+            }
+        }
+    }
+
+    std::string data_key = ff::upload_file(db, FileConstruct{
+        .path = file_path,
+        .name = file_name,
+        .username = username,
+        .ip_address = req.ip_address,
+        .user_agent = req.user_agent,
+    });
+
+    if (data_key.empty()) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+
+    db_json["data_download_key"] = data_key;
+
+    std::string page_identifier = scrypto::generate_random_string(8);
+
+    db_json["page_identifier"] = page_identifier;
+
+    while (db.query("SELECT * FROM sandbox WHERE identifier = ?;", page_identifier).size() > 0) {
+        page_identifier = scrypto::generate_random_string(8);
+    }
+    if (!db.exec("INSERT INTO sandbox (identifier, json) VALUES (?, ?);", page_identifier, db_json.dump())) {
         return {ff::UploadStatus::Failure, ""};
     }
 
