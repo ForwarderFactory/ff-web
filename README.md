@@ -11,11 +11,7 @@ Don't know how realistic this is, but here's a list of things that I want to see
 - [ ] 'Send to my Wii' button, which would install the WAD directly to the Wii through the internet.
 - [ ] Background is a bit buggy, maybe fix it up a bit?
 - [ ] Introduce some kind of REST API that we can both use internally and expose to the public, for potential third-party applications
-- [ ] Add translation support (even if only for English at the moment)
-- [ ] Perhaps eliminate HTML serving from the C++ backend and push it to the client (already done for the most part)
 - [ ] Better test the configuration file, could be buggy?
-- [ ] Ensure it scales well enough for production
-- [ ] Implement some kind of generic upload form thingy for when users aren't Wii nerds and don't know things deeply.
 - [ ] Replace webm conversion with compilable ffmpeg code
 
 ## Dependencies
