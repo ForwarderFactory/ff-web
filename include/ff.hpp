@@ -35,7 +35,7 @@ namespace ff {
             {"/img/grab-moving.png", "/etc/ff/img/grab-moving.png"},
             {"/img/background-logo-1.png", "/etc/ff/img/background-logo-1.png"},
             {"/img/discord.svg", "/etc/ff/img/discord.svg"},
-            {"/img/announcements.svg", "/etc/ff/img/announcements.svg"}
+            {"/img/announcements.svg", "/etc/ff/img/announcements.svg"},
             {"/fonts/font.woff2", "/etc/ff/fonts/font.woff2"},
             {"/audio/click.wav", "/etc/ff/audio/click.wav"},
         };
