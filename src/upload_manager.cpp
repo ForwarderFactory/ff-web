@@ -422,6 +422,8 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
             return {ff::UploadStatus::Failure, ""};
         }
         db_json["meta"]["title"] = limhamn::http::utils::htmlspecialchars(meta.at("title"));
+    } else {
+        db_json["meta"]["title"] = file_name;
     }
     if (meta.find("author") != meta.end() && meta.at("author").is_string()) {
         db_json["meta"]["author"] = limhamn::http::utils::htmlspecialchars(meta.at("author"));
