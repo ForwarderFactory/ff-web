@@ -2145,6 +2145,7 @@ function show_forwarder(id) {
         disclaimer.innerHTML += " By downloading this file, you agree to take full responsibility for any damages caused by this file. Precautions can and should be taken to prevent damage, such as using Priiloader or BootMii installed in boot2.";
         disclaimer.innerHTML += "<br/>";
 
+        forwarder_window.appendChild(document.createElement('br'));
         forwarder_window.appendChild(disclaimer);
         forwarder_window.appendChild(download_button);
 
