@@ -51,6 +51,20 @@ void ff::setup_database(database& database) {
     if (!database.exec("CREATE TABLE IF NOT EXISTS files (" + primary + ", file_id TEXT NOT NULL, json TEXT NOT NULL);")) {
         throw std::runtime_error{"Error creating the files table."};
     }
+
+    // id: the general id
+    // json: the json of the general settings
+    if (!database.exec("CREATE TABLE IF NOT EXISTS general (" + primary + ", json TEXT NOT NULL);")) {
+        throw std::runtime_error{"Error creating the general table."};
+    }
+
+    const auto query = database.query("SELECT * FROM general;");
+    if (query.empty()) {
+        nlohmann::json json;
+        json["announcements"] = nlohmann::json::array();
+
+        database.exec("INSERT INTO general (json) VALUES (?);", json.dump());
+    }
 }
 
 std::string ff::upload_file(database& db, const ff::FileConstruct& c) {

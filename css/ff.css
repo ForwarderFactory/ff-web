@@ -36,6 +36,14 @@
     background-color: #c4c4c4;
     color: #000;
 }
+#announcements-button, #announcements-window, #announcement-window, #create-announcement-window {
+    background-color: #fcf6bd;
+    color: #000;
+}
+.announcement_div {
+    background-color: #fff;
+    color: #000;
+}
 #view-window {
     background-color: #f0f0f0;
     color: #000;
@@ -125,6 +133,13 @@ body {
     max-width: 80%;
     min-height: 80%;
     max-height: 80%;
+}
+
+#announcements-window, #announcement-window, #create-announcement-window {
+    min-width: 60%;
+    max-width: 60%;
+    min-height: 60%;
+    max-height: 60%;
 }
 
 #view-window {

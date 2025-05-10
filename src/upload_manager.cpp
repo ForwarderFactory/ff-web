@@ -355,7 +355,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
 #endif
         } else if (it.name == "file") {
             file_path = it.path;
-            file_name = it.name;
+            file_name = it.filename;
 #ifdef FF_DEBUG
             logger.write_to_log(limhamn::logger::type::notice, "Got File\n");
 #endif

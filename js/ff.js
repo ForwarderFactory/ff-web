@@ -925,6 +925,8 @@ function print_discord() {
         img.style.transform = 'scale(1.0)';
     }
     img.onclick = () => {
+        play_click();
+
         const w = create_window('discord-window');
 
         const logo = document.createElement('img');
@@ -945,6 +947,247 @@ function print_discord() {
         w.appendChild(paragraph);
 
         window.open(url, '_blank');
+    }
+
+    document.body.appendChild(img);
+}
+
+function get_announcement(title, author, date, text) {
+    play_click();
+
+    const w = create_window('announcement-window');
+    const title_element = document.createElement('h1');
+
+    title_element.innerHTML = title;
+    title_element.className = 'floating_window_title';
+
+    const date_element = document.createElement('em');
+    const _date = new Date(date);
+    date_element.innerHTML = author + " - " + _date.toLocaleString();
+    date_element.className = 'floating_window_paragraph';
+
+    const text_element = document.createElement('p');
+    text_element.innerHTML = text;
+    text_element.className = 'floating_window_paragraph';
+
+    w.appendChild(title_element);
+    w.appendChild(date_element);
+    w.appendChild(text_element);
+
+    document.body.appendChild(w);
+}
+
+function get_announcements() {
+    play_click();
+
+    const get_json = async () => {
+        const url = '/api/get_announcements';
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.status === 204) {
+                return null;
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error:', error);
+            throw error;
+        }
+    }
+
+    const w = create_window('announcements-window');
+
+    const title = document.createElement('h1');
+    title.innerHTML = 'Announcements';
+    title.className = 'floating_window_title';
+
+    w.appendChild(title);
+
+    get_json().then(data => {
+       if (!data || !data.announcements || data.announcements.length === 0) {
+           const description = document.createElement('description');
+           description.innerHTML = 'No announcements available. Come back later!';
+           description.className = 'floating_window_paragraph';
+           w.appendChild(description);
+           return;
+       }
+
+       if (!data) {
+           throw new Error('Invalid response from server: ' + JSON.stringify(data));
+       }
+
+       const announcements = data.announcements;
+
+       // sort by publish_timestamp
+        announcements.sort((a, b) => b.publish_timestamp - a.publish_timestamp);
+
+        announcements.forEach(announcement => {
+           const div = document.createElement('div');
+           div.className = 'announcement_div';
+           div.id = "announcement-" + announcement.id;
+           div.style.marginBottom = '10px';
+           div.style.padding = '10px';
+           div.style.borderRadius = '10px';
+           div.onclick = () => {
+               get_announcement(announcement.title, announcement.author, announcement.publish_timestamp, announcement.text_html);
+           }
+           div.onmouseover = () => {
+               div.style.scale = '1.05';
+           }
+           div.onmouseleave = () => {
+               div.style.scale = '1';
+           }
+
+           if (!announcement.text_html) {
+               return;
+           }
+
+           if (announcement.title) {
+                const title = document.createElement('h1');
+                title.innerHTML = announcement.title;
+                title.className = 'announcement_title';
+
+                if (announcement.publish_timestamp && announcement.publish_timestamp > 0) {
+                    const date = new Date(announcement.publish_timestamp);
+                    const date_str = date.toLocaleString();
+                    title.innerHTML += ` (${date_str})`;
+                }
+
+                div.appendChild(title);
+
+                let shortened_text = announcement.text_html;
+                if (shortened_text.length > 100) {
+                    shortened_text = shortened_text.substring(0, 100) + '...';
+                }
+
+                const text = document.createElement('p');
+
+                text.innerHTML = shortened_text;
+                text.className = 'announcement_text';
+
+                div.appendChild(text);
+           }
+
+           w.appendChild(div);
+       });
+    });
+
+
+    if (get_cookie('user_type') === '1') {
+        const button = document.createElement('button');
+        button.innerHTML = 'Create announcement';
+        button.className = 'create-announcement-button';
+        button.onclick = () => {
+            play_click();
+            const create = create_window('create-announcement-window');
+
+            const title = document.createElement('h1');
+            title.innerHTML = 'Create announcement';
+            title.className = 'floating_window_title';
+
+            const paragraph = document.createElement('p');
+            paragraph.innerHTML = 'Please enter the title and text for the announcement.';
+
+            const title_input = document.createElement('input');
+            title_input.type = 'text';
+            title_input.name = 'title';
+            title_input.placeholder = 'Title';
+            title_input.className = 'announcement-input';
+            title_input.id = 'announcement-title';
+
+            const text_input = document.createElement('textarea');
+            text_input.name = 'text';
+            text_input.placeholder = 'Text (markdown)';
+            text_input.className = 'announcement-input';
+            text_input.id = 'announcement-text';
+            text_input.style.height = '200px';
+            text_input.style.width = '80%';
+
+            const submit_button = document.createElement('button');
+            submit_button.innerHTML = 'Submit';
+            submit_button.className = 'create-announcement-button';
+            submit_button.onclick = () => {
+                play_click();
+                const json = {
+                    title: title_input.value,
+                    text_markdown: text_input.value,
+                };
+
+                fetch('/api/create_announcement', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(json),
+                })
+                    .then(response => {
+                        if (json.error_str) {
+                            show_register(json.error_str);
+                            return;
+                        }
+                        hide_all_windows();
+                        get_announcements();
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
+            }
+
+            create.appendChild(title);
+            create.appendChild(paragraph);
+            create.appendChild(document.createElement('br'));
+            create.appendChild(document.createElement('br'));
+            create.appendChild(title_input);
+            create.appendChild(document.createElement('br'));
+            create.appendChild(document.createElement('br'));
+            create.appendChild(text_input);
+            create.appendChild(document.createElement('br'));
+            create.appendChild(document.createElement('br'));
+            create.appendChild(submit_button);
+
+            document.body.appendChild(create);
+        }
+
+        w.appendChild(button);
+    }
+
+    document.body.appendChild(w);
+}
+
+function print_announcements() {
+    const img = document.createElement('img');
+
+    img.id = 'announcements-watermark';
+    img.style.fontSize = '22px';
+    img.style.zIndex = '9999999999';
+    img.style.pointerEvents = 'auto';
+    img.src = "/img/announcements.svg";
+
+    /* bottom left */
+    img.style.position = 'absolute';
+    img.style.bottom = '0';
+    img.style.left = '50px';
+    img.style.maxWidth = '25px';
+    img.style.maxHeight = '25px';
+    img.style.padding = '10px';
+    img.style.userSelect = 'none';
+    img.style.cursor = 'pointer';
+    /* on hover, scale */
+    img.onmouseover = () => {
+        img.style.transform = 'scale(1.1)';
+    }
+    img.onmouseleave = () => {
+        img.style.transform = 'scale(1.0)';
+    }
+    img.onclick = () => {
+        get_announcements();
     }
 
     document.body.appendChild(img);
@@ -1054,7 +1297,6 @@ function show_sandbox_upload(_error = "") {
             console.error('File is missing or not selected');
         }
 
-        // loading screen
         const loading = create_window('loading-window', { close_button: false, moveable: false, remove_existing: true, close_on_escape: false, close_on_click_outside: false });
 
         const title = document.createElement('h1');
@@ -3924,8 +4166,9 @@ function show_credits() {
 
     const list = [
         { logo: 'https://avatars.githubusercontent.com/u/88251708', name: "Forwarder Factory", role: 'Forwarder Factory was made possible by...' },
-        { logo: 'https://jacobnilsson.com/img/picture.jpeg', name: 'Jacob Nilsson', role: 'Programming, Web Design, Maintenance' },
-        { logo: 'https://avatars.githubusercontent.com/u/88589756', name: 'Gabubu', role: 'Maintenance' }
+        { logo: 'https://avatars.githubusercontent.com/u/166003882', name: 'Jacob Nilsson', role: 'Programming, Web Design, Maintenance' },
+        { logo: 'https://avatars.githubusercontent.com/u/88589756', name: 'Gabubu', role: 'Maintenance' },
+        { logo: 'https://avatars.githubusercontent.com/u/138316044', name: 'oxyzin', role: 'Graphic Design' }
     ];
 
     generate_stars(50, credits);
@@ -4108,14 +4351,14 @@ function init_page() {
         description: "Browse channels uploaded by others.",
         background_color: "",
         id: "browse-button",
-        onclick: "show_browse()"
+        onclick: "play_click(); show_browse()"
     }));
     list.push(get_link_box({
         title: "Sandbox",
         description: "Check out files uploaded by users.",
         background_color: "",
         id: "sandbox-button",
-        onclick: "show_sandbox()"
+        onclick: "play_click(); show_sandbox()"
     }))
 
     if (get_cookie("username") === null) {
@@ -4123,13 +4366,13 @@ function init_page() {
             title: "Log in",
             description: "Log in to your account.",
             id: "login-button",
-            onclick: "show_login()"
+            onclick: "play_click(); show_login()"
         }));
         list.push(get_link_box({
             title: "Register",
             description: "Register a new account.",
             id: "register-button",
-            onclick: "show_register()"
+            onclick: "play_click(); show_register()"
         }));
     } else {
         if (get_cookie("user_type") === "1") {
@@ -4137,20 +4380,20 @@ function init_page() {
                 title: "Admin",
                 description: "Access the admin panel.",
                 id: "admin-button",
-                onclick: "show_admin()"
+                onclick: "play_click(); show_admin()"
             }));
         }
         list.push(get_link_box({
             title: "Upload",
             description: "Upload a forwarder or channel.",
             id: "upload-button",
-            onclick: "show_upload()"
+            onclick: "play_click(); show_upload()"
         }));
         list.push(get_link_box({
             title: "Log out",
             description: "Log out of your account.",
             id: "logout-button",
-            onclick: "show_logout()"
+            onclick: "play_click(); show_logout()"
         }));
     }
 
@@ -4158,7 +4401,7 @@ function init_page() {
         title: "Credits",
         description: "View the credits for Forwarder Factory.",
         id: "credits-button",
-        onclick: "show_credits()"
+        onclick: "play_click(); show_credits()"
     }));
 
     const grid = get_grid(list, 'initial-link-grid');
@@ -4201,4 +4444,5 @@ document.addEventListener('DOMContentLoaded', () => {
     print_username();
     print_beta();
     print_discord();
+    print_announcements();
 });

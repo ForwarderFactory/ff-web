@@ -35,6 +35,7 @@ namespace ff {
             {"/img/grab-moving.png", "/etc/ff/img/grab-moving.png"},
             {"/img/background-logo-1.png", "/etc/ff/img/background-logo-1.png"},
             {"/img/discord.svg", "/etc/ff/img/discord.svg"},
+            {"/img/announcements.svg", "/etc/ff/img/announcements.svg"}
             {"/fonts/font.woff2", "/etc/ff/fonts/font.woff2"},
             {"/audio/click.wav", "/etc/ff/audio/click.wav"},
         };
@@ -64,6 +65,7 @@ namespace ff {
             {"/img/grab-moving.png", "./img/grab-moving.png"},
             {"/img/background-logo-1.png", "./img/background-logo-1.png"},
             {"/img/discord.svg", "./img/discord.svg"},
+            {"/img/announcements.svg", "./img/announcements.svg"},
             {"/fonts/font.woff2", "./fonts/font.woff2"},
             {"/audio/click.wav", "./audio/click.wav"},
         };
@@ -371,4 +373,7 @@ namespace ff {
     limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_announcements(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_announcements(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_create_announcement(const limhamn::http::server::request& request, database& db);
 } // namespace ff

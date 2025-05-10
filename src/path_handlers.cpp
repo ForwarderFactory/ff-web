@@ -2,6 +2,7 @@
 #include <ff.hpp>
 #include <scrypto.hpp>
 #include <nlohmann/json.hpp>
+#include <maddy/parser.h>
 
 limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
@@ -1138,20 +1139,18 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
-    if (!ff::username_is_stored(request)) {
-#ifdef FF_DEBUG
-        logger.write_to_log(limhamn::logger::type::notice, "User is not logged in.\n");
-#endif
-        nlohmann::json json;
-        json["error"] = "User is not logged in.";
-        response.body = json.dump();
-        response.http_status = 400;
-        return response;
-    }
-
     const auto get_username = [&request]() -> std::string {
         if (request.session.find("username") != request.session.end()) {
             return request.session.at("username");
+        }
+
+        try {
+            nlohmann::json json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // do nothing
         }
 
         return "";
@@ -1160,6 +1159,15 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     const auto get_key = [&request]() -> std::string {
         if (request.session.find("key") != request.session.end()) {
             return request.session.at("key");
+        }
+
+        try {
+            nlohmann::json json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // do nothing
         }
 
         return "";
@@ -1173,7 +1181,8 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
 #endif
         nlohmann::json json;
-        json["error"] = "Username or key is empty.";
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
         response.http_status = 400;
         response.body = json.dump();
         return response;
@@ -1184,8 +1193,18 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
 #endif
         nlohmann::json json;
-        json["error"] = "Invalid credentials.";
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
         response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (ff::get_user_type(db, username) != ff::UserType::Administrator) {
+        nlohmann::json json;
+        json["error"] = "FF_NOT_AUTHORIZED";
+        json["error_str"] = "You are not authorized to access this endpoint.";
+        response.http_status = 403;
         response.body = json.dump();
         return response;
     }
@@ -1195,7 +1214,8 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         logger.write_to_log(limhamn::logger::type::notice, "No body.\n");
 #endif
         nlohmann::json json;
-        json["error"] = "No body.";
+        json["error_str"] = "No body.";
+        json["error"] = "FF_NO_BODY";
         response.http_status = 400;
         response.body = json.dump();
         return response;
@@ -1205,7 +1225,8 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
         logger.write_to_log(limhamn::logger::type::notice, "Not a POST request.\n");
 #endif
         nlohmann::json json;
-        json["error"] = "Not a POST request.";
+        json["error_str"] = "Not a POST request.";
+        json["error"] = "FF_INVALID_METHOD";
         response.http_status = 400;
         response.body = json.dump();
         return response;
@@ -1468,6 +1489,240 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
     response.content_type = "application/json";
     response.http_status = 200;
     response.body = response_json.dump();
+
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_create_announcement(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (ff::get_user_type(db, username) != ff::UserType::Administrator) {
+        nlohmann::json json;
+        json["error"] = "FF_NOT_AUTHORIZED";
+        json["error_str"] = "You are not authorized to access this endpoint.";
+        response.http_status = 403;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (request.body.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "No body.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "No body.";
+        json["error"] = "FF_NO_BODY";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+    if (request.method != "POST") {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Not a POST request.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Not a POST request.";
+        json["error"] = "FF_INVALID_METHOD";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json input;
+    try {
+        input = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Failed to parse JSON.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid JSON received";
+        json["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json announcement;
+
+    const auto convert_to_markdown = [](const std::string& str) -> std::string {
+        maddy::Parser parser;
+        std::istringstream stream{str};
+        return parser.Parse(stream);
+    };
+
+    if (input.find("title") != input.end() && input.at("title").is_string()) {
+        announcement["title"] = input.at("title").get<std::string>();
+    }
+
+    if (input.find("text_markdown") != input.end() && input.at("text_markdown").is_string()) {
+        announcement["text_markdown"] = input.at("text_markdown").get<std::string>();
+        announcement["text_html"] = convert_to_markdown(input.at("text_markdown").get<std::string>());
+    } else {
+        nlohmann::json json;
+        json["error"] = "FF_INVALID_JSON";
+        json["error_str"] = "Invalid JSON received";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (input.find("publish_timestamp") != input.end() && input.at("publish_timestamp").is_number_integer()) {
+        announcement["publish_timestamp"] = input.at("publish_timestamp").get<int64_t>();
+    } else {
+        announcement["publish_timestamp"] = scrypto::return_unix_timestamp();
+    }
+
+    announcement["author"] = username;
+
+    const auto query = db.query("SELECT * FROM general WHERE id=1;");
+    if (query.empty()) {
+        nlohmann::json json;
+        json["error"] = "FF_FUCK_MY_LIFE";
+        json["error_str"] = "Shit is broken, don't know why.";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    auto json = query.at(0).at("json");
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(json);
+    } catch (const std::exception&) {
+        nlohmann::json ret_json;
+        ret_json["error"] = "FF_SERVER_ERROR";
+        ret_json["error_str"] = "Server failed, no idea why.";
+        response.http_status = 400;
+        response.body = ret_json.dump();
+        return response;
+    }
+
+    db_json["announcements"].push_back(announcement);
+
+    db.exec("UPDATE general SET json = ? WHERE id = 1", db_json.dump());
+
+    response.http_status = 201;
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_get_announcements(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+
+    const auto query = db.query("SELECT * FROM general WHERE id=1;");
+    if (query.empty()) {
+        nlohmann::json ret;
+        ret["error"] = "FF_SERVER_ERROR";
+        ret["error_str"] = "Server failed, no idea why. general is empty";
+
+        response.content_type = "application/json";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (query.at(0).find("json") == query.at(0).end()) {
+        nlohmann::json ret;
+        ret["error"] = "FF_SERVER_ERROR";
+        ret["error_str"] = "Server failed, no idea why.";
+
+        response.content_type = "application/json";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    try {
+        const auto json = nlohmann::json::parse(query.at(0).at("json"));
+        if (json.contains("announcements") && json.at("announcements").is_array()) {
+            response.content_type = "application/json";
+            response.http_status = 200;
+            response.body = json.dump();
+        } else {
+            nlohmann::json ret;
+            ret["error"] = "FF_SERVER_ERROR";
+            ret["error_str"] = "Server failed, no idea why.";
+
+            response.content_type = "application/json";
+            response.http_status = 400;
+            response.body = ret.dump();
+
+            return response;
+        }
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error"] = "FF_SERVER_ERROR";
+        ret["error_str"] = "Server failed, no idea why.";
+
+        response.content_type = "application/json";
+        response.http_status = 400;
+        response.body = ret.dump();
+
+        return response;
+    }
 
     return response;
 }

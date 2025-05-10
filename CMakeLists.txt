@@ -31,6 +31,7 @@ add_subdirectory(libs/libbcrypt)
 
 include_directories(libs/libbcrypt/include)
 include_directories(libs/limhamn/include)
+include_directories(libs/maddy/include)
 
 find_package(yaml-cpp REQUIRED)
 find_package(Boost REQUIRED CONFIG COMPONENTS system url)

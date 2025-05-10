@@ -272,6 +272,9 @@ void ff::start_server() {
                 {"/api/set_approval_for_uploads", ff::handle_api_set_approval_for_uploads_endpoint},
                 {"/api/update_profile", ff::handle_api_update_profile},
                 {"/api/get_profile", ff::handle_api_get_profile},
+                {"/api/create_announcement", ff::handle_api_create_announcement},
+                {"/api/get_announcements", ff::handle_api_get_announcements},
+                //{"/api/delete_announcements", ff::handle_api_delete_announcements},
             };
             const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, ff::database&)>> setup_handlers{
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
