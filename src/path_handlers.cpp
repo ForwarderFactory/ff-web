@@ -602,7 +602,7 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
         int64_t submitted_before{-1}; // if not -1, must be submitted before this time
         int64_t submitted_after{-1}; // if not -1, must be submitted after this time
         std::pair<int64_t, int64_t> submitted_between{-1, -1}; // if not -1, must be submitted between these times
-        int vwii{-1}; // if not -1, must match this vwii (0 = unknown, 1 = yes, 2 = no)
+        int vwii{-1}; // if not -1, must match this vwii (-1 = any, 0 = no vwii, 1 = vwii)
         int begin{-1}; // if not -1, start at this index
         int end{-1}; // if not -1, end at this index
         std::string identifier{""}; // if not empty, must match this identifier
@@ -676,7 +676,7 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
             }
             if (input_json.at("filter").find("vwii") != input_json.at("filter").end() && input_json.at("filter").at("vwii").is_number_integer()) {
                 filter.vwii = input_json.at("filter").at("vwii").get<int>();
-                if (filter.vwii != 0 && filter.vwii != 1 && filter.vwii != 2) {
+                if (filter.vwii != 0 && filter.vwii != 1) {
                     filter.vwii = -1;
                 }
             }
@@ -849,8 +849,8 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
                 }
             }
             if (filter.vwii != -1) {
-                if (meta.find("vwii_compatible") != meta.end() && meta.at("vwii_compatible").is_number_integer()) {
-                    if (meta.at("vwii_compatible").get<int>() != filter.vwii) {
+                if (meta.find("vwii_compatible") != meta.end() && meta.at("vwii_compatible").is_boolean()) {
+                    if (meta.at("vwii_compatible").get<bool>() != filter.vwii) {
                         continue;
                     }
                 }

@@ -6,12 +6,8 @@ Source code for the [Forwarder Factory](https://forwarderfactory.com) website
 
 Don't know how realistic this is, but here's a list of things that I want to see done or work on personally:
 
-- [ ] Implement a way to deduce WAD information without having to ask for it. Things like title, title id, audio, assets, etc.
 - [ ] Implement a banner player of some kind. This is hard, I need a genius to help me implement this. (i.e. banner -> video would suffice)
-- [ ] 'Send to my Wii' button, which would install the WAD directly to the Wii through the internet.
 - [ ] Background is a bit buggy, maybe fix it up a bit?
-- [ ] Introduce some kind of REST API that we can both use internally and expose to the public, for potential third-party applications
-- [ ] Better test the configuration file, could be buggy?
 - [ ] Replace webm conversion with compilable ffmpeg code
 
 ## Dependencies

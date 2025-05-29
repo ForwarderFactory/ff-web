@@ -312,6 +312,19 @@ namespace ff {
 #endif
     };
 
+    struct WADInfo {
+        std::string title{};
+        std::string title_id{};
+        std::string full_title_id{};
+        unsigned int ios{};
+        std::string region{};
+        int version{};
+        int blocks{};
+        bool supports_vwii{false};
+    };
+
+    WADInfo get_info_from_wad(const std::string& wad_path);
+
     inline static const std::string virtual_stylesheet_path = "/css/index.css";
     inline static const std::string virtual_font_path = "/fonts/font.ttf";
     inline static const std::string virtual_favicon_path = "/img/favicon.svg";

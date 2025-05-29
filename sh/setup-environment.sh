@@ -74,4 +74,4 @@ EOF
 
 systemctl daemon-reload
 systemctl enable ff-web
-systemctl start ff-web
+systemctl restart ff-web

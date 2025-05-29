@@ -1835,74 +1835,12 @@ function show_upload(_error = "") {
         back.style.marginRight = '10px';
         back.onclick = () => {
             ret.wad = wad;
-            ask_for_vwii_compatibility();
-        }
-
-        upload.appendChild(title);
-        upload.appendChild(paragraph);
-        upload.appendChild(wad);
-        upload.appendChild(document.createElement('br'));
-        upload.appendChild(document.createElement('br'));
-        upload.appendChild(back);
-        upload.appendChild(submit);
-    }
-
-    const ask_for_vwii_compatibility = () => {
-        play_click();
-
-        const upload = create_window('upload-window');
-
-        const title = document.createElement('h1');
-        title.innerHTML = 'vWii Compatibility';
-
-        const paragraph = document.createElement('p');
-        paragraph.innerHTML = 'Is this forwarder compatible with the Wii U?';
-        paragraph.innerHTML += '<br>';
-        paragraph.innerHTML += "If you are unsure, select 'Unknown'.";
-        paragraph.innerHTML += '<br>';
-        paragraph.innerHTML += 'This will be displayed to users.';
-
-        const vwii = document.createElement('select');
-        vwii.name = 'vwii';
-        vwii.id = 'upload-vwii';
-        vwii.className = 'upload-input';
-        vwii.style.width = '100%';
-        vwii.style.marginBottom = '10px';
-
-        const options = ['Select', 'Yes', 'No', 'Unknown'];
-        for (let i = 0; i < options.length; i++) {
-            const option = document.createElement('option');
-            option.value = options[i];
-            option.innerHTML = options[i];
-            vwii.appendChild(option);
-        }
-
-        const submit = document.createElement('button');
-        submit.innerHTML = 'Continue';
-        submit.className = 'upload-button';
-        submit.id = 'continue-upload-submit';
-        submit.disabled = true;
-        vwii.addEventListener('input', () => {
-            submit.disabled = (vwii.options[vwii.selectedIndex].value === 'Select');
-        });
-        submit.onclick = () => {
-            ret.vwiiCompatible = vwii;
-            ask_for_wad();
-        }
-
-        const back = document.createElement('button');
-        back.innerHTML = 'Back';
-        back.className = 'upload-button';
-        back.id = 'back-upload-button';
-        back.style.marginRight = '10px';
-        back.onclick = () => {
-            ret.vwiiCompatible = vwii;
             ask_for_type_location_categories();
         }
 
         upload.appendChild(title);
         upload.appendChild(paragraph);
-        upload.appendChild(vwii);
+        upload.appendChild(wad);
         upload.appendChild(document.createElement('br'));
         upload.appendChild(document.createElement('br'));
         upload.appendChild(back);
@@ -2006,7 +1944,7 @@ function show_upload(_error = "") {
             ret.categories = categories;
             ret.location = location;
             ret.type = type;
-            ask_for_vwii_compatibility();
+            ask_for_wad();
         }
 
         // disable button if type is unset
@@ -2454,14 +2392,10 @@ function show_upload(_error = "") {
         const upload = create_window('upload-window');
 
         const title = document.createElement('h1');
-        title.innerHTML = 'Title and Title ID';
+        title.innerHTML = 'Title (optional)';
 
         const paragraph = document.createElement('p');
-        paragraph.innerHTML = 'Please provide a title and title ID for your forwarder. The title ID is a unique identifier for your forwarder and is made up of four characters, A-Z and 0-9.';
-        paragraph.innerHTML += '<br><br>';
-        paragraph.innerHTML += 'The title is what will be displayed to users when they search for your forwarder. A good suggestion is what is displayed hovering over the forwarder in the Wii System Menu.';
-        paragraph.innerHTML += '<br>';
-        paragraph.innerHTML += 'Example: "Internet Channel" and "HAAA"';
+        paragraph.innerHTML = "If you want to specify a title for your forwarder, you can do so here. This is optional; if you don't specify a title, the forwarder's title will be retrieved automatically!";
 
         const title_input = document.createElement('input');
         title_input.type = 'text';
@@ -2478,33 +2412,8 @@ function show_upload(_error = "") {
             title_input.value = ret.title.value;
         }
 
-        const title_id_input = document.createElement('input');
-        title_id_input.type = 'text';
-        title_id_input.name = 'title_id';
-        title_id_input.placeholder = 'Title ID';
-        title_id_input.className = 'upload-input';
-        title_id_input.id = 'upload-title-id';
-        title_id_input.style.width = '20%';
-        title_id_input.style.marginLeft = '10px';
-        if (ret.titleID !== undefined) {
-            title_id_input.value = ret.titleID.value;
-        }
-
-        title_id_input.onclick = () => {
-            play_click();
-        }
-
-        // prevent it from being too long or containing invalid characters
-        title_id_input.addEventListener('input', () => {
-            title_id_input.value = title_id_input.value.toUpperCase();
-            title_id_input.value = title_id_input.value.replace(/[^A-Z0-9]/, '');
-            title_id_input.value = title_id_input.value.substring(0, 4);
-
-            submit.disabled = (title_input.value === '' || title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
-        });
         title_input.addEventListener('input', () => {
             title_input.value = title_input.value.substring(0, 30);
-            submit.disabled = (title_input.value === '' || title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
         });
 
         const back = document.createElement('button');
@@ -2513,7 +2422,6 @@ function show_upload(_error = "") {
         back.id = 'back-upload-button';
         back.onclick = () => {
             ret.title = title_input;
-            ret.titleID = title_id_input;
             ask_for_content_type();
         }
         back.style.marginRight = '10px';
@@ -2522,17 +2430,14 @@ function show_upload(_error = "") {
         submit.innerHTML = 'Continue';
         submit.className = 'upload-button';
         submit.id = 'continue-upload-submit';
-        submit.disabled = (title_id_input.value.length !== 4 || !/^[A-Z0-9]+$/.test(title_id_input.value));
         submit.onclick = () => {
             ret.title = title_input;
-            ret.titleID = title_id_input;
             ask_for_description();
         }
 
         upload.appendChild(title);
         upload.appendChild(paragraph);
         upload.appendChild(title_input);
-        upload.appendChild(title_id_input);
 
         upload.appendChild(document.createElement('br'));
         upload.appendChild(back);
@@ -2751,14 +2656,12 @@ function show_forwarder(id) {
 
         const vwii = document.createElement('p');
         vwii.className = 'view_floating_window_vwii';
-        vwii.id = 'view_floating_window_vwii';
-        if (forwarder.meta.vwii_compatible === 0) {
-            vwii.innerHTML = "Supported: Wii";
-            forwarder_window.appendChild(vwii);
-        } else if (forwarder.meta.vwii_compatible === 1) {
-            vwii.innerHTML = "Supported: Wii, vWii";
-            forwarder_window.appendChild(vwii);
-        }
+        vwii.innerHTML = forwarder.meta.vwii_compatible ? 'Wii, vWii, Wii Mini' : 'Wii, Wii Mini';
+        const fac = document.createElement('i');
+        fac.className = "fa-solid fa-check";
+        fac.style.marginRight = '5px';
+        vwii.prepend(fac);
+        forwarder_window.appendChild(vwii);
 
         const description = document.createElement('p');
         description.className = 'view_floating_window_description';
@@ -3885,7 +3788,7 @@ function show_browse() {
             vwii.style.marginBottom = '10px';
             vwii.style.marginRight = '10px';
 
-            const vwii_options = ['Select', 'Yes', 'No', 'Unknown'];
+            const vwii_options = ['Select', 'Yes', 'No'];
             for (let i = 0; i < vwii_options.length; i++) {
                 const option = document.createElement('option');
                 option.value = vwii_options[i];
@@ -3894,14 +3797,12 @@ function show_browse() {
             }
 
             if (filter_data.vwii !== undefined) {
-                if (filter_data.vwii === -1) {
+                if (filter_data.vwii <= 0) {
                     vwii.selectedIndex = 0;
                 } else if (filter_data.vwii === 1) {
                     vwii.selectedIndex = 1;
                 } else if (filter_data.vwii === 2) {
                     vwii.selectedIndex = 2;
-                } else if (filter_data.vwii === 0) {
-                    vwii.selectedIndex = 3;
                 }
             }
 
@@ -3913,9 +3814,6 @@ function show_browse() {
                     filter_data.vwii = 1;
                 }
                 if (vwii.options[vwii.selectedIndex].value === 'No') {
-                    filter_data.vwii = 2;
-                }
-                if (vwii.options[vwii.selectedIndex].value === 'Unknown') {
                     filter_data.vwii = 0;
                 }
             });

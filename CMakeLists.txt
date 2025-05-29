@@ -22,6 +22,7 @@ set(PROJECT_SOURCE_FILES
     src/path_handlers.cpp
     src/scrypto.cpp
     src/av_io.cpp
+    src/wadinfo.cpp
 )
 
 include_directories(include)
@@ -90,3 +91,14 @@ if (FF_ENABLE_POSTGRESQL)
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+install(CODE "
+  message(STATUS \"Running fetch-sharpii.sh...\")
+  execute_process(
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/sh/fetch-sharpii.sh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE res
+  )
+  if(NOT res EQUAL 0)
+    message(FATAL_ERROR \"fetch-sharpii.sh failed with exit code \${res}\")
+  endif()
+")

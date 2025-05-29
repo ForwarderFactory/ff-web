@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <ff.hpp>
 #include <Magick++.h>
+
 extern "C" {
     #include <libavformat/avformat.h>
     #include <libavcodec/avcodec.h>

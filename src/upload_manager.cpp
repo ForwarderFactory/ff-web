@@ -59,6 +59,13 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         return {ff::UploadStatus::Failure, ""};
     }
 
+    ff::WADInfo wad_info;
+    try {
+        wad_info = ff::get_info_from_wad(wad_path);
+    } catch (const std::exception&) {
+        return {ff::UploadStatus::Failure, ""};
+    }
+
     nlohmann::json user_json;
     nlohmann::json db_json;
     try {
@@ -108,6 +115,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
         db_json["meta"]["description"] = limhamn::http::utils::htmlspecialchars(meta.at("description"));
     }
+    /*
     if (meta.find("title_id") != meta.end() && meta.at("title_id").is_string()) {
         // require 4 characters, uppercase and A-Z and/or 0-9
         std::string title_id = meta.at("title_id");
@@ -121,12 +129,21 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         }
         db_json["meta"]["title_id"] = title_id;
     }
-    if (meta.find("title") != meta.end() && meta.at("title").is_string()) {
+    */
+    std::string title{};
+    std::string title_id{};
+
+    db_json["meta"]["title_id"] = title_id = wad_info.title_id;
+
+    if (meta.find("title") != meta.end() && meta.at("title").is_string() && !meta.at("title").get<std::string>().empty()) {
         if (meta.at("title").size() > 255) {
             return {ff::UploadStatus::Failure, ""};
         }
-        db_json["meta"]["title"] = limhamn::http::utils::htmlspecialchars(meta.at("title"));
+        db_json["meta"]["title"] = title = limhamn::http::utils::htmlspecialchars(meta.at("title"));
+    } else {
+        db_json["meta"]["title"] = title = wad_info.title.empty() ? "No title" : wad_info.title;
     }
+
     if (meta.find("author") != meta.end() && meta.at("author").is_string()) {
         db_json["meta"]["author"] = limhamn::http::utils::htmlspecialchars(meta.at("author"));
     }
@@ -182,6 +199,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         }
         db_json["meta"]["location"] = limhamn::http::utils::htmlspecialchars(meta.at("location"));
     }
+    /*
     if (meta.find("vwii_compatible") != meta.end() && meta.at("vwii_compatible").is_string()) {
         std::string vwii_compatible = meta.at("vwii_compatible");
         if (vwii_compatible != "Select" && vwii_compatible != "Yes" && vwii_compatible != "No" && vwii_compatible != "Unknown") {
@@ -203,52 +221,63 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
         db_json["meta"]["vwii_compatible"] = vwii_compatible;
     }
+    */
+    db_json["meta"]["vwii_compatible"] = wad_info.supports_vwii;
 
     std::string banner_ext{};
     std::string icon_ext{};
-    if (ff::validate_image(banner_path)) {
-        db_json["meta"]["banner_type"] = "image";
-        if (settings.convert_images_to_webp) {
-            if (!ff::convert_to_webp(banner_path, banner_path)) {
-                return {ff::UploadStatus::Failure, ""};
+    try
+    {
+        if (ff::validate_image(banner_path)) {
+            db_json["meta"]["banner_type"] = "image";
+            if (settings.convert_images_to_webp) {
+                if (!ff::convert_to_webp(banner_path, banner_path)) {
+                    return {ff::UploadStatus::Failure, ""};
+                }
+                banner_ext = ".webp";
             }
-            banner_ext = ".webp";
-        }
-    } else if (ff::validate_video(banner_path)) {
-        db_json["meta"]["banner_type"] = "video";
-        if (settings.convert_videos_to_webm) {
-            const std::string out_p = ff::get_temp_path();
-            if (!ff::convert_to_webm(banner_path, out_p)) {
-                return {ff::UploadStatus::Failure, ""};
+        } else if (ff::validate_video(banner_path)) {
+            db_json["meta"]["banner_type"] = "video";
+            if (settings.convert_videos_to_webm) {
+                const std::string out_p = ff::get_temp_path();
+                if (!ff::convert_to_webm(banner_path, out_p)) {
+                    return {ff::UploadStatus::Failure, ""};
+                }
+                std::filesystem::remove(banner_path);
+                std::filesystem::rename(out_p, banner_path);
+                banner_ext = ".webm";
             }
-            std::filesystem::remove(banner_path);
-            std::filesystem::rename(out_p, banner_path);
-            banner_ext = ".webm";
+        } else {
+            return {ff::UploadStatus::Failure, ""};
         }
-    } else {
+    } catch (const std::exception& e) {
         return {ff::UploadStatus::Failure, ""};
     }
 
-    if (ff::validate_image(icon_path)) {
-        db_json["meta"]["icon_type"] = "image";
-        if (settings.convert_images_to_webp) {
-            if (!ff::convert_to_webp(icon_path, icon_path)) {
-                return {ff::UploadStatus::Failure, ""};
+    try {
+        if (ff::validate_image(icon_path)) {
+            db_json["meta"]["icon_type"] = "image";
+            if (settings.convert_images_to_webp) {
+                if (!ff::convert_to_webp(icon_path, icon_path)) {
+                    return {ff::UploadStatus::Failure, ""};
+                }
+                icon_ext = ".webp";
             }
-            icon_ext = ".webp";
-        }
-    } else if (ff::validate_video(icon_path)) {
-        db_json["meta"]["icon_type"] = "video";
-        if (settings.convert_videos_to_webm) {
-            const std::string out_p = ff::get_temp_path();
-            if (!ff::convert_to_webm(icon_path, out_p)) {
-                return {ff::UploadStatus::Failure, ""};
+        } else if (ff::validate_video(icon_path)) {
+            db_json["meta"]["icon_type"] = "video";
+            if (settings.convert_videos_to_webm) {
+                const std::string out_p = ff::get_temp_path();
+                if (!ff::convert_to_webm(icon_path, out_p)) {
+                    return {ff::UploadStatus::Failure, ""};
+                }
+                std::filesystem::remove(icon_path);
+                std::filesystem::rename(out_p, icon_path);
+                icon_ext = ".webm";
             }
-            std::filesystem::remove(icon_path);
-            std::filesystem::rename(out_p, icon_path);
-            icon_ext = ".webm";
+        } else {
+            return {ff::UploadStatus::Failure, ""};
         }
-    } else {
+    } catch (const std::exception& e) {
         return {ff::UploadStatus::Failure, ""};
     }
 
@@ -267,7 +296,9 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         .user_agent = req.user_agent,
     });
 
-    std::string data_name;
+    std::string data_name = title + "-" + title_id + ".wad";
+
+    /*
     if (db_json["meta"].find("title") != db_json["meta"].end()) {
         data_name = db_json["meta"]["title"].get<std::string>();
         if (db_json["meta"].find("title_id") != db_json["meta"].end()) {
@@ -276,8 +307,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
     } else {
         data_name = scrypto::generate_random_string(8);
     }
-
-    data_name += ".wad";
+    */
 
     // ensure that the data_name is a valid file name
     for (auto& c : data_name) {
