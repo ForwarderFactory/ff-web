@@ -2778,7 +2778,7 @@ function show_forwarder(id) {
         hide_all_windows();
     }
 
-    const draw = (forwarder) => {
+    const draw = async (forwarder) => {
         const forwarder_window = create_window('view-window');
         forwarder_window.style.display = 'block';
         forwarder_window.style.overflowY = 'scroll';
@@ -2816,11 +2816,24 @@ function show_forwarder(id) {
         const uploader = document.createElement('p');
         uploader.className = 'view_floating_window_uploader';
         if (forwarder.uploader) {
-            uploader.innerHTML = `Uploaded by ${forwarder.uploader}`;
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-circle-user";
-            fa.style.marginRight = '5px';
-            uploader.prepend(fa);
+            const profile = await get_profile_for_user(forwarder.uploader);
+            if (profile.profile_key === '' || profile.profile_key === undefined) {
+                const fa = document.createElement('i');
+                fa.className = "fa-solid fa-circle-user";
+                fa.style.marginRight = '5px';
+                uploader.prepend(fa);
+            } else {
+                const img = document.createElement('img');
+                img.src = `/download/${profile.profile_key}`;
+                img.className = 'view_floating_window_uploader_icon';
+                img.style.marginRight = '5px';
+                img.style.maxWidth = '15px';
+                img.style.maxHeight = '15px';
+                uploader.prepend(img);
+            }
+
+            uploader.innerHTML += `Uploaded by <a href="/profile/${forwarder.uploader}">${forwarder.uploader}</a>`;
+
             forwarder_window.appendChild(uploader);
         }
 
