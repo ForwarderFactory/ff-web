@@ -233,7 +233,7 @@ ff::AccountCreationStatus ff::make_account(database& database, const std::string
     const std::string hashed_password{scrypto::password_hash(password)};
     const std::string key{scrypto::generate_key({base_password})};
     const int64_t current_time{scrypto::return_unix_timestamp()};
-    const int uploads{0};
+    constexpr int uploads{0};
 
     try {
         if (!user_is_verified(database, base_username) && settings.enable_email_verification) {
@@ -245,6 +245,8 @@ ff::AccountCreationStatus ff::make_account(database& database, const std::string
     }
 
     nlohmann::json json;
+
+    json["profile"] = nlohmann::json::object();
     json["uploads"] = uploads;
     json["activated"] = base_email.empty();
 
@@ -426,11 +428,19 @@ ff::ProfileUpdateStatus ff::update_profile(const limhamn::http::server::request&
             return ff::ProfileUpdateStatus::Failure;
         }
 
-        db_json["profile"]["icon_key"] = icon_key;
+        db_json["profile"]["profile_key"] = icon_key;
+    }
+    if (user_json.find("display_name") != user_json.end() && user_json.at("display_name").is_string() &&
+        !user_json.at("display_name").empty()) {
+        db_json["profile"]["display_name"] = limhamn::http::utils::htmlspecialchars(user_json.at("display_name").get<std::string>());
+    } else {
+        db_json["profile"]["display_name"] = username; // fallback to username
     }
     if (user_json.find("description") != user_json.end() && user_json.at("description").is_string()) {
         db_json["profile"]["description"] = limhamn::http::utils::htmlspecialchars(user_json.at("description").get<std::string>());
     }
+
+    ff::set_json_in_table(db, "users", "username", username, db_json.dump());
 
     return ff::ProfileUpdateStatus::Success;
 }

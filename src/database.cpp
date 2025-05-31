@@ -2,6 +2,67 @@
 #include <scrypto.hpp>
 #include <nlohmann/json.hpp>
 
+// implement changes made to the database schema
+void ff::update_to_latest(database& database) {
+    // 1. now ensure that the users table, in the json column, has the json object 'profile'
+    for (const auto& it : database.query("SELECT * FROM users;")) {
+        if (it.empty()) {
+            continue;
+        }
+
+        nlohmann::json json;
+        try {
+            json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            continue; // skip if the json is invalid
+        }
+
+        if (json.find("profile") == json.end()) {
+            json["profile"] = nlohmann::json::object();
+            database.exec("UPDATE users SET json = ? WHERE id = ?;", json.dump(), it.at("id"));
+        }
+    }
+
+    // 2. ensure that the json in forwarders table has [forwarders][x][meta][vwii_compatible] and it is a boolean
+    for (const auto& it : database.query("SELECT * FROM forwarders;")) {
+        if (it.empty()) {
+            continue;
+        }
+
+        nlohmann::json json;
+        try {
+            json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            continue; // skip if the json is invalid
+        }
+
+        if (json.find("meta") == json.end() || !json.at("meta").is_object()) {
+            continue; // skip if meta is not an object
+        }
+
+        if (json.at("meta").find("vwii_compatible") == json.at("meta").end() || !json.at("meta").at("vwii_compatible").is_boolean()) {
+            // test to see if it's vwii compatible
+            // get data_download_key from the json
+            const std::string data_download_key = json.at("data_download_key").get<std::string>();
+            const auto ret = database.query("SELECT * FROM files WHERE file_id = ?;", data_download_key);
+            if (ret.empty()) {
+                continue; // skip if the file does not exist
+            }
+            const auto& file_json = nlohmann::json::parse(ret.at(0).at("json")).at("path").get<std::string>();
+            const auto r = ff::get_info_from_wad(file_json);
+
+            // remove because maybe if it's a different type it'll cast my rvalue?
+            if (json.at("meta").find("vwii_compatible") != json.at("meta").end()) {
+                json.at("meta").erase("vwii_compatible");
+            }
+
+            json["meta"]["vwii_compatible"] = r.supports_vwii;
+        }
+
+        database.exec("UPDATE forwarders SET json = ? WHERE id = ?;", json.dump(), it.at("id"));
+    }
+}
+
 void ff::setup_database(database& database) {
     std::string primary = "id INTEGER PRIMARY KEY";
     if (ff::settings.enabled_database) {
@@ -64,6 +125,13 @@ void ff::setup_database(database& database) {
         json["announcements"] = nlohmann::json::array();
 
         database.exec("INSERT INTO general (json) VALUES (?);", json.dump());
+    }
+
+    try
+    {
+        update_to_latest(database);
+    } catch (const std::exception& e) {
+        throw std::runtime_error{"Error updating database to latest version: " + std::string{e.what()}};
     }
 }
 
@@ -191,7 +259,7 @@ ff::RetrievedFile ff::download_file(database& db, const ff::UserProperties& prop
     nlohmann::json json;
     try {
         json = nlohmann::json::parse(query.at(0).at("json"));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         throw std::runtime_error{"Error parsing JSON."};
     }
 

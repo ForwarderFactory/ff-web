@@ -1193,19 +1193,241 @@ function print_announcements() {
     document.body.appendChild(img);
 }
 
-function print_username() {
-    const username = get_cookie('username');
-    if (!username) {
+
+function update_profile(profile, icon = null) {
+    play_click();
+
+    const url = '/api/update_profile';
+
+    const form = new FormData();
+
+    form.append('json', new Blob([JSON.stringify(profile)], { type: 'application/json' }));
+
+    if (icon && icon.files && icon.files[0]) {
+        form.append('icon', icon.files[0], icon.files[0].name);
+    }
+
+    fetch(url, {
+        method: 'POST',
+        body: form,
+    })
+        .then(response => {
+            if (response.status === 204) {
+                return;
+            }
+
+            return response.json();
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+async function edit_profile(username, curr_profile) {
+    play_click();
+
+    const win = create_window('edit-profile-window');
+    const title = document.createElement('h1');
+
+    title.innerHTML = 'Editing profile for ' + username;
+    title.className = 'floating_window_title';
+    title.id = 'edit-profile-window-title';
+
+    const display_name_h2 = document.createElement('h2');
+    display_name_h2.innerHTML = 'Reassign display name';
+    display_name_h2.className = 'floating_window_subtitle';
+
+    const display_name_p = document.createElement('p');
+    display_name_p.innerHTML = 'This will change the display name for your profile. If you leave this empty, your username will be used as the display name.';
+    display_name_p.className = 'floating_window_paragraph';
+
+    const display_name = document.createElement('input');
+    display_name.type = 'text';
+    display_name.name = 'display_name';
+    display_name.placeholder = 'Display name';
+    display_name.className = 'edit-profile-input';
+    display_name.id = 'edit-profile-display-name';
+    display_name.value = curr_profile.display_name || '';
+
+    const description_h2 = document.createElement('h2');
+    description_h2.innerHTML = 'Reassign description';
+    description_h2.className = 'floating_window_subtitle';
+
+    const description_p = document.createElement('p');
+    description_p.innerHTML = 'This will change the description for your profile. If you leave this empty, no description will be shown.';
+    description_p.className = 'floating_window_paragraph';
+
+    const description = document.createElement('textarea');
+    description.name = 'description';
+    description.placeholder = 'Description (plain text)';
+    description.className = 'edit-profile-input';
+    description.id = 'edit-profile-description';
+    description.style.height = '200px';
+    description.style.width = '80%';
+    description.value = curr_profile.description || '';
+
+    const img_h2 = document.createElement('h2');
+    img_h2.innerHTML = 'Reassign profile icon';
+    img_h2.className = 'floating_window_subtitle';
+
+    const img_p = document.createElement('p');
+    img_p.innerHTML = 'This will change the profile icon for your profile. If you leave this empty, no icon will be shown.';
+    img_p.className = 'floating_window_paragraph';
+
+    const icon = document.createElement('input');
+    icon.type = 'file';
+    icon.name = 'icon';
+    icon.accept = 'image/*';
+    icon.className = 'edit-profile-input';
+    icon.id = 'edit-profile-icon';
+
+    const icon_preview = document.createElement('img');
+    icon_preview.id = 'edit-profile-icon-preview';
+    icon_preview.style.maxWidth = '500px';
+    icon_preview.style.maxHeight = '500px';
+    icon_preview.style.borderRadius = '10px';
+
+    icon_preview.style.display = 'block';
+    icon_preview.style.marginLeft = 'auto';
+    icon_preview.style.marginRight = 'auto';
+
+    if (curr_profile.profile_key) {
+        icon_preview.src = '/download/' + curr_profile.profile_key;
+    }
+
+    icon.onchange = () => {
+        play_click();
+
+        if (icon.files && icon.files[0]) {
+            const file = icon.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                icon_preview.src = e.target.result;
+                icon_preview.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        } else {
+            icon_preview.style.display = 'none';
+        }
+    }
+
+    const update_button = document.createElement('button');
+    update_button.innerHTML = 'Update profile';
+    update_button.className = 'edit-profile-button';
+    update_button.onclick = () => {
+        play_click();
+
+        let json = {
+            display_name: display_name.value,
+            description: description.value,
+        }
+
+        update_profile(json, icon);
+
+        hide_all_windows();
+        view_profile(username);
+    }
+
+    win.appendChild(title);
+    win.appendChild(display_name_h2);
+    win.appendChild(display_name_p);
+    win.appendChild(display_name);
+    win.appendChild(description_h2);
+    win.appendChild(description_p);
+    win.appendChild(description);
+    win.appendChild(img_h2);
+    win.appendChild(img_p);
+    win.appendChild(icon_preview);
+    win.appendChild(icon);
+
+    win.appendChild(document.createElement('br'));
+    win.appendChild(document.createElement('br'));
+    win.appendChild(update_button);
+
+    document.body.appendChild(win);
+}
+
+async function view_profile(username) {
+    set_path('/profile/' + username);
+    play_click();
+
+    const win = create_window('profile-window');
+
+    if (username == get_cookie('username')) {
+        const pen = document.createElement('img');
+
+        pen.src = '/img/pen.svg';
+        pen.className = 'edit-profile-watermark';
+        pen.style.position = 'absolute';
+        pen.style.top = '10px';
+        pen.style.right = '50px';
+        pen.style.width = '20px';
+        pen.onclick = async () => {
+            play_click();
+            edit_profile(username, await get_profile_for_user(username));
+        }
+
+        win.appendChild(pen);
+    }
+
+    let display_name = username;
+
+    const profile = await get_profile_for_user(username);
+    if (!profile) {
+        const error = document.createElement('p');
+        error.innerHTML = 'Profile not found!';
+        error.className = 'error';
+        win.appendChild(error);
+        document.body.appendChild(win);
         return;
     }
 
-    const text = document.createTextNode(username);
+    if (profile.display_name && profile.display_name !== username) {
+        display_name = profile.display_name + " (" + username + ")";
+    }
+
+    if (profile.profile_key) {
+        const img = document.createElement('img');
+        img.src = '/download/' + (profile.profile_key || '');
+        img.className = 'profile-watermark';
+        img.id = 'profile-watermark';
+
+        img.style.display = 'block';
+        img.style.marginLeft = 'auto';
+        img.style.marginRight = 'auto';
+        img.style.maxWidth = '200px';
+        img.style.maxHeight = '200px';
+
+        win.appendChild(img);
+    }
+
+    const title = document.createElement('h1');
+    title.innerText = 'Profile of ' + display_name;
+
+    const description = document.createElement('p');
+    description.innerText = profile.description || 'No description provided.';
+    description.className = 'profile-description';
+    description.id = 'profile-description';
+
+    win.appendChild(title);
+    win.appendChild(description);
+
+    document.body.appendChild(win);
+}
+
+function print_username(username, display_name, profile_key) {
+    if (display_name == null) {
+        return;
+    }
+    const text = document.createTextNode(display_name);
     const span = document.createElement('span');
+
     const i = document.createElement('i');
     i.className = 'fas fa-user';
     i.style.marginRight = '5px';
 
     span.appendChild(i);
+
     span.appendChild(text);
     span.className = 'logged-in-watermark';
     span.id = 'logged-in-watermark';
@@ -1214,6 +1436,17 @@ function print_username() {
     span.style.right = '0';
     span.style.padding = '10px';
     span.style.userSelect = 'none';
+
+    span.style.cursor = 'pointer';
+    span.onclick = () => {
+        view_profile(username);
+    }
+    span.onmouseover = () => {
+        span.style.transform = 'scale(1.1)';
+    }
+    span.onmouseleave = () => {
+        span.style.transform = 'scale(1.0)';
+    }
 
     document.body.appendChild(span);
 }
@@ -4304,12 +4537,53 @@ function init_page() {
     document.body.appendChild(grid);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function get_profile_for_user(username) {
+    const api = '/api/get_profile';
+    const body = JSON.stringify({ usernames: [username] });
+
+    try {
+        const response = await fetch(api, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: body
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Make sure the structure is what you expect
+        if (data.users && data.users[username]) {
+            return data.users[username];
+        } else {
+            throw new Error(`User ${username} not found in response`);
+        }
+    } catch (error) {
+        console.error('Failed to fetch profile:', error);
+        return null;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     // todo: find replacement that doesn't utilize kit nonsense.
     // i hate being dependent on a third party for something as trivial as icons
     include('https://kit.fontawesome.com/aa55cd1c33.js');
 
     WSCBackgroundRepeatingSpawner();
+
+    let username = get_cookie('username');
+    let display_name = username;
+    let profile_key;
+
+    const profile = await get_profile_for_user(username);
+    if (profile) {
+        display_name = profile.display_name || username;
+        profile_key = profile.profile_key;
+    }
 
     init_page();
 
@@ -4336,8 +4610,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = get_path().substring(6);
         show_file(id);
     }
+    if (get_path().startsWith("/profile/")) {
+        const name = get_path().substring(9);
+        view_profile(name);
+    }
 
-    print_username();
+    print_username(username, display_name, profile_key);
     print_beta();
     print_discord();
     print_announcements();

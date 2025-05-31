@@ -1449,9 +1449,9 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
         return response;
     }
 
-    nlohmann::json usernames;
+    std::vector<std::string> usernames;
     try {
-        usernames = input.at("usernames");
+        usernames = input.at("usernames").get<std::vector<std::string>>();
     } catch (const std::exception&) {
         nlohmann::json json;
         json["error"] = "FF_INVALID_JSON";
@@ -1461,27 +1461,44 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
         response.body = json.dump();
         return response;
     }
-    nlohmann::json response_json;
-    response_json["users"] = nlohmann::json::array();
-    for (const auto& it : usernames) {
-        if (!it.is_string()) {
-            nlohmann::json json;
-            json["error"] = "FF_INVALID_JSON";
-            json["error_str"] = "Invalid JSON.";
-            response.content_type = "application/json";
-            response.http_status = 400;
-            response.body = json.dump();
-            return response;
-        }
 
+    nlohmann::json response_json;
+    response_json["users"] = nlohmann::json::object();
+
+    if (usernames.empty()) {
+        nlohmann::json json;
+        json["error"] = "FF_INVALID_JSON";
+        json["error_str"] = "No usernames provided.";
+        response.content_type = "application/json";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    for (const auto& it : usernames) {
         try {
-            const auto json = nlohmann::json::parse(ff::get_json_from_table(db, "users", "username", it.get<std::string>()));
-            if (json.find("profile") == json.end() || !json.at("profile").is_object()) {
+            const auto _json = nlohmann::json::parse(ff::get_json_from_table(db, "users", "username", it));
+            if (!_json.contains("profile") || !_json.at("profile").is_object()) {
                 continue;
             }
-
-            response_json["users"][it.get<std::string>()] = json.at("profile");
+            const auto json = _json.at("profile");
+            if (json.contains("display_name") && json.at("display_name").is_string()) {
+                response_json["users"][it]["display_name"] = json.at("display_name").get<std::string>();
+            } else {
+                response_json["users"][it]["display_name"] = it;
+            }
+            if (json.contains("description") && json.at("description").is_string()) {
+                response_json["users"][it]["description"] = json.at("description").get<std::string>();
+            } else {
+                response_json["users"][it]["description"] = "";
+            }
+            if (json.contains("profile_key") && json.at("profile_key").is_string()) {
+                response_json["users"][it]["profile_key"] = json.at("profile_key").get<std::string>();
+            } else {
+                response_json["users"][it]["profile_key"] = "";
+            }
         } catch (const std::exception& e) {
+            ff::logger.write_to_log(limhamn::logger::type::error, "Failed to get profile for user: " + it + ". Error: " + e.what() + "\n");
             continue;
         }
     }

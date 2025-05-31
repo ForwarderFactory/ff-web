@@ -35,6 +35,7 @@ namespace ff {
             {"/img/grab-moving.png", "/etc/ff/img/grab-moving.png"},
             {"/img/background-logo-1.png", "/etc/ff/img/background-logo-1.png"},
             {"/img/discord.svg", "/etc/ff/img/discord.svg"},
+            {"/img/pen.svg", "/etc/ff/img/pen.svg"},
             {"/img/announcements.svg", "/etc/ff/img/announcements.svg"},
             {"/fonts/font.woff2", "/etc/ff/fonts/font.woff2"},
             {"/audio/click.wav", "/etc/ff/audio/click.wav"},
@@ -65,6 +66,7 @@ namespace ff {
             {"/img/grab-moving.png", "./img/grab-moving.png"},
             {"/img/background-logo-1.png", "./img/background-logo-1.png"},
             {"/img/discord.svg", "./img/discord.svg"},
+            {"/img/pen.svg", "./img/pen.svg"},
             {"/img/announcements.svg", "./img/announcements.svg"},
             {"/fonts/font.woff2", "./fonts/font.woff2"},
             {"/audio/click.wav", "./audio/click.wav"},
@@ -366,6 +368,10 @@ namespace ff {
     bool convert_to_webm(const std::string& input, const std::string& output);
     bool convert_to_webp(const std::string& input, const std::string& output);
     std::string get_temp_path();
+
+    std::string get_default_profile();
+
+    void update_to_latest(database& db);
 
     std::string upload_file(database& db, const ff::FileConstruct& c);
     RetrievedFile download_file(database& db, const ff::UserProperties& prop, const std::string& file_key);

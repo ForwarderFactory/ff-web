@@ -1,0 +1,14 @@
+POST /api/update_profile HTTP/1.1
+Host: localhost:8080
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="json"; filename="data.json"
+Content-Type: application/json
+
+{
+    "username": "jacob",
+    "key": "pRCnnKIKIid7G8OAZ7pG1wWCyDYeturYlhUFeYuwegB5bIjo0ZqCV7T9fuhLOKi4",
+    "value": true
+}
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

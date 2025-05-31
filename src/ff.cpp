@@ -317,6 +317,11 @@ void ff::start_server() {
 
             // check if a file upload exists and if so, download and serve
             std::string file = request.endpoint;
+
+            if (file.back() == '/') {
+                file.pop_back();
+            }
+
             if (file.find("/download/") != std::string::npos) {
                 std::filesystem::path file_path = file.substr(10); // remove /download/
                 file_path = file_path.lexically_normal(); // normalize the path
@@ -351,11 +356,12 @@ void ff::start_server() {
                 }
             } else if (file.find("/file/") != std::string::npos) {
                 return handlers.at("/")(request, *database);
+            } else if (file.find("/profile/") != std::string::npos) {
+                return handlers.at("/")(request, *database);
             }
 
             // handle activation URLs
             if (file.find("/activate/") != std::string::npos && settings.enable_email_verification) {
-                int64_t ct = scrypto::return_unix_timestamp();
                 const auto& list = database->query("SELECT * FROM activation_urls WHERE url = ?;", file);
                 for (const auto& it : list) {
                     try {
@@ -378,7 +384,7 @@ void ff::start_server() {
                         response.http_status = 302;
                         response.headers.push_back({"Location", "/"});
                         return response;
-                    } catch (const std::exception& e) {
+                    } catch (const std::exception&) {
                         limhamn::http::server::response resp;
                         resp.content_type = "text/html";
                         resp.http_status = 500;
