@@ -42,11 +42,16 @@ function cookie_exists(name) {
 
 function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
     const spawnCount = 10; /* hacky as fuck */
+    const horizontalSpacing = 400;
 
+    // Store interval ID to clear later
+    if (WSCBackgroundRepeatingSpawner.intervalId) {
+        clearInterval(WSCBackgroundRepeatingSpawner.intervalId);
+    }
+
+    // Remove existing images
     const images = document.querySelectorAll(`img.background-image`);
-    images.forEach(img => {
-        img.remove();
-    });
+    images.forEach(img => img.remove());
 
     const cached_image = new Image();
     cached_image.src = '/img/background-logo-1.png';
@@ -84,7 +89,6 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
     }
 
     const image_spawner = (topOffset, rightOffset) => {
-        const horizontalSpacing = 400;
         const numberOfColumns = Math.floor((window.innerWidth / horizontalSpacing) * 2);
 
         for (let col = 0; col < numberOfColumns; col++) {
@@ -92,30 +96,29 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
         }
     };
 
-    // HACK: This is a hack to create multiple batches of images initially
-    // Ideally, we should use only the setInterval function below
-    // But I am a javascript n00b so this will do until someone fixes it, which is probably never anyway
-    // It's fine unless you're running this on a penium 4, then you might see some lag
-    // and a minor nuclear explosion in your parents' basement
     for (let i = 0; i < spawnCount; i++) {
         const topOffset = -200 + i * speed * creation_interval / 30;
         const rightOffset = -500 + i * speed * creation_interval / 30;
         image_spawner(topOffset, rightOffset);
     }
 
-    // on resize, remove all images and re-spawn them
-    window.onresize = () => {
-        WSCBackgroundRepeatingSpawner(speed, creation_interval);
+    if (WSCBackgroundRepeatingSpawner.resizeTimeout) {
+        clearTimeout(WSCBackgroundRepeatingSpawner.resizeTimeout);
     }
+    window.onresize = () => {
+        clearTimeout(WSCBackgroundRepeatingSpawner.resizeTimeout);
+        WSCBackgroundRepeatingSpawner.resizeTimeout = setTimeout(() => {
+            WSCBackgroundRepeatingSpawner(speed, creation_interval);
+        }, 200);
+    };
 
-    // if we switch tabs, restart
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             WSCBackgroundRepeatingSpawner(speed, creation_interval);
         }
     });
 
-    setInterval(() => {
+    WSCBackgroundRepeatingSpawner.intervalId = setInterval(() => {
         image_spawner(-200, -500);
     }, creation_interval);
 }
@@ -169,7 +172,7 @@ function hide_all_windows() {
     // hide blacken
     const blacken = document.getElementById('blacken');
     if (blacken) {
-        blacken.style.display = 'none';
+        blacken.remove();
     }
 
     set_path("/");
@@ -1397,6 +1400,7 @@ async function view_profile(username) {
         img.style.marginRight = 'auto';
         img.style.maxWidth = '200px';
         img.style.maxHeight = '200px';
+        img.style.borderRadius = '50%';
 
         win.appendChild(img);
     }
@@ -1409,8 +1413,27 @@ async function view_profile(username) {
     description.className = 'profile-description';
     description.id = 'profile-description';
 
+    const view_uploads = document.createElement('button');
+    view_uploads.innerHTML = 'View uploaded forwarders';
+    view_uploads.className = 'view-uploads-button';
+    view_uploads.onclick = () => {
+        play_click();
+        show_browse(username);
+    }
+    const view_sandbox = document.createElement('button');
+    view_sandbox.innerHTML = 'View sandbox uploads';
+    view_sandbox.className = 'view-sandbox-button';
+    view_sandbox.style.marginLeft = '10px';
+    view_sandbox.style.marginRight = '10px';
+    view_sandbox.onclick = () => {
+        play_click();
+        show_sandbox(username);
+    }
+
     win.appendChild(title);
     win.appendChild(description);
+    win.appendChild(view_uploads);
+    win.appendChild(view_sandbox);
 
     document.body.appendChild(win);
 }
@@ -3191,7 +3214,7 @@ function show_file(id) {
     });
 }
 
-function show_sandbox() {
+function show_sandbox(uploader = '') {
     set_path('/sandbox');
     hide_initial();
 
@@ -3208,7 +3231,7 @@ function show_sandbox() {
         filename: '',
         title: '',
         author: '',
-        uploader: '',
+        uploader: uploader,
         categories: [],
         submitted_before: undefined,
         submitted_after: undefined,
@@ -3609,7 +3632,7 @@ function show_sandbox() {
     document.body.prepend(filter_button);
 }
 
-function show_browse() {
+function show_browse(uploader = '') {
     set_path('/browse');
 
     hide_initial();
@@ -3627,7 +3650,7 @@ function show_browse() {
         title: '',
         author: '',
         title_id_string: '',
-        uploader: '',
+        uploader: uploader,
         type: -1,
         categories: [],
         location: '',
@@ -4307,7 +4330,7 @@ function show_credits() {
     };
 
     const list = [
-        { logo: 'https://avatars.githubusercontent.com/u/88251708', name: "Forwarder Factory", role: 'Forwarder Factory was made possible by...' },
+        { logo: '/img/logo.svg', name: "Forwarder Factory", role: 'Forwarder Factory was made possible by...' },
         { logo: 'https://avatars.githubusercontent.com/u/166003882', name: 'Jacob Nilsson', role: 'Programming, Web Design, Maintenance' },
         { logo: 'https://avatars.githubusercontent.com/u/88589756', name: 'Gabubu', role: 'Maintenance' },
         { logo: 'https://avatars.githubusercontent.com/u/138316044', name: 'oxyzin', role: 'Graphic Design' }
@@ -4317,6 +4340,7 @@ function show_credits() {
     roll_credits(list, 1500);
 
     const blacken = document.createElement('div');
+
     blacken.id = 'blacken';
     blacken.style.position = 'absolute';
     blacken.style.top = '0';
