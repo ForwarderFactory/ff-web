@@ -2832,7 +2832,7 @@ function show_forwarder(id) {
                 uploader.prepend(img);
             }
 
-            uploader.innerHTML += `Uploaded by <a href="/profile/${forwarder.uploader}">${forwarder.uploader}</a>`;
+            uploader.innerHTML += `Uploaded by <a href="/profile/${forwarder.uploader}">${profile.display_name}</a>`;
 
             forwarder_window.appendChild(uploader);
         }
