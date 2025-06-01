@@ -3076,7 +3076,7 @@ async function draw_article(type, forwarder, id) {
 
     const categories = document.createElement('p');
     categories.className = 'view_floating_window_categories';
-    if (forwarder.meta.categories) {
+    if (forwarder.meta.categories && forwarder.meta.categories.length > 0) {
         categories.innerHTML = forwarder.meta.categories.join(', ');
         const fa = document.createElement('i');
         fa.className = "fa-solid fa-tag";
