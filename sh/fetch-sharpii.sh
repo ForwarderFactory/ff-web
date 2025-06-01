@@ -44,8 +44,11 @@ curl -LOs "$FILE" || {
 
 echo "Extracting $FILENAME"
 tar -xf "$FILENAME" || {
-    echo "Failed to extract $FILENAME"
-    exit 1
+    echo "Failed to extract $FILENAME, trying 7z"
+    7z x "$FILENAME" || {
+        echo "Failed to extract $FILENAME with 7z"
+        exit 1
+    }
 }
 
 [ -f "Sharpii" ] && {
