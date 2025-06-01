@@ -106,6 +106,145 @@ void ff::update_to_latest(database& database) {
 
         database.exec("UPDATE forwarders SET json = ? WHERE id = ?;", json.dump(), it.at("id"));
     }
+
+    // if there is no thumbnail, generate one
+    for (const auto& it : database.query("SELECT * FROM forwarders;")) {
+        if (it.empty()) {
+            continue;
+        }
+
+        nlohmann::json db_json;
+        try {
+            db_json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            continue; // skip if the json is invalid
+        }
+
+        if (db_json.find("banner_thumbnail_download_key") == db_json.end() ||
+            db_json.at("banner_thumbnail_download_key").is_string() == false ||
+            db_json.at("banner_thumbnail_download_key").get<std::string>().empty()) {
+
+            // generate a thumbnail
+            // if the banner is a video, generate a thumbnail
+            // otherwise use the banner as the thumbnail
+            const std::string banner_type = db_json.at("meta").at("banner_type");
+            const std::string banner_key = db_json.at("banner_download_key").get<std::string>();
+
+            if (banner_type == "video") {
+                // get the file path from the database
+                const auto ret = database.query("SELECT * FROM files WHERE file_id = ?;", banner_key);
+
+                if (ret.empty()) {
+                    continue; // skip if the file does not exist
+                }
+
+                const std::string banner_path = nlohmann::json::parse(ret.at(0).at("json")).at("path").get<std::string>();
+
+                std::string thumbnail_path = ff::get_temp_path() + "/thumbnail.webp";
+                if (!ff::generate_thumbnail(banner_path, thumbnail_path)) {
+                    throw std::runtime_error{"Failed to generate thumbnail for banner."};
+                }
+                std::string thumbnail_key = ff::upload_file(database, FileConstruct{
+                    .path = thumbnail_path,
+                    .name = "banner_thumbnail.webp",
+                });
+                if (thumbnail_key.empty()) {
+                    throw std::runtime_error{"Failed to upload thumbnail for banner."};
+                }
+
+                db_json["banner_thumbnail_download_key"] = thumbnail_key;
+                db_json["banner_thumbnail_type"] = "image";
+            } else {
+                // simply copy the banner as the thumbnail
+                db_json["banner_thumbnail_download_key"] = banner_key;
+                db_json["banner_thumbnail_type"] = "image";
+            }
+        }
+
+        if (db_json.find("icon_thumbnail_download_key") == db_json.end() ||
+            db_json.at("icon_thumbnail_download_key").is_string() == false ||
+            db_json.at("icon_thumbnail_download_key").get<std::string>().empty()) {
+
+            // generate a thumbnail
+            // if the icon is a video, generate a thumbnail
+            // otherwise use the icon as the thumbnail
+            const std::string icon_type = db_json.at("meta").at("icon_type");
+            const std::string icon_key = db_json.at("icon_download_key").get<std::string>();
+
+            if (icon_type == "video") {
+                // get the file path from the database
+                const auto ret = database.query("SELECT * FROM files WHERE file_id = ?;", icon_key);
+
+                if (ret.empty()) {
+                    continue; // skip if the file does not exist
+                }
+
+                const std::string icon_path = nlohmann::json::parse(ret.at(0).at("json")).at("path").get<std::string>();
+
+                std::string thumbnail_path = ff::get_temp_path() + "/thumbnail.webp";
+                if (!ff::generate_thumbnail(icon_path, thumbnail_path)) {
+                    throw std::runtime_error{"Failed to generate thumbnail for icon."};
+                }
+                std::string thumbnail_key = ff::upload_file(database, FileConstruct{
+                    .path = thumbnail_path,
+                    .name = "icon_thumbnail.webp",
+                });
+                if (thumbnail_key.empty()) {
+                    throw std::runtime_error{"Failed to upload thumbnail for icon."};
+                }
+
+                db_json["icon_thumbnail_download_key"] = thumbnail_key;
+                db_json["icon_thumbnail_type"] = "image";
+            } else {
+                // simply copy the icon as the thumbnail
+                db_json["icon_thumbnail_download_key"] = icon_key;
+                db_json["icon_thumbnail_type"] = "image";
+            }
+        }
+    }
+
+    // in sandbox, replace data_download_key with [data][x][download_key] and -||-filename
+    for (const auto& it : database.query("SELECT * FROM sandbox;")) {
+        if (it.empty()) {
+            continue;
+        }
+
+        nlohmann::json db_json;
+        try {
+            db_json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            continue; // skip if the json is invalid
+        }
+
+        if (db_json.find("data") == db_json.end() || !db_json.at("data").is_array()) {
+            db_json["data"] = nlohmann::json::array();
+            db_json["filenames"] = nlohmann::json::array();
+
+            if (db_json.find("data_download_key") == db_json.end() ||
+                !db_json.at("data_download_key").is_string() ||
+                db_json.at("data_download_key").get<std::string>().empty()) {
+                throw std::runtime_error{"data_download_key is missing in sandbox json."};
+            }
+
+            const std::string& data_download_key = db_json.at("data_download_key").get<std::string>();
+            const auto ret = database.query("SELECT * FROM files WHERE file_id = ?;", data_download_key);
+            if (ret.empty()) {
+                throw std::runtime_error{"File with data_download_key does not exist."};
+            }
+            const std::string file_path = nlohmann::json::parse(ret.at(0).at("json")).at("path").get<std::string>();
+            const std::string file_name = nlohmann::json::parse(ret.at(0).at("json")).at("filename").get<std::string>();
+            db_json["data"].push_back({
+                {"download_key", data_download_key},
+                {"filename", file_name}
+            });
+            db_json["filenames"].push_back(file_name);
+
+            logger.write_to_log(limhamn::logger::type::notice, "Updated sandbox json with data_download_key: " + data_download_key + " and filename: " + file_name + "\n");
+
+            // write to the database
+            database.exec("UPDATE sandbox SET json = ? WHERE id = ?;", db_json.dump(), it.at("id"));
+        }
+    }
 }
 
 void ff::setup_database(database& database) {
@@ -236,7 +375,7 @@ std::string ff::upload_file(database& db, const ff::FileConstruct& c) {
     }
 
     dir += "/" + file_key;
-    std::filesystem::rename(c.path, dir);
+    std::filesystem::copy_file(c.path, dir);
     if (!std::filesystem::is_regular_file(dir)) {
         throw std::runtime_error{"Failed to move file."};
     }
@@ -248,12 +387,52 @@ std::string ff::upload_file(database& db, const ff::FileConstruct& c) {
         json["sha256"] = scrypto::sha256hash_file(dir);
     }
 
+#if FF_DEBUG
+    // assert that the file exists and that it's identical to the original file
+    if (!std::filesystem::exists(dir)) {
+        throw std::runtime_error{"File does not exist after upload."};
+    }
+    if (std::filesystem::file_size(dir) != std::filesystem::file_size(c.path)) {
+        throw std::runtime_error{"File size does not match after upload."};
+    }
+#endif
+
     // insert into the files table
     if (!db.exec("INSERT INTO files (file_id, json) VALUES (?, ?);", file_key, json.dump())) {
         throw std::runtime_error{"Error inserting into the files table."};
     }
 
     return file_key;
+}
+
+std::string ff::get_path_from_file(database& db, const std::string& file_key) {
+    if (!db.good()) {
+        throw std::runtime_error{"Database is not good."};
+    }
+    if (file_key.empty()) {
+        throw std::runtime_error{"File key is empty."};
+    }
+
+    for (const auto& it : db.query("SELECT * FROM files WHERE file_id = ?;", file_key)) {
+        if (it.empty()) {
+            throw std::runtime_error{"File not found."};
+        }
+
+        nlohmann::json json;
+        try {
+            json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            throw std::runtime_error{"Error parsing JSON."};
+        }
+
+        if (json.find("path") == json.end() || !json.at("path").is_string()) {
+            throw std::runtime_error{"Path not found in JSON."};
+        }
+
+        return json.at("path").get<std::string>();
+    }
+
+    throw std::runtime_error{"File not found."};
 }
 
 bool ff::is_file(database& db, const std::string& file_key) {
@@ -323,7 +502,7 @@ ff::RetrievedFile ff::download_file(database& db, const ff::UserProperties& prop
         throw std::runtime_error{"Path not found."};
     }
     if (!std::filesystem::is_regular_file(json.at("path").get<std::string>())) {
-        throw std::runtime_error{"File is not a regular file."};
+        throw std::runtime_error{"File is not a regular file: " + json.at("path").get<std::string>()};
     }
 
     f.name = json.at("filename").get<std::string>();

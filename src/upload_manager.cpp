@@ -5,10 +5,12 @@
 #include <limhamn/http/http_utils.hpp>
 
 std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn::http::server::request& req, database& db) {
-
     std::string json{};
+
+    std::vector<std::string> screenshots{};
     std::string banner_path{};
     std::string icon_path{};
+
     std::string wad_path{};
     std::string username{};
     bool auth{false};
@@ -52,6 +54,8 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 #ifdef FF_DEBUG
             logger.write_to_log(limhamn::logger::type::notice, "Got WAD\n");
 #endif
+        } else {
+            screenshots.push_back(it.path);
         }
     }
 
@@ -115,21 +119,6 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
         db_json["meta"]["description"] = limhamn::http::utils::htmlspecialchars(meta.at("description"));
     }
-    /*
-    if (meta.find("title_id") != meta.end() && meta.at("title_id").is_string()) {
-        // require 4 characters, uppercase and A-Z and/or 0-9
-        std::string title_id = meta.at("title_id");
-        if (title_id.size() != 4) {
-            return {ff::UploadStatus::Failure, ""};
-        }
-        for (const auto& c : title_id) {
-            if (!std::isalnum(c) || !std::isupper(c)) {
-                return {ff::UploadStatus::Failure, ""};
-            }
-        }
-        db_json["meta"]["title_id"] = title_id;
-    }
-    */
     std::string title{};
     std::string title_id{};
 
@@ -199,35 +188,11 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         }
         db_json["meta"]["location"] = limhamn::http::utils::htmlspecialchars(meta.at("location"));
     }
-    /*
-    if (meta.find("vwii_compatible") != meta.end() && meta.at("vwii_compatible").is_string()) {
-        std::string vwii_compatible = meta.at("vwii_compatible");
-        if (vwii_compatible != "Select" && vwii_compatible != "Yes" && vwii_compatible != "No" && vwii_compatible != "Unknown") {
-            return {ff::UploadStatus::Failure, ""};
-        }
-
-        if (vwii_compatible == "Yes") {
-            db_json["meta"]["vwii_compatible"] = 1;
-        } else if (vwii_compatible == "No") {
-            db_json["meta"]["vwii_compatible"] = 2;
-        } else {
-            db_json["meta"]["vwii_compatible"] = 0;
-        }
-    } else if (meta.find("vwii_compatible") != meta.end() && meta.at("vwii_compatible").is_number_integer()) {
-        int vwii_compatible = meta.at("vwii_compatible");
-        if (vwii_compatible != 0 && vwii_compatible != 1 && vwii_compatible != 2) {
-            return {ff::UploadStatus::Failure, ""};
-        }
-
-        db_json["meta"]["vwii_compatible"] = vwii_compatible;
-    }
-    */
     db_json["meta"]["vwii_compatible"] = wad_info.supports_vwii;
 
     std::string banner_ext{};
     std::string icon_ext{};
-    try
-    {
+    try {
         if (ff::validate_image(banner_path)) {
             db_json["meta"]["banner_type"] = "image";
             if (settings.convert_images_to_webp) {
@@ -250,7 +215,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         } else {
             return {ff::UploadStatus::Failure, ""};
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return {ff::UploadStatus::Failure, ""};
     }
 
@@ -277,18 +242,18 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         } else {
             return {ff::UploadStatus::Failure, ""};
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return {ff::UploadStatus::Failure, ""};
     }
 
-    std::string banner_key = ff::upload_file(db, FileConstruct{
+    const std::string banner_key = ff::upload_file(db, FileConstruct{
         .path = banner_path,
         .name = "banner" + banner_ext,
         .username = username,
         .ip_address = req.ip_address,
         .user_agent = req.user_agent,
     });
-    std::string icon_key = ff::upload_file(db, FileConstruct{
+    const std::string icon_key = ff::upload_file(db, FileConstruct{
         .path = icon_path,
         .name = "icon" + icon_ext,
         .username = username,
@@ -298,17 +263,6 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
     std::string data_name = title + "-" + title_id + ".wad";
 
-    /*
-    if (db_json["meta"].find("title") != db_json["meta"].end()) {
-        data_name = db_json["meta"]["title"].get<std::string>();
-        if (db_json["meta"].find("title_id") != db_json["meta"].end()) {
-            data_name += "-" + db_json["meta"]["title_id"].get<std::string>();
-        }
-    } else {
-        data_name = scrypto::generate_random_string(8);
-    }
-    */
-
     // ensure that the data_name is a valid file name
     for (auto& c : data_name) {
         if (!std::isalnum(c) && c != '-' && c != '_' && c != '.') {
@@ -316,13 +270,49 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         }
     }
 
-    std::string data_key = ff::upload_file(db, FileConstruct{
+    const std::string data_key = ff::upload_file(db, FileConstruct{
         .path = wad_path,
         .name = data_name,
         .username = username,
         .ip_address = req.ip_address,
         .user_agent = req.user_agent,
     });
+
+    db_json["screenshots"] = nlohmann::json::array();
+    for (const auto& it : screenshots) {
+        if (!ff::validate_image(it)) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+        if (settings.convert_images_to_webp) {
+            std::string screenshot_path = it;
+            if (!ff::convert_to_webp(screenshot_path, screenshot_path)) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            const std::string screenshot_key = ff::upload_file(db, FileConstruct{
+                .path = screenshot_path,
+                .name = "screenshot.webp",
+                .username = username,
+                .ip_address = req.ip_address,
+                .user_agent = req.user_agent,
+            });
+            if (screenshot_key.empty()) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            db_json["screenshots"].push_back(screenshot_key);
+        } else {
+            const std::string screenshot_key = ff::upload_file(db, FileConstruct{
+                .path = it,
+                .name = "screenshot",
+                .username = username,
+                .ip_address = req.ip_address,
+                .user_agent = req.user_agent,
+            });
+            if (screenshot_key.empty()) {
+                return {ff::UploadStatus::Failure, ""};
+            }
+            db_json["screenshots"].push_back(screenshot_key);
+        }
+    }
 
     if (banner_key.empty()) {
         return {ff::UploadStatus::Failure, ""};
@@ -335,6 +325,55 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
     }
 
     db_json["banner_download_key"] = banner_key;
+    if (!validate_video(banner_path)) {
+        db_json["banner_thumbnail_download_key"] = banner_key;
+        db_json["banner_thumbnail_type"] = "image";
+    } else {
+        // if it's a video, we need to generate a thumbnail
+        std::string thumbnail_path = ff::get_temp_path() + "/thumbnail.webp";
+        if (!ff::generate_thumbnail(banner_path, thumbnail_path)) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+        std::string thumbnail_key = ff::upload_file(db, FileConstruct{
+            .path = thumbnail_path,
+            .name = "banner_thumbnail.webp",
+            .username = username,
+            .ip_address = req.ip_address,
+            .user_agent = req.user_agent,
+        });
+        if (thumbnail_key.empty()) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+
+        db_json["banner_thumbnail_download_key"] = thumbnail_key;
+        db_json["banner_thumbnail_type"] = "image";
+    }
+    if (!validate_video(icon_path)) {
+        db_json["icon_thumbnail_download_key"] = icon_key;
+        db_json["icon_thumbnail_type"] = "image";
+        db_json["icon_type"] = "image";
+    } else {
+        // if it's a video, we need to generate a thumbnail
+        std::string thumbnail_path = ff::get_temp_path() + "/icon_thumbnail.webp";
+        if (!ff::generate_thumbnail(icon_path, thumbnail_path)) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+        std::string thumbnail_key = ff::upload_file(db, FileConstruct{
+            .path = thumbnail_path,
+            .name = "icon_thumbnail.webp",
+            .username = username,
+            .ip_address = req.ip_address,
+            .user_agent = req.user_agent,
+        });
+        if (thumbnail_key.empty()) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+
+        db_json["icon_thumbnail_download_key"] = thumbnail_key;
+        db_json["icon_thumbnail_type"] = "image";
+        db_json["icon_type"] = "video";
+    }
+
     db_json["icon_download_key"] = icon_key;
     db_json["data_download_key"] = data_key;
 
@@ -342,7 +381,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
     db_json["page_identifier"] = page_identifier;
 
-    while (db.query("SELECT * FROM forwarders WHERE identifier = ?;", page_identifier).size() > 0) {
+    while (!db.query("SELECT * FROM forwarders WHERE identifier = ?;", page_identifier).empty()) {
         page_identifier = scrypto::generate_random_string(8);
     }
     if (!db.exec("INSERT INTO forwarders (identifier, json) VALUES (?, ?);", page_identifier, db_json.dump())) {
@@ -354,8 +393,14 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
 std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http::server::request& req, database& db) {
     std::string json{};
-    std::string file_path{};
-    std::string file_name{};
+
+    struct FilePtr {
+        std::string file_path{};
+        std::string file_name{};
+    };
+
+    std::vector<FilePtr> fh{};
+
     std::string username{};
     bool auth{false};
 
@@ -384,15 +429,17 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
             logger.write_to_log(limhamn::logger::type::notice, "Got JSON\n");
 #endif
         } else if (it.name == "file") {
-            file_path = it.path;
-            file_name = it.filename;
+            fh.push_back({.file_path = it.path, .file_name = it.filename});
 #ifdef FF_DEBUG
             logger.write_to_log(limhamn::logger::type::notice, "Got File\n");
 #endif
+        } else {
+            logger.write_to_log(limhamn::logger::type::warning, "Got unknown file name: " + it.name + "\n");
+            fh.push_back({.file_path = it.path, .file_name = it.filename});
         }
     }
 
-    if (file_path.empty() || json.empty()) {
+    if (fh.empty() || json.empty()) {
         return {ff::UploadStatus::Failure, ""};
     }
 
@@ -438,7 +485,10 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
 
     nlohmann::json meta = user_json.at("meta");
 
-    db_json["meta"]["filename"] = file_name;
+    db_json["meta"]["filenames"] = nlohmann::json::array();
+    for (const auto& it : fh) {
+        db_json["meta"]["filenames"].push_back(it.file_name);
+    }
 
     if (meta.find("description") != meta.end() && meta.at("description").is_string()) {
         if (meta.at("description").size() > 1000) {
@@ -453,7 +503,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
         }
         db_json["meta"]["title"] = limhamn::http::utils::htmlspecialchars(meta.at("title"));
     } else {
-        db_json["meta"]["title"] = file_name;
+        db_json["meta"]["title"] = fh.at(0).file_name;
     }
     if (meta.find("author") != meta.end() && meta.at("author").is_string()) {
         db_json["meta"]["author"] = limhamn::http::utils::htmlspecialchars(meta.at("author"));
@@ -470,25 +520,31 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
         }
     }
 
-    std::string data_key = ff::upload_file(db, FileConstruct{
-        .path = file_path,
-        .name = file_name,
-        .username = username,
-        .ip_address = req.ip_address,
-        .user_agent = req.user_agent,
-    });
+    db_json["data"] = nlohmann::json::array();
+    for (const auto& it : fh) {
+        std::string data_key = ff::upload_file(db, FileConstruct{
+            .path = it.file_path,
+            .name = it.file_name,
+            .username = username,
+            .ip_address = req.ip_address,
+            .user_agent = req.user_agent,
+        });
 
-    if (data_key.empty()) {
-        return {ff::UploadStatus::Failure, ""};
+        if (data_key.empty()) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+
+        db_json["data"].push_back({
+            {"download_key", data_key},
+            {"filename", it.file_name}
+        });
     }
-
-    db_json["data_download_key"] = data_key;
 
     std::string page_identifier = scrypto::generate_random_string(8);
 
     db_json["page_identifier"] = page_identifier;
 
-    while (db.query("SELECT * FROM sandbox WHERE identifier = ?;", page_identifier).size() > 0) {
+    while (!db.query("SELECT * FROM sandbox WHERE identifier = ?;", page_identifier).empty()) {
         page_identifier = scrypto::generate_random_string(8);
     }
     if (!db.exec("INSERT INTO sandbox (identifier, json) VALUES (?, ?);", page_identifier, db_json.dump())) {

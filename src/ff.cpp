@@ -70,7 +70,7 @@ void ff::prepare_wd() {
 #if FF_DEBUG
             ff::logger.write_to_log(limhamn::logger::type::notice, "Removing: " + entry.path().string() + "\n");
 #endif
-            std::filesystem::remove(entry.path());
+            std::filesystem::remove_all(entry.path());
         }
     };
 
@@ -336,6 +336,10 @@ void ff::start_server() {
                         .ip_address = request.ip_address,
                         .user_agent = request.user_agent,
                     }, file_path.string());
+
+#if FF_DEBUG
+                    logger.write_to_log(limhamn::logger::type::notice, "File download request for: " + h.path + "\n");
+#endif
 
                     limhamn::http::server::response response{};
 

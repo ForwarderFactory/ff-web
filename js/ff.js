@@ -1367,7 +1367,7 @@ async function view_profile(username) {
         pen.style.width = '20px';
         pen.onclick = async () => {
             play_click();
-            edit_profile(username, await get_profile_for_user(username));
+            await edit_profile(username, await get_profile_for_user(username));
         }
 
         win.appendChild(pen);
@@ -1565,10 +1565,10 @@ function show_sandbox_upload(_error = "") {
 
         form.append('json', new Blob([JSON.stringify(json)], { type: 'application/json' }));
 
-        if (ret.file && ret.file.files) {
-            form.append('file', ret.file.files[0], ret.file.files[0].name);
-        } else {
-            console.error('File is missing or not selected');
+        if (ret.files && ret.files.length > 0) {
+            for (let i = 0; i < ret.files.length; i++) {
+                form.append(ret.files[i].name, ret.files[i], ret.files[i].name);
+            }
         }
 
         const loading = create_window('loading-window', { close_button: false, moveable: false, remove_existing: true, close_on_escape: false, close_on_click_outside: false });
@@ -1596,6 +1596,7 @@ function show_sandbox_upload(_error = "") {
                 }
                 if (json.id) {
                     hide_all_windows();
+                    show_file(json.id);
                     return;
                 }
                 if (json) {
@@ -1655,7 +1656,7 @@ function show_sandbox_upload(_error = "") {
         title.innerHTML = 'File';
 
         const paragraph = document.createElement('p');
-        paragraph.innerHTML = 'Please upload the file you are uploading.';
+        paragraph.innerHTML = 'Please upload the files you are uploading.';  // Changed wording for plural
         paragraph.innerHTML += '<br>';
 
         const file = document.createElement('input');
@@ -1665,6 +1666,7 @@ function show_sandbox_upload(_error = "") {
         file.id = 'upload-file';
         file.style.width = '80%';
         file.style.marginRight = '10px';
+        file.multiple = true;  // Allow multiple files
         file.onclick = () => {
             play_click();
         }
@@ -1674,7 +1676,7 @@ function show_sandbox_upload(_error = "") {
         submit.className = 'upload-button';
         submit.id = 'continue-upload-submit';
         submit.onclick = () => {
-            ret.file = file;
+            ret.files = file.files;
             finalize_details();
         }
 
@@ -1684,7 +1686,7 @@ function show_sandbox_upload(_error = "") {
         back.id = 'back-upload-button';
         back.style.marginRight = '10px';
         back.onclick = () => {
-            ret.file = file;
+            ret.files = file.files;
             ask_for_categories();
         }
 
@@ -1985,6 +1987,12 @@ function show_upload(_error = "") {
             form.append('wad', ret.wad.files[0]);
         } else {
             console.error('WAD file is missing or not selected');
+        }
+
+        if (ret.images && ret.images.files) {
+            for (let i = 0; i < ret.images.files.length; i++) {
+                form.append(ret.images.files[i].name, ret.images.files[i]);
+            }
         }
 
         // loading screen
@@ -2390,6 +2398,105 @@ function show_upload(_error = "") {
         upload.appendChild(submit);
     }
 
+    const ask_for_images = () => {
+        play_click();
+
+        const upload = create_window('upload-window');
+
+        const title = document.createElement('h1');
+        title.innerHTML = 'Upload Images';
+        title.className = 'upload-window-title';
+        title.id = 'upload-window-title';
+
+        const paragraph = document.createElement('p');
+        paragraph.innerHTML = 'You can upload up to 10 images to showcase your forwarder. These will be displayed on the forwarder page.';
+        paragraph.className = 'upload-window-paragraph';
+        paragraph.id = 'upload-window-paragraph';
+        paragraph.style.marginBottom = '10px';
+        paragraph.style.marginTop = '10px';
+
+        const image = document.createElement('input');
+        image.type = 'file';
+        image.accept = 'image/*';
+        image.multiple = true;
+        image.className = 'upload-input';
+        image.id = 'upload-image';
+        image.style.width = '80%';
+        image.style.marginRight = '10px';
+
+        const forbidden = ['icon', 'banner', 'wad', 'data', 'json'];
+        let n;
+        let index = 1;
+        do {
+            n = `image_upload_${index++}`;
+        } while (forbidden.includes(n));
+        image.name = n;
+
+        image.onclick = () => {
+            play_click();
+        };
+
+        const preview = document.createElement('div');
+        preview.id = 'image-preview-container';
+        preview.style.display = 'flex';
+        preview.style.flexWrap = 'wrap';
+        preview.style.marginTop = '10px';
+        preview.style.gap = '10px';
+
+        image.addEventListener('change', () => {
+            preview.innerHTML = '';
+
+            if (image.files.length > 10) {
+                alert('You can upload a maximum of 10 images.');
+                image.value = '';
+                return;
+            }
+
+            Array.from(image.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '100px';
+                    img.style.height = '100px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    img.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                    preview.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        const submit = document.createElement('button');
+        submit.innerHTML = 'Continue';
+        submit.className = 'upload-button';
+        submit.id = 'continue-upload-submit';
+        submit.onclick = () => {
+            ret.images = image;
+            ask_for_author();
+        }
+        const back = document.createElement('button');
+        back.innerHTML = 'Back';
+        back.className = 'upload-button';
+        back.id = 'back-upload-button';
+        back.onclick = () => {
+            ret.images = image;
+            ask_for_banner();
+        }
+        back.style.marginRight = '10px';
+
+        upload.appendChild(title);
+        upload.appendChild(paragraph);
+        upload.appendChild(image);
+        upload.appendChild(preview);
+
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(document.createElement('br'));
+        upload.appendChild(back);
+        upload.appendChild(submit);
+    };
+
     const ask_for_banner = () => {
         play_click();
 
@@ -2477,7 +2584,7 @@ function show_upload(_error = "") {
         submit.id = 'continue-upload-submit';
         submit.onclick = () => {
             ret.banner = banner;
-            ask_for_author();
+            ask_for_images();
         }
         const back = document.createElement('button');
         back.innerHTML = 'Back';
@@ -2893,26 +3000,82 @@ async function draw_article(type, forwarder, id) {
     view_window.style.display = 'block';
     view_window.style.overflowY = 'scroll';
 
-    if (forwarder.meta.banner_type !== "video" && forwarder.meta.banner_type !== undefined && forwarder.meta.banner_type !== null) {
-        let banner = document.createElement('img');
-        banner.src = `/download/${forwarder.banner_download_key}`;
-        banner.className = 'view_floating_window_banner';
-        banner.id = 'view_floating_window_banner';
-        if (forwarder.banner_download_key) {
-            view_window.appendChild(banner);
-        }
-    } else if (forwarder.meta.banner_type !== undefined && forwarder.meta.banner_type !== null) {
-        let banner = document.createElement('video');
-        banner.src = `/download/${forwarder.banner_download_key}`;
-        banner.className = 'view_floating_window_banner';
-        banner.id = 'view_floating_window_banner';
-        banner.controls = false;
-        banner.autoplay = true;
-        banner.loop = true;
-        if (forwarder.banner_download_key) {
-            view_window.appendChild(banner);
-        }
+    if (
+        forwarder.meta.banner_type !== undefined &&
+        forwarder.meta.banner_type !== null &&
+        forwarder.banner_download_key &&
+        forwarder.banner_thumbnail_download_key
+    ) {
+        const thumbnail = document.createElement('img');
+        thumbnail.src = `/download/${forwarder.banner_thumbnail_download_key}`;
+        thumbnail.className = 'view_floating_window_banner';
+        thumbnail.id = 'view_floating_window_banner_thumbnail';
+        thumbnail.style.cursor = 'pointer';
+
+        let banner = null;
+        let is_hover = false;
+
+        thumbnail.addEventListener('mouseenter', () => {
+            is_hover = true;
+
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+
+            const banner_type = forwarder.meta.banner_type;
+            const is_video = banner_type === 'video';
+
+            if (is_video) {
+                banner = document.createElement('video');
+                banner.src = `/download/${forwarder.banner_download_key}`;
+                banner.controls = false;
+                banner.autoplay = true;
+                banner.loop = true;
+                banner.muted = false;
+            } else {
+                banner = document.createElement('img');
+                banner.src = `/download/${forwarder.banner_download_key}`;
+            }
+
+            banner.className = 'view_floating_window_banner scaling-in hidden';
+            banner.id = 'view_floating_window_banner';
+            banner.style.cursor = 'pointer';
+
+            const spinner = document.createElement('div');
+            spinner.className = 'loading-spinner';
+
+            wrapper.appendChild(banner);
+            wrapper.appendChild(spinner);
+            view_window.replaceChild(wrapper, thumbnail);
+
+            const show_banner = () => {
+                spinner.classList.add('hidden');
+                banner.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    banner.classList.remove('scaling-in');
+                });
+            };
+
+            if (is_video) {
+                banner.addEventListener('canplay', show_banner);
+            } else {
+                banner.onload = show_banner;
+            }
+
+            banner.addEventListener('mouseleave', () => {
+                is_hover = false;
+                banner.classList.add('scaling-out');
+                setTimeout(() => {
+                    if (!is_hover) {
+                        view_window.replaceChild(thumbnail, wrapper);
+                        banner = null;
+                    }
+                }, 300);
+            });
+        });
+
+        view_window.appendChild(thumbnail);
     }
+
 
     const title = document.createElement('h1');
     if (forwarder.meta.title) {
@@ -3104,6 +3267,35 @@ async function draw_article(type, forwarder, id) {
         view_window.appendChild(description);
     }
 
+    if (forwarder.screenshots && forwarder.screenshots.length > 0) {
+        const screenshots_h2 = document.createElement('h2');
+        screenshots_h2.innerHTML = 'Screenshots';
+        screenshots_h2.className = 'view_floating_window_screenshots_title';
+        view_window.appendChild(screenshots_h2);
+
+        const screenshots_container = document.createElement('div');
+        screenshots_container.className = 'view_floating_window_screenshots';
+        screenshots_container.style.display = 'flex';
+        screenshots_container.style.flexWrap = 'wrap';
+        screenshots_container.style.gap = '10px';
+        screenshots_container.style.marginTop = '10px';
+        screenshots_container.style.justifyContent = 'center';
+
+        forwarder.screenshots.forEach((screenshot, index) => {
+            const img = document.createElement('img');
+            img.src = `/download/${screenshot}`;
+            img.alt = `Screenshot ${index + 1}`;
+            img.style.width = '100px';
+            img.style.height = '100px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '8px';
+            img.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+            screenshots_container.appendChild(img);
+        });
+
+        view_window.appendChild(screenshots_container);
+    }
+
     if (forwarder.meta.youtube) {
         const iframe = document.createElement('iframe');
         iframe.src = `https://www.youtube.com/embed/${forwarder.meta.youtube}`;
@@ -3113,13 +3305,6 @@ async function draw_article(type, forwarder, id) {
         iframe.style.marginBottom = '10px';
         iframe.style.borderRadius = '5px';
         view_window.appendChild(iframe);
-    }
-
-    const download_button = document.createElement('button');
-    download_button.innerHTML = 'Download';
-    download_button.className = 'view_floating_window_download';
-    download_button.onclick = () => {
-        window.location.href = `/download/${forwarder.data_download_key}`;
     }
 
     const disclaimer = document.createElement('small');
@@ -3133,12 +3318,53 @@ async function draw_article(type, forwarder, id) {
     download_h2.className = 'view_floating_window_download_title';
 
     const download_p = document.createElement('p');
-    download_p.innerHTML = 'Click the button below to download the file. We recommend viewing the ratings and comments before downloading.';
+    download_p.innerHTML = 'Download the file(s) below for free. We recommend viewing the ratings and comments before downloading.';
     download_p.className = 'view_floating_window_download_text';
 
     view_window.appendChild(download_h2);
     view_window.appendChild(download_p);
-    view_window.appendChild(download_button);
+
+    if (forwarder.data_download_key !== undefined && forwarder.data_download_key !== null) {
+        const download_button = document.createElement('button');
+        download_button.innerHTML = 'Download';
+        download_button.className = 'view_floating_window_download';
+        download_button.onclick = () => {
+            window.location.href = "/download/" + forwarder.data_download_key;
+        }
+
+        view_window.appendChild(download_button);
+    } else if (forwarder.data && forwarder.data.length > 0) {
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+
+        forwarder.data.forEach(file => {
+            const file_div = document.createElement('div');
+            file_div.className = 'file_div';
+            file_div.id = `file_div_${file.download_key}`;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-file';
+            file_div.appendChild(icon);
+
+            const filename = document.createElement('p');
+            filename.textContent = file.filename;
+            filename.className = 'file_name';
+            file_div.appendChild(filename);
+
+            const download_button = document.createElement('button');
+            download_button.textContent = 'Download';
+            download_button.className = 'file_download_button';
+            download_button.onclick = () => {
+                window.location.href = `/download/${file.download_key}`;
+            }
+            file_div.appendChild(download_button);
+
+            grid.appendChild(file_div);
+        });
+
+        view_window.appendChild(grid);
+    }
+
     view_window.appendChild(document.createElement('br'));
     view_window.appendChild(document.createElement('br'));
     view_window.appendChild(disclaimer);
@@ -3171,8 +3397,6 @@ async function draw_article(type, forwarder, id) {
         view_window.appendChild(reject_button);
     }
 
-    // comment section
-    // first draw the 'post a comment' crap
     const post_comment = document.createElement('div');
     post_comment.className = 'view_floating_window_post_comment';
 
@@ -3253,7 +3477,11 @@ async function draw_article(type, forwarder, id) {
             meta_div.className = 'view_floating_window_comment_meta';
 
             const logo = document.createElement('img');
-            logo.src = "/download/" + profile.profile_key;
+            if (profile.profile_key === '' || profile.profile_key === undefined) {
+                logo.src = "/img/logo.svg";
+            } else {
+                logo.src = "/download/" + profile.profile_key;
+            }
             logo.alt = `${review.username} logo`;
             logo.className = 'view_floating_window_comment_logo';
             logo.style.maxWidth = '30px';
@@ -3986,20 +4214,76 @@ function show_browse(uploader = '') {
                         author.innerHTML = `${meta.author}`;
                         author.className = 'preview-author';
 
-                        let icon;
-                        if (forwarder.meta.icon_type !== "video") {
-                            icon = document.createElement('img');
-                            icon.src = `/download/${forwarder.icon_download_key}`;
-                            icon.className = 'preview-icon';
-                        } else {
-                            icon = document.createElement('video');
-                            icon.src = `/download/${forwarder.icon_download_key}`;
-                            icon.className = 'preview-icon';
-                            icon.controls = false;
-                            icon.autoplay = true;
-                            icon.loop = true;
-                            icon.muted = true;
-                        }
+                        const iconWrapper = document.createElement('div');
+                        iconWrapper.style.position = 'relative';
+                        iconWrapper.style.width = '100%';
+                        iconWrapper.style.height = 'auto';
+
+                        const thumbnail = document.createElement('img');
+                        thumbnail.src = `/download/${forwarder.icon_thumbnail_download_key}`;
+                        thumbnail.className = 'preview-icon';
+                        thumbnail.style.cursor = 'pointer';
+
+                        let icon = null;
+                        let isHovering = false;
+
+                        thumbnail.addEventListener('mouseenter', () => {
+                            isHovering = true;
+
+                            const iconType = forwarder.meta.icon_type;
+                            const isVideo = iconType === 'video';
+
+                            if (isVideo) {
+                                icon = document.createElement('video');
+                                icon.src = `/download/${forwarder.icon_download_key}`;
+                                icon.controls = false;
+                                icon.autoplay = true;
+                                icon.loop = true;
+                                icon.muted = true;
+                            } else {
+                                icon = document.createElement('img');
+                                icon.src = `/download/${forwarder.icon_download_key}`;
+                            }
+
+                            icon.className = 'preview-icon scaling-in hidden'; // hidden initially
+                            icon.style.cursor = 'pointer';
+
+                            // Create spinner element
+                            const spinner = document.createElement('div');
+                            spinner.className = 'loading-spinner';
+
+                            iconWrapper.innerHTML = ''; // Clear previous content
+                            iconWrapper.appendChild(icon);
+                            iconWrapper.appendChild(spinner);
+
+                            const showIcon = () => {
+                                spinner.classList.add('hidden');
+                                icon.classList.remove('hidden');
+                                requestAnimationFrame(() => {
+                                    icon.classList.remove('scaling-in');
+                                });
+                            };
+
+                            if (isVideo) {
+                                icon.addEventListener('canplay', showIcon);
+                            } else {
+                                icon.onload = showIcon;
+                            }
+
+                            icon.addEventListener('mouseleave', () => {
+                                isHovering = false;
+                                icon.classList.add('scaling-out');
+                                setTimeout(() => {
+                                    if (!isHovering) {
+                                        iconWrapper.innerHTML = '';
+                                        iconWrapper.appendChild(thumbnail);
+                                        icon = null;
+                                    }
+                                }, 300);
+                            });
+                        });
+
+                        iconWrapper.appendChild(thumbnail);
 
                         const type = document.createElement('p');
                         type.className = 'preview-type';
@@ -4036,7 +4320,7 @@ function show_browse(uploader = '') {
                             type.prepend(fa);
                         }
 
-                        grid.appendChild(icon);
+                        grid.appendChild(iconWrapper);
                         grid.appendChild(title);
 
                         if (meta.author && meta.author !== '') {

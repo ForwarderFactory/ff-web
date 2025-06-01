@@ -8,6 +8,36 @@ extern "C" {
     #include <libavutil/avutil.h>
 }
 
+bool ff::generate_thumbnail(const std::string& input, const std::string& output) {
+    // ffmpeg -i anytitle_banner.mp4 -vf "thumbnail,scale=320:-1" -frames:v 1 thumbnail.webp -y -loglevel erro
+#ifdef FF_DEBUG
+    logger.write_to_log(limhamn::logger::type::notice, "Generating thumbnail for " + input + " to " + output + ".\n");
+#endif
+
+    if (input == output){
+        throw std::runtime_error("Input and output paths cannot be the same.");
+    }
+
+    // make sure the output directory exists
+    std::filesystem::path output_path(output);
+    if (!std::filesystem::exists(output_path.parent_path())) {
+        std::filesystem::create_directories(output_path.parent_path());
+    }
+
+    std::string command = "ffmpeg -i " + input + " -vf \"thumbnail,scale=320:-1\" -frames:v 1 " + output + " -y -loglevel error";
+    int ret = std::system(command.c_str());
+
+#ifdef FF_DEBUG
+    if (ret != 0) {
+        logger.write_to_log(limhamn::logger::type::error, "Failed to generate thumbnail.\n");
+    } else {
+        logger.write_to_log(limhamn::logger::type::notice, "Successfully generated thumbnail\n");
+    }
+#endif
+
+    return ret == EXIT_SUCCESS;
+}
+
 bool ff::convert_to_webp(const std::string& input, const std::string& output) {
     try {
 #ifdef FF_DEBUG

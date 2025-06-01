@@ -371,6 +371,7 @@ namespace ff {
     bool validate_video(const std::string& path);
     bool convert_to_webm(const std::string& input, const std::string& output);
     bool convert_to_webp(const std::string& input, const std::string& output);
+    bool generate_thumbnail(const std::string& input, const std::string& output);
     std::string get_temp_path();
 
     std::string get_default_profile();
@@ -379,6 +380,8 @@ namespace ff {
 
     std::string upload_file(database& db, const ff::FileConstruct& c);
     RetrievedFile download_file(database& db, const ff::UserProperties& prop, const std::string& file_key);
+    std::string get_path_from_file(database& db, const std::string& file_key);
+
     bool is_file(database& db, const std::string& file_key);
 
     limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, database& db);
