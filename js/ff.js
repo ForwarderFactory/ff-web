@@ -1406,10 +1406,10 @@ async function view_profile(username) {
     }
 
     const title = document.createElement('h1');
-    title.innerText = 'Profile of ' + display_name;
+    title.innerHTML = 'Profile of ' + display_name;
 
     const description = document.createElement('p');
-    description.innerText = profile.description || 'No description provided.';
+    description.innerHTML = profile.description || 'No description provided.';
     description.className = 'profile-description';
     description.id = 'profile-description';
 
@@ -3272,7 +3272,7 @@ async function draw_article(type, forwarder, id) {
 
             const comment_text = document.createElement('p');
             comment_text.className = 'view_floating_window_comment_text';
-            comment_text.textContent = review.comment;
+            comment_text.innerHTML = review.comment;
 
             meta_div.appendChild(logo);
             meta_div.appendChild(comment_author);

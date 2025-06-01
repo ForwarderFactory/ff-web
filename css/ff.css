@@ -146,7 +146,7 @@ body {
     max-height: 60%;
 }
 
-#view-window {
+#view-window, #file-window {
     min-width: 70%;
     max-width: 70%;
     min-height: 70%;
