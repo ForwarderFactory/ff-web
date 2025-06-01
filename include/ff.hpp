@@ -35,6 +35,7 @@ namespace ff {
             {"/img/grab-moving.png", "/etc/ff/img/grab-moving.png"},
             {"/img/background-logo-1.png", "/etc/ff/img/background-logo-1.png"},
             {"/img/discord.svg", "/etc/ff/img/discord.svg"},
+            {"/img/star.svg", "/etc/ff/img/star.svg"},
             {"/img/pen.svg", "/etc/ff/img/pen.svg"},
             {"/img/logo.svg", "/etc/ff/img/logo.svg"},
             {"/img/announcements.svg", "/etc/ff/img/announcements.svg"},
@@ -67,6 +68,7 @@ namespace ff {
             {"/img/grab-moving.png", "./img/grab-moving.png"},
             {"/img/background-logo-1.png", "./img/background-logo-1.png"},
             {"/img/discord.svg", "./img/discord.svg"},
+            {"/img/star.svg", "./img/star.svg"},
             {"/img/pen.svg", "./img/pen.svg"},
             {"/img/logo.svg", "./img/logo.svg"},
             {"/img/announcements.svg", "./img/announcements.svg"},
@@ -397,4 +399,8 @@ namespace ff {
     limhamn::http::server::response handle_api_get_announcements(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_delete_announcements(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_create_announcement(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_rate_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_rate_file_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_comment_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_comment_file_endpoint(const limhamn::http::server::request& request, database& db);
 } // namespace ff

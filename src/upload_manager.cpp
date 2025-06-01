@@ -91,7 +91,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
     }
 
     db_json["uploader"] = username;
-    db_json["ratings"] = nlohmann::json::array();
+    db_json["ratings"] = nlohmann::json::object();
     db_json["reviews"] = nlohmann::json::array();
     db_json["submitted"] = scrypto::return_unix_timestamp();
     db_json["downloads"] = 0;
@@ -421,7 +421,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_file(const limhamn::http
     }
 
     db_json["uploader"] = username;
-    db_json["ratings"] = nlohmann::json::array();
+    db_json["ratings"] = nlohmann::json::object();
     db_json["reviews"] = nlohmann::json::array();
     db_json["submitted"] = scrypto::return_unix_timestamp();
     db_json["downloads"] = 0;

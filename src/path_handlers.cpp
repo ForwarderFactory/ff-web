@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <ff.hpp>
 #include <scrypto.hpp>
+#include <limhamn/http/http_utils.hpp>
 #include <nlohmann/json.hpp>
 #include <maddy/parser.h>
 
@@ -374,7 +375,7 @@ limhamn::http::server::response ff::handle_api_try_register_endpoint(const limha
     nlohmann::json input_json;
     try {
         input_json = nlohmann::json::parse(request.body);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         response.http_status = 400;
         nlohmann::json json;
         json["error"] = "FF_INVALID_JSON";
@@ -488,7 +489,7 @@ limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn:
     nlohmann::json input_json;
     try {
        input_json = nlohmann::json::parse(request.body);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         response.content_type = "application/json";
         response.http_status = 400;
 
@@ -516,7 +517,7 @@ limhamn::http::server::response ff::handle_api_try_login_endpoint(const limhamn:
     } else if (input_json.find("email") != input_json.end() && input_json.at("email").is_string()) {
         try {
             username = get_username_from_email(db, input_json.at("email").get<std::string>());
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             nlohmann::json json;
             json["error"] = "FF_INVALID_EMAIL";
             json["error_str"] = "Invalid email.";
@@ -605,7 +606,7 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
         int vwii{-1}; // if not -1, must match this vwii (-1 = any, 0 = no vwii, 1 = vwii)
         int begin{-1}; // if not -1, start at this index
         int end{-1}; // if not -1, end at this index
-        std::string identifier{""}; // if not empty, must match this identifier
+        std::string identifier{}; // if not empty, must match this identifier
     };
 
     Filter filter{};
@@ -615,7 +616,7 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
 
         try {
             input_json = nlohmann::json::parse(request.body);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             response.http_status = 400;
             response.body = "Bad Request";
 
@@ -716,7 +717,7 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
 
             try {
                 forwarders_json = nlohmann::json::parse(it.at("json"));
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 continue;
             }
 
@@ -794,8 +795,10 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
                     }
                 }
             }
-            bool found = false;
+
             if (!filter.categories.empty()) {
+                bool found = false;
+
                 for (const auto& category : filter.categories) {
                     if (meta.find("categories") != meta.end() && meta.at("categories").is_array()) {
                         for (const auto& it_category : meta.at("categories")) {
@@ -856,6 +859,33 @@ limhamn::http::server::response ff::handle_api_get_forwarders_endpoint(const lim
                 }
             }
 
+            // replace [ratings] with a single average integer from [ratings][username][rating]
+            if (forwarders_json.find("ratings") != forwarders_json.end() && forwarders_json.at("ratings").is_object()) {
+                int total_rating = 0;
+                int count = 0;
+
+                for (const auto& _it : forwarders_json.at("ratings").items()) {
+                    if (_it.value().at("rating").is_number_integer()) {
+                        total_rating += _it.value().at("rating").get<int>();
+                        ++count;
+                    }
+                }
+
+                if (count > 0) {
+                    forwarders_json["average_rating"] = total_rating / count;
+                    forwarders_json["rating_count"] = count;
+                    forwarders_json["ratings"] = nlohmann::json::object();
+                } else {
+                    forwarders_json["average_rating"] = 0;
+                    forwarders_json["rating_count"] = 0;
+                    forwarders_json["ratings"] = nlohmann::json::object();
+                }
+            } else {
+                forwarders_json["average_rating"] = 0;
+                forwarders_json["rating_count"] = 0;
+                forwarders_json["ratings"] = nlohmann::json::object();
+            }
+
             json["forwarders"].push_back(forwarders_json);
             ++i;
         }
@@ -889,7 +919,7 @@ limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn:
         std::pair<int64_t, int64_t> submitted_between{-1, -1}; // if not -1, must be submitted between these times
         int begin{-1}; // if not -1, start at this index
         int end{-1}; // if not -1, end at this index
-        std::string identifier{""}; // if not empty, must match this identifier
+        std::string identifier{}; // if not empty, must match this identifier
     };
 
     Filter filter{};
@@ -899,7 +929,7 @@ limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn:
 
         try {
             input_json = nlohmann::json::parse(request.body);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             response.http_status = 400;
             response.body = "Bad Request";
 
@@ -985,7 +1015,7 @@ limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn:
 
             try {
                 files_json = nlohmann::json::parse(it.at("json"));
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 continue;
             }
 
@@ -1076,8 +1106,8 @@ limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn:
                     }
                 }
             }
-            bool found = false;
             if (!filter.categories.empty()) {
+                bool found = false;
                 for (const auto& category : filter.categories) {
                     if (meta.find("categories") != meta.end() && meta.at("categories").is_array()) {
                         for (const auto& it_category : meta.at("categories")) {
@@ -1119,6 +1149,33 @@ limhamn::http::server::response ff::handle_api_get_files_endpoint(const limhamn:
                         continue;
                     }
                 }
+            }
+
+            // replace [ratings] with a single average integer from [ratings][username][rating]
+            if (files_json.find("ratings") != files_json.end() && files_json.at("ratings").is_object()) {
+                int total_rating = 0;
+                int count = 0;
+
+                for (const auto& _it : files_json.at("ratings").items()) {
+                    if (_it.value().at("rating").is_number_integer()) {
+                        total_rating += _it.value().at("rating").get<int>();
+                        ++count;
+                    }
+                }
+
+                if (count > 0) {
+                    files_json["average_rating"] = total_rating / count;
+                    files_json["rating_count"] = count;
+                    files_json["ratings"] = nlohmann::json::object();
+                } else {
+                    files_json["average_rating"] = 0;
+                    files_json["rating_count"] = 0;
+                    files_json["ratings"] = nlohmann::json::object();
+                }
+            } else {
+                files_json["average_rating"] = 0;
+                files_json["rating_count"] = 0;
+                files_json["ratings"] = nlohmann::json::object();
             }
 
             json["files"].push_back(files_json);
@@ -1333,11 +1390,11 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
                 try {
                     json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", identifier));
                 } catch (const std::exception&) {
-                    nlohmann::json json;
-                    json["error_str"] = "Invalid JSON received";
-                    json["error"] = "FF_INVALID_JSON";
+                    nlohmann::json _json;
+                    _json["error_str"] = "Invalid JSON received";
+                    _json["error"] = "FF_INVALID_JSON";
                     response.http_status = 400;
-                    response.body = json.dump();
+                    response.body = _json.dump();
                     return response;
                 }
 
@@ -1429,7 +1486,7 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
     nlohmann::json input;
     try {
         input = nlohmann::json::parse(request.body);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         nlohmann::json json;
         json["error"] = "FF_INVALID_JSON";
         json["error_str"] = "Invalid JSON.";
@@ -1481,7 +1538,7 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
             if (!_json.contains("profile") || !_json.at("profile").is_object()) {
                 continue;
             }
-            const auto json = _json.at("profile");
+            const auto& json = _json.at("profile");
             if (json.contains("display_name") && json.at("display_name").is_string()) {
                 response_json["users"][it]["display_name"] = json.at("display_name").get<std::string>();
             } else {
@@ -1741,5 +1798,606 @@ limhamn::http::server::response ff::handle_api_get_announcements(const limhamn::
         return response;
     }
 
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_rate_file_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("file_identifier") || !json.at("file_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("rating") || !json.at("rating").is_number_integer()) {
+        nlohmann::json ret;
+        ret["error_str"] = "rating is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const int rating = json.at("rating").get<int>();
+    if ((rating < 1 || rating > 5) && rating != 0) {
+        nlohmann::json ret;
+        ret["error_str"] = "rating must be between 1 and 5";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    // rating == 0 means that the user wants to remove their rating for the file
+    // rating should replace any existing rating for the file
+    const std::string file_identifier = json.at("file_identifier").get<std::string>();
+    if (file_identifier.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", file_identifier));
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    // db_json["ratings"]["username"]["rating"] = rating;
+    if (db_json.find("ratings") == db_json.end() || !db_json.at("ratings").is_object()) {
+        db_json["ratings"] = nlohmann::json::object();
+    }
+    if (rating == 0) {
+        // remove the rating for the user
+        db_json["ratings"].erase(username);
+    } else {
+        // set the rating for the user
+        db_json["ratings"][username]["rating"] = rating;
+    }
+
+    ff::set_json_in_table(db, "sandbox", "identifier", file_identifier, db_json.dump());
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_rate_forwarder_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("forwarder_identifier") || !json.at("forwarder_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("rating") || !json.at("rating").is_number_integer()) {
+        nlohmann::json ret;
+        ret["error_str"] = "rating is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const int rating = json.at("rating").get<int>();
+    if ((rating < 1 || rating > 5) && rating != 0) {
+        nlohmann::json ret;
+        ret["error_str"] = "rating must be between 1 and 5";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    // rating == 0 means that the user wants to remove their rating for the file
+    // rating should replace any existing rating for the file
+    const std::string forwarder_identifier = json.at("forwarder_identifier").get<std::string>();
+    if (forwarder_identifier.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", forwarder_identifier));
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    // db_json["ratings"]["username"]["rating"] = rating;
+    if (db_json.find("ratings") == db_json.end() || !db_json.at("ratings").is_object()) {
+        db_json["ratings"] = nlohmann::json::object();
+    }
+    if (rating == 0) {
+        // remove the rating for the user
+        db_json["ratings"].erase(username);
+    } else {
+        // set the rating for the user
+        db_json["ratings"][username]["rating"] = rating;
+    }
+
+    ff::set_json_in_table(db, "forwarders", "identifier", forwarder_identifier, db_json.dump());
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_comment_forwarder_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("forwarder_identifier") || !json.at("forwarder_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("comment_text") || !json.at("comment_text").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_text is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string forwarder_identifier = json.at("forwarder_identifier").get<std::string>();
+    if (forwarder_identifier.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string comment_text = json.at("comment_text").get<std::string>();
+    if (comment_text.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_text is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", forwarder_identifier));
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Forwarder not found";
+        ret["error"] = "FF_FORWARDER_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+    if (db_json.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "Forwarder not found";
+        ret["error"] = "FF_FORWARDER_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    // db_json["reviews"]["username"]["comment"] = comment_text;
+    if (db_json.find("reviews") == db_json.end() || !db_json.at("reviews").is_array()) {
+        db_json["reviews"] = nlohmann::json::array();
+    }
+
+    db_json["reviews"].push_back({
+        {"comment", limhamn::http::utils::htmlspecialchars(comment_text)},
+        {"timestamp", scrypto::return_unix_timestamp()},
+        {"username", username}
+    });
+
+    ff::set_json_in_table(db, "forwarders", "identifier", forwarder_identifier, db_json.dump());
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_comment_file_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("file_identifier") || !json.at("file_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("comment_text") || !json.at("comment_text").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_text is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string file_identifier = json.at("file_identifier").get<std::string>();
+    if (file_identifier.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string comment_text = json.at("comment_text").get<std::string>();
+    if (comment_text.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_text is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", file_identifier));
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+    if (db_json.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "Forwarder not found";
+        ret["error"] = "FF_FORWARDER_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (db_json.find("reviews") == db_json.end() || !db_json.at("reviews").is_array()) {
+        db_json["reviews"] = nlohmann::json::array();
+    }
+
+    db_json["reviews"].push_back({
+        {"comment", limhamn::http::utils::htmlspecialchars(comment_text)},
+        {"timestamp", scrypto::return_unix_timestamp()},
+        {"username", username}
+    });
+
+    ff::set_json_in_table(db, "sandbox", "identifier", file_identifier, db_json.dump());
+
+    response.http_status = 204;
+    response.body = "";
     return response;
 }

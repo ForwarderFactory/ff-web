@@ -1,0 +1,9 @@
+POST localhost:8080/api/rate_forwarder HTTP/1.1
+Content-Type: application/json
+
+{
+    "forwarder_id": "jRF5k1YB",
+    "rating": 5,
+    "username": "jacob",
+    "key": "DQFLbDpU8tmK0uWrVi3vxXeL0iVCOf5PhXH9YgAz9wpOBaYOmovXBBvE7aeLLHVO"
+}

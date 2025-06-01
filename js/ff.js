@@ -1130,7 +1130,7 @@ function get_announcements() {
                     },
                     body: JSON.stringify(json),
                 })
-                    .then(response => {
+                    .then(() => {
                         if (json.error_str) {
                             show_register(json.error_str);
                             return;
@@ -1356,7 +1356,7 @@ async function view_profile(username) {
 
     const win = create_window('profile-window');
 
-    if (username == get_cookie('username')) {
+    if (username === get_cookie('username')) {
         const pen = document.createElement('img');
 
         pen.src = '/img/pen.svg';
@@ -1428,6 +1428,24 @@ async function view_profile(username) {
     view_sandbox.onclick = () => {
         play_click();
         show_sandbox(username);
+    }
+
+    // hardcoded swag for me
+    if (username === "jacob") {
+        const p = document.createElement('p');
+        p.className = 'profile-swag';
+        p.id = 'profile-swag';
+        p.style.color = 'red';
+        p.style.fontWeight = 'bold';
+        p.style.backgroundColor = 'blue';
+        p.style.fontFamily = 'Comic Sans MS';
+        p.innerHTML = 'This account is owned and administered by the owner, maintainer and founder of Forwarder Factory. This paragraph is here as a sign of legitimacy and to prevent impersonation. GRAPHIC DESIGN IS MY PASSION!!!';
+        p.onclick = () => {
+            play_click();
+            window.open('https://www.youtube.com/@ForwarderFactory', '_blank');
+        }
+
+        win.appendChild(p);
     }
 
     win.appendChild(title);
@@ -2770,159 +2788,304 @@ function show_upload(_error = "") {
     ask_for_content_type();
 }
 
-function show_forwarder(id) {
-    set_path('/view/' + id);
+function post_comment_forwarder(id, comment_str) {
+    const json = {
+        forwarder_identifier: id,
+        comment_text: comment_str
+    };
 
-    hide_initial();
-
-    const accept_forwarder = (status) => {
-        const json = {
-            forwarders: {
-                [id]: Boolean(status)
-            },
-        };
-
-        fetch('/api/set_approval_for_uploads', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(json),
+    fetch('/api/comment_forwarder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_forwarder(id);
+            }
         })
-            .then(response => {
-                if (response.status === 204) {
-                    show_forwarder(id);
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
 
-        hide_all_windows();
+function post_comment_file(id, comment_str) {
+    const json = {
+        file_identifier: id,
+        comment_text: comment_str
+    };
+
+    fetch('/api/comment_file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_file(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function update_stars_for_file(id, stars) {
+    const json = {
+        file_identifier: id,
+        rating: stars
+    };
+
+    fetch('/api/rate_file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_file(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function update_stars_for_forwarder(id, stars) {
+    const json = {
+        forwarder_identifier: id,
+        rating: stars
+    };
+
+    fetch('/api/rate_forwarder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_forwarder(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+let Forwarder = 0;
+let Sandbox = 1;
+
+async function draw_article(type, forwarder, id) {
+    let _id = 'view-window';
+    if (type === Sandbox) {
+        _id = 'file-window';
     }
 
-    const draw = async (forwarder) => {
-        const forwarder_window = create_window('view-window');
-        forwarder_window.style.display = 'block';
-        forwarder_window.style.overflowY = 'scroll';
+    const view_window = create_window( _id);
+    view_window.style.display = 'block';
+    view_window.style.overflowY = 'scroll';
 
-        if (forwarder.meta.banner_type !== "video") {
-            let banner = document.createElement('img');
-            banner.src = `/download/${forwarder.banner_download_key}`;
-            banner.className = 'view_floating_window_banner';
-            banner.id = 'view_floating_window_banner';
-            if (forwarder.banner_download_key) {
-                forwarder_window.appendChild(banner);
-            }
+    if (forwarder.meta.banner_type !== "video" && forwarder.meta.banner_type !== undefined && forwarder.meta.banner_type !== null) {
+        let banner = document.createElement('img');
+        banner.src = `/download/${forwarder.banner_download_key}`;
+        banner.className = 'view_floating_window_banner';
+        banner.id = 'view_floating_window_banner';
+        if (forwarder.banner_download_key) {
+            view_window.appendChild(banner);
+        }
+    } else if (forwarder.meta.banner_type !== undefined && forwarder.meta.banner_type !== null) {
+        let banner = document.createElement('video');
+        banner.src = `/download/${forwarder.banner_download_key}`;
+        banner.className = 'view_floating_window_banner';
+        banner.id = 'view_floating_window_banner';
+        banner.controls = false;
+        banner.autoplay = true;
+        banner.loop = true;
+        if (forwarder.banner_download_key) {
+            view_window.appendChild(banner);
+        }
+    }
+
+    const title = document.createElement('h1');
+    if (forwarder.meta.title) {
+        title.innerHTML = forwarder.meta.title;
+    } else {
+        title.innerHTML = "No title provided";
+    }
+    title.className = 'view_floating_window_title';
+    view_window.appendChild(title);
+
+    const uploader = document.createElement('p');
+    uploader.className = 'view_floating_window_uploader';
+    if (forwarder.uploader) {
+        const profile = await get_profile_for_user(forwarder.uploader);
+        if (profile.profile_key === '' || profile.profile_key === undefined) {
+            const fa = document.createElement('i');
+            fa.className = "fa-solid fa-circle-user";
+            fa.style.marginRight = '5px';
+            uploader.prepend(fa);
         } else {
-            let banner = document.createElement('video');
-            banner.src = `/download/${forwarder.banner_download_key}`;
-            banner.className = 'view_floating_window_banner';
-            banner.id = 'view_floating_window_banner';
-            banner.controls = false;
-            banner.autoplay = true;
-            banner.loop = true;
-            if (forwarder.banner_download_key) {
-                forwarder_window.appendChild(banner);
-            }
+            const img = document.createElement('img');
+            img.src = `/download/${profile.profile_key}`;
+            img.className = 'view_floating_window_uploader_icon';
+            img.style.marginRight = '5px';
+            img.style.maxWidth = '15px';
+            img.style.maxHeight = '15px';
+            img.style.borderRadius = '50%';
+            uploader.prepend(img);
         }
 
-        const title = document.createElement('h1');
-        if (forwarder.meta.title) {
-            title.innerHTML = forwarder.meta.title;
-        } else {
-            title.innerHTML = "No title provided";
-        }
-        title.className = 'view_floating_window_title';
-        forwarder_window.appendChild(title);
+        uploader.innerHTML += `Uploaded by <a href="/profile/${forwarder.uploader}">${profile.display_name}</a>`;
 
-        const uploader = document.createElement('p');
-        uploader.className = 'view_floating_window_uploader';
-        if (forwarder.uploader) {
-            const profile = await get_profile_for_user(forwarder.uploader);
-            if (profile.profile_key === '' || profile.profile_key === undefined) {
-                const fa = document.createElement('i');
-                fa.className = "fa-solid fa-circle-user";
-                fa.style.marginRight = '5px';
-                uploader.prepend(fa);
-            } else {
-                const img = document.createElement('img');
-                img.src = `/download/${profile.profile_key}`;
-                img.className = 'view_floating_window_uploader_icon';
-                img.style.marginRight = '5px';
-                img.style.maxWidth = '15px';
-                img.style.maxHeight = '15px';
-                uploader.prepend(img);
-            }
+        view_window.appendChild(uploader);
+    }
 
-            uploader.innerHTML += `Uploaded by <a href="/profile/${forwarder.uploader}">${profile.display_name}</a>`;
+    const author = document.createElement('p');
+    if (forwarder.meta.author) {
+        author.innerHTML = `${forwarder.meta.author}`;
+    } else {
+        author.innerHTML = "No author provided";
+    }
+    author.className = 'view_floating_window_author';
+    const fa = document.createElement('i');
+    fa.className = 'fa-solid fa-user';
+    fa.style.marginRight = '5px';
+    author.prepend(fa);
+    view_window.appendChild(author);
 
-            forwarder_window.appendChild(uploader);
-        }
-
-        const author = document.createElement('p');
-        if (forwarder.meta.author) {
-            author.innerHTML = `${forwarder.meta.author}`;
-        } else {
-            author.innerHTML = "No author provided";
-        }
-        author.className = 'view_floating_window_author';
+    const title_id = document.createElement('p');
+    if (forwarder.meta.title_id) {
+        title_id.innerHTML = `${forwarder.meta.title_id}`;
         const fa = document.createElement('i');
-        fa.className = 'fa-solid fa-user';
+        fa.className = 'fa-solid fa-id-card';
         fa.style.marginRight = '5px';
-        author.prepend(fa);
-        forwarder_window.appendChild(author);
+        title_id.prepend(fa);
+        view_window.appendChild(title_id);
+    }
 
-        const title_id = document.createElement('p');
-        if (forwarder.meta.title_id) {
-            title_id.innerHTML = `${forwarder.meta.title_id}`;
-            const fa = document.createElement('i');
-            fa.className = 'fa-solid fa-id-card';
-            fa.style.marginRight = '5px';
-            title_id.prepend(fa);
-            forwarder_window.appendChild(title_id);
+    const rating_container = document.createElement('div');
+    rating_container.className = 'forwarder_floating_window_rating';
+
+    const stars = [];
+    let current_rating = Math.round(forwarder.average_rating) || 0;
+    const rating_text = document.createElement('p');
+    rating_text.style.marginTop = '5px';
+
+    function update_stars(rating) {
+        stars.forEach((star, index) => {
+            if (index < rating) {
+                star.style.filter = 'invert(49%) sepia(98%) saturate(497%) hue-rotate(3deg) brightness(102%) contrast(101%)';
+                star.alt = 'Filled star';
+            } else {
+                star.style.filter = 'grayscale(100%) brightness(60%)';
+                star.alt = 'Empty star';
+            }
+        });
+    }
+
+    for (let i = 1; i <= 5; i++) {
+        const star = document.createElement('img');
+        star.src = '/img/star.svg';
+        star.style.marginRight = '5px';
+        star.style.width = '20px';
+        star.style.height = '20px';
+        star.style.cursor = 'pointer';
+        star.alt = 'Empty star';
+
+        if (is_logged_in()) {
+            star.addEventListener('click', () => {
+                if (current_rating === i) {
+                    current_rating = 0;
+                } else {
+                    current_rating = i;
+                }
+                update_stars(current_rating);
+                if (type === Forwarder) {
+                    update_stars_for_forwarder(id, current_rating);
+                } else {
+                    update_stars_for_file(id, current_rating);
+                }
+                rating_text.textContent = current_rating
+                    ? `You rated: ${current_rating} star${current_rating > 1 ? 's' : ''}`
+                    : 'Rating cleared';
+            });
+
+            star.addEventListener('mouseover', () => {
+                update_stars(i);
+            });
+            star.addEventListener('mouseout', () => {
+                update_stars(current_rating);
+            });
         }
 
-        const type = document.createElement('p');
-        type.className = 'view_floating_window_type';
-        if (forwarder.meta.type === 0) {
-            type.innerHTML = "Forwarder";
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-arrow-right";
-            fa.style.marginRight = '5px';
-            type.prepend(fa);
+        stars.push(star);
+        rating_container.appendChild(star);
+    }
+
+    if (forwarder.average_rating || forwarder.average_rating === 0) {
+        if (forwarder.average_rating === 0) {
+            rating_text.textContent = 'No ratings yet';
         } else {
-            type.innerHTML = "Channel";
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-tv";
-            fa.style.marginRight = '5px';
-            type.prepend(fa);
+            rating_text.textContent = `${forwarder.average_rating.toFixed(2)} stars (${forwarder.rating_count} ratings)`;
         }
+    } else {
+        rating_text.textContent = 'No rating data';
+    }
 
-        forwarder_window.appendChild(type);
+    update_stars(current_rating);
 
-        const location = document.createElement('p');
-        location.className = 'view_floating_window_location';
-        if (forwarder.meta.location && forwarder.meta.type === 0) {
-            location.innerHTML = forwarder.meta.location;
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-square-binary";
-            fa.style.marginRight = '5px';
-            location.prepend(fa);
-            forwarder_window.appendChild(location);
-        }
+    rating_container.appendChild(rating_text);
+    view_window.appendChild(rating_container);
 
-        const categories = document.createElement('p');
-        categories.className = 'view_floating_window_categories';
-        if (forwarder.meta.categories) {
-            categories.innerHTML = forwarder.meta.categories.join(', ');
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-tag";
-            fa.style.marginRight = '5px';
-            categories.prepend(fa);
-            forwarder_window.appendChild(categories);
-        }
+    const fw_type = document.createElement('p');
+    fw_type.className = 'view_floating_window_type';
+    if (forwarder.meta.type === 0) {
+        fw_type.innerHTML = "Forwarder";
+        const fa = document.createElement('i');
+        fa.className = "fa-solid fa-arrow-right";
+        fa.style.marginRight = '5px';
+        fw_type.prepend(fa);
+    } else if (forwarder.meta.type !== undefined && forwarder.meta.type !== null) {
+        fw_type.innerHTML = "Channel";
+        const fa = document.createElement('i');
+        fa.className = "fa-solid fa-tv";
+        fa.style.marginRight = '5px';
+        fw_type.prepend(fa);
+    }
 
+    view_window.appendChild(fw_type);
+
+    const location = document.createElement('p');
+    location.className = 'view_floating_window_location';
+    if (forwarder.meta.location && forwarder.meta.type === 0) {
+        location.innerHTML = forwarder.meta.location;
+        const fa = document.createElement('i');
+        fa.className = "fa-solid fa-square-binary";
+        fa.style.marginRight = '5px';
+        location.prepend(fa);
+        view_window.appendChild(location);
+    }
+
+    const categories = document.createElement('p');
+    categories.className = 'view_floating_window_categories';
+    if (forwarder.meta.categories) {
+        categories.innerHTML = forwarder.meta.categories.join(', ');
+        const fa = document.createElement('i');
+        fa.className = "fa-solid fa-tag";
+        fa.style.marginRight = '5px';
+        categories.prepend(fa);
+        view_window.appendChild(categories);
+    }
+
+    if (forwarder.meta.vwii_compatible !== undefined) {
         const vwii = document.createElement('p');
         vwii.className = 'view_floating_window_vwii';
         vwii.innerHTML = forwarder.meta.vwii_compatible ? 'Wii, vWii, Wii Mini' : 'Wii, Wii Mini';
@@ -2930,66 +3093,264 @@ function show_forwarder(id) {
         fac.className = "fa-solid fa-check";
         fac.style.marginRight = '5px';
         vwii.prepend(fac);
-        forwarder_window.appendChild(vwii);
+        view_window.appendChild(vwii);
+    }
 
-        const description = document.createElement('p');
-        description.className = 'view_floating_window_description';
-        if (forwarder.meta.description) {
-            description.innerHTML = forwarder.meta.description;
-            description.id = 'view_floating_window_description';
-            forwarder_window.appendChild(description);
+    const description = document.createElement('p');
+    description.className = 'view_floating_window_description';
+    if (forwarder.meta.description) {
+        description.innerHTML = forwarder.meta.description;
+        description.id = 'view_floating_window_description';
+        view_window.appendChild(description);
+    }
+
+    if (forwarder.meta.youtube) {
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube.com/embed/${forwarder.meta.youtube}`;
+        iframe.style.width = '100%';
+        iframe.style.height = '400px';
+        iframe.style.maxWidth = '50%';
+        iframe.style.marginBottom = '10px';
+        iframe.style.borderRadius = '5px';
+        view_window.appendChild(iframe);
+    }
+
+    const download_button = document.createElement('button');
+    download_button.innerHTML = 'Download';
+    download_button.className = 'view_floating_window_download';
+    download_button.onclick = () => {
+        window.location.href = `/download/${forwarder.data_download_key}`;
+    }
+
+    const disclaimer = document.createElement('small');
+    disclaimer.className = 'view_floating_window_disclaimer';
+    disclaimer.innerHTML = "Forwarder Factory is providing this file as-is. Forwarder Factory and/or its contributors are not responsible for any damages caused by this file.";
+    disclaimer.innerHTML += " By downloading this file, you agree to take full responsibility for any damages caused by this file. Precautions can and should be taken to prevent damage, such as in the case of forwarders and otherwise installable binaries using Priiloader or BootMii installed in boot2. We recommend testing all forwarders in an emulator before installing them on your console.";
+    disclaimer.innerHTML += "<br/>";
+
+    const download_h2 = document.createElement('h2');
+    download_h2.innerHTML = 'Download';
+    download_h2.className = 'view_floating_window_download_title';
+
+    const download_p = document.createElement('p');
+    download_p.innerHTML = 'Click the button below to download the file. We recommend viewing the ratings and comments before downloading.';
+    download_p.className = 'view_floating_window_download_text';
+
+    view_window.appendChild(download_h2);
+    view_window.appendChild(download_p);
+    view_window.appendChild(download_button);
+    view_window.appendChild(document.createElement('br'));
+    view_window.appendChild(document.createElement('br'));
+    view_window.appendChild(disclaimer);
+
+    if (forwarder.needs_review === true && get_cookie('user_type') === '1') {
+        const accept_button = document.createElement('button');
+        accept_button.innerHTML = 'Accept';
+        accept_button.className = 'view_floating_window_accept';
+        accept_button.style.marginRight = '10px';
+        accept_button.onclick = () => {
+            if (type === Forwarder) {
+                accept_forwarder(id, true);
+            } else {
+                accept_file(id, true);
+            }
         }
 
-        if (forwarder.meta.youtube) {
-            const iframe = document.createElement('iframe');
-            iframe.src = `https://www.youtube.com/embed/${forwarder.meta.youtube}`;
-            iframe.style.width = '100%';
-            iframe.style.height = '400px';
-            iframe.style.maxWidth = '50%';
-            iframe.style.marginBottom = '10px';
-            iframe.style.borderRadius = '5px';
-            forwarder_window.appendChild(iframe);
+        const reject_button = document.createElement('button');
+        reject_button.innerHTML = 'Reject';
+        reject_button.className = 'view_floating_window_reject';
+        reject_button.onclick = () => {
+            if (type === Forwarder) {
+                accept_forwarder(id, false);
+            } else {
+                accept_forwarder(id, false);
+            }
         }
 
-        const download_button = document.createElement('button');
-        download_button.innerHTML = 'Download';
-        download_button.className = 'view_floating_window_download';
-        download_button.onclick = () => {
-            window.location.href = `/download/${forwarder.data_download_key}`;
-        }
+        view_window.appendChild(accept_button);
+        view_window.appendChild(reject_button);
+    }
 
-        const disclaimer = document.createElement('small');
-        disclaimer.className = 'view_floating_window_disclaimer';
-        disclaimer.innerHTML = "Forwarder Factory is providing this forwarder as-is. Forwarder Factory and/or its contributors are not responsible for any damages caused by this file.";
-        disclaimer.innerHTML += " By downloading this file, you agree to take full responsibility for any damages caused by this file. Precautions can and should be taken to prevent damage, such as using Priiloader or BootMii installed in boot2.";
-        disclaimer.innerHTML += "<br/>";
+    // comment section
+    // first draw the 'post a comment' crap
+    const post_comment = document.createElement('div');
+    post_comment.className = 'view_floating_window_post_comment';
 
-        forwarder_window.appendChild(document.createElement('br'));
-        forwarder_window.appendChild(disclaimer);
-        forwarder_window.appendChild(download_button);
+    const comment_h2 = document.createElement('h2');
+    comment_h2.innerHTML = 'Post a Comment';
+    comment_h2.className = 'view_floating_window_post_comment_title';
+    post_comment.appendChild(comment_h2);
 
-        if (forwarder.needs_review === true && get_cookie('user_type') === '1') {
-            const accept_button = document.createElement('button');
-            accept_button.innerHTML = 'Accept';
-            accept_button.className = 'view_floating_window_accept';
-            accept_button.style.marginRight = '10px';
-            accept_button.onclick = () => {
-                accept_forwarder(1);
+    const comment_p = document.createElement('p');
+    if (is_logged_in()) {
+        comment_p.innerHTML = 'Post a comment below. Your name will be displayed as the author of the comment.';
+    } else {
+        comment_p.innerHTML = 'You must be logged in to post a comment.';
+    }
+    comment_p.className = 'view_floating_window_post_comment_text';
+    post_comment.appendChild(comment_p);
+
+    if (is_logged_in()) {
+        const comment_input = document.createElement('textarea');
+        comment_input.className = 'view_floating_window_comment_input';
+        comment_input.placeholder = 'Post a comment...';
+        comment_input.id = 'view_floating_window_comment_input';
+        comment_input.style.width = '50%';
+        comment_input.style.height = '100px';
+        comment_input.style.marginBottom = '10px';
+
+        const post_button = document.createElement('button');
+        post_button.innerHTML = 'Post Comment';
+        post_button.className = 'view_floating_window_post_comment_button';
+        post_button.onclick = () => {
+            if (comment_input.value === '') {
+                alert('Please enter a comment.');
+                return;
             }
 
-            const reject_button = document.createElement('button');
-            reject_button.innerHTML = 'Reject';
-            reject_button.className = 'view_floating_window_reject';
-            reject_button.onclick = () => {
-                accept_forwarder(0);
+            play_click();
+            if (type === Forwarder) {
+                post_comment_forwarder(id, comment_input.value);
+                hide_all_windows();
+                show_forwarder(id);
+            } else {
+                post_comment_file(id, comment_input.value);
+                hide_all_windows();
+                show_file(id);
             }
-
-            forwarder_window.appendChild(accept_button);
-            forwarder_window.appendChild(reject_button);
         }
 
-        document.body.appendChild(forwarder_window);
+        post_comment.appendChild(comment_input);
+        post_comment.appendChild(document.createElement('br'));
+        post_comment.appendChild(post_button);
+    }
+
+    view_window.appendChild(post_comment);
+    view_window.appendChild(document.createElement('br'));
+
+    const reviews = forwarder.reviews || [];
+    let index = 0;
+    const bsize = 20;
+
+    const comment_section = document.createElement('div');
+    comment_section.className = 'view_floating_window_comment_section';
+
+    view_window.appendChild(comment_section);
+
+    async function draw_next() {
+        const next = reviews.slice(index, index + bsize);
+        index += bsize;
+
+        for (const review of  next) {
+            const profile = await get_profile_for_user(review.username);
+
+            const comment_div = document.createElement('div');
+            comment_div.className = 'view_floating_window_comment';
+            comment_div.id = `view_floating_window_comment_${review.id}`;
+            comment_div.style.marginBottom = '10px';
+
+            const meta_div = document.createElement('div');
+            meta_div.className = 'view_floating_window_comment_meta';
+
+            const logo = document.createElement('img');
+            logo.src = "/download/" + profile.profile_key;
+            logo.alt = `${review.username} logo`;
+            logo.className = 'view_floating_window_comment_logo';
+            logo.style.maxWidth = '30px';
+            logo.style.maxHeight = '30px';
+            logo.style.borderRadius = '50%';
+            logo.style.marginRight = '10px';
+            logo.style.paddingBottom = '-50px';
+
+            const comment_author = document.createElement('span');
+            comment_author.className = 'view_floating_window_comment_author';
+            comment_author.innerHTML = `<strong>${review.username} </strong>`;
+
+            const comment_date = document.createElement('span');
+            comment_date.className = 'view_floating_window_comment_date';
+            comment_date.textContent = new Date(review.timestamp).toLocaleString();
+
+            const comment_text = document.createElement('p');
+            comment_text.className = 'view_floating_window_comment_text';
+            comment_text.textContent = review.comment;
+
+            meta_div.appendChild(logo);
+            meta_div.appendChild(comment_author);
+            meta_div.appendChild(comment_date);
+
+            comment_div.appendChild(meta_div);
+            comment_div.appendChild(comment_text);
+
+            comment_section.appendChild(comment_div);
+        }
+    }
+
+    draw_next();
+    view_window.addEventListener('scroll', () => {
+        if (view_window.scrollTop + view_window.clientHeight >= view_window.scrollHeight) {
+            draw_next();
+        }
+    });
+
+    document.body.appendChild(view_window);
+}
+
+function accept_file(id, status) {
+    const json = {
+        files: {
+            [id]: Boolean(status)
+        },
     };
+
+    fetch('/api/set_approval_for_uploads', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_file(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+
+    hide_all_windows();
+}
+
+function accept_forwarder(id, status) {
+    const json = {
+        forwarders: {
+            [id]: Boolean(status)
+        },
+    };
+
+    fetch('/api/set_approval_for_uploads', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_forwarder(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+
+    hide_all_windows();
+}
+
+async function show_forwarder(id) {
+    set_path('/view/' + id);
+
+    hide_initial();
 
     const get_forwarder = async (id) => {
         const filter_data = {
@@ -3033,7 +3394,7 @@ function show_forwarder(id) {
             throw new Error('Forwarder not found');
         }
 
-        draw(forwarder);
+        draw_article(Forwarder, forwarder, id);
     }).catch(error => {
         console.error(error);
     });
@@ -3043,128 +3404,6 @@ function show_file(id) {
     set_path('/file/' + id);
 
     hide_initial();
-
-    const accept_file = (status) => {
-        const json = {
-            files: {
-                [id]: Boolean(status)
-            },
-        };
-
-        fetch('/api/set_approval_for_uploads', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(json),
-        })
-            .then(response => {
-                if (response.status === 204) {
-                    show_file(id);
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
-
-        hide_all_windows();
-    }
-
-    const draw = (file) => {
-        const file_window = create_window('file-window');
-        file_window.style.display = 'block';
-        file_window.style.overflowY = 'scroll';
-
-        const title = document.createElement('h1');
-        if (file.meta.title) {
-            title.innerHTML = file.meta.title;
-        } else {
-            title.innerHTML = "No title provided";
-        }
-        title.className = 'file_floating_window_title';
-        file_window.appendChild(title);
-
-        const uploader = document.createElement('p');
-        uploader.className = 'file_floating_window_uploader';
-        if (file.uploader) {
-            uploader.innerHTML = `Uploaded by ${file.uploader}`;
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-circle-user";
-            fa.style.marginRight = '5px';
-            uploader.prepend(fa);
-            file_window.appendChild(uploader);
-        }
-
-        const author = document.createElement('p');
-        if (file.meta.author) {
-            author.innerHTML = `${file.meta.author}`;
-        } else {
-            author.innerHTML = "No author provided";
-        }
-        author.className = 'file_floating_window_author';
-        const fa = document.createElement('i');
-        fa.className = 'fa-solid fa-user';
-        fa.style.marginRight = '5px';
-        author.prepend(fa);
-        file_window.appendChild(author);
-
-        const categories = document.createElement('p');
-        categories.className = 'file_floating_window_categories';
-        if (file.meta.categories) {
-            categories.innerHTML = file.meta.categories.join(', ');
-            const fa = document.createElement('i');
-            fa.className = "fa-solid fa-tag";
-            fa.style.marginRight = '5px';
-            categories.prepend(fa);
-            file_window.appendChild(categories);
-        }
-
-        const description = document.createElement('p');
-        description.className = 'file_floating_window_description';
-        if (file.meta.description) {
-            description.innerHTML = file.meta.description;
-            description.id = 'file_floating_window_description';
-            file_window.appendChild(description);
-        }
-
-        const download_button = document.createElement('button');
-        download_button.innerHTML = 'Download';
-        download_button.className = 'file_floating_window_download';
-        download_button.onclick = () => {
-            window.location.href = `/download/${file.data_download_key}`;
-        }
-
-        const disclaimer = document.createElement('small');
-        disclaimer.className = 'file_floating_window_disclaimer';
-        disclaimer.innerHTML = "Forwarder Factory is providing this file as-is. Forwarder Factory and/or its contributors are not responsible for any damages caused by this file.";
-        disclaimer.innerHTML += " By downloading this file, you agree to take full responsibility for any damages caused by this file.";
-        disclaimer.innerHTML += "<br/>";
-
-        file_window.appendChild(disclaimer);
-        file_window.appendChild(download_button);
-
-        if (file.needs_review === true && get_cookie('user_type') === '1') {
-            const accept_button = document.createElement('button');
-            accept_button.innerHTML = 'Accept';
-            accept_button.className = 'file_floating_window_accept';
-            accept_button.style.marginRight = '10px';
-            accept_button.onclick = () => {
-                accept_file(1);
-            }
-
-            const reject_button = document.createElement('button');
-            reject_button.innerHTML = 'Reject';
-            reject_button.className = 'file_floating_window_reject';
-            reject_button.onclick = () => {
-                accept_file(0);
-            }
-
-            file_window.appendChild(accept_button);
-            file_window.appendChild(reject_button);
-        }
-
-        document.body.appendChild(file_window);
-    };
 
     const get_file = async (id) => {
         const filter_data = {
@@ -3208,7 +3447,7 @@ function show_file(id) {
             throw new Error('File not found');
         }
 
-        draw(file);
+        draw_article(Sandbox, file, id);
     }).catch(error => {
         console.error(error);
     });

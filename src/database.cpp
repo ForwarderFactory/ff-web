@@ -61,6 +61,51 @@ void ff::update_to_latest(database& database) {
 
         database.exec("UPDATE forwarders SET json = ? WHERE id = ?;", json.dump(), it.at("id"));
     }
+
+    // ensure that sandbox json has [ratings] and that it is an object
+    for (const auto& it : database.query("SELECT * FROM sandbox;")) {
+        if (it.empty()) {
+            continue;
+        }
+
+        nlohmann::json json;
+        try {
+            json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            continue; // skip if the json is invalid
+        }
+
+        if (json.find("ratings") == json.end() || !json.at("ratings").is_object()) {
+            json["ratings"] = nlohmann::json::object();
+        }
+        if (json.find("reviews") == json.end() || !json.at("reviews").is_array()) {
+            json["reviews"] = nlohmann::json::array();
+        }
+
+        database.exec("UPDATE sandbox SET json = ? WHERE id = ?;", json.dump(), it.at("id"));
+    }
+    // same for forwarders
+    for (const auto& it : database.query("SELECT * FROM forwarders;")) {
+        if (it.empty()) {
+            continue;
+        }
+
+        nlohmann::json json;
+        try {
+            json = nlohmann::json::parse(it.at("json"));
+        } catch (const std::exception&) {
+            continue; // skip if the json is invalid
+        }
+
+        if (json.find("ratings") == json.end() || !json.at("ratings").is_object()) {
+            json["ratings"] = nlohmann::json::object();
+        }
+        if (json.find("reviews") == json.end() || !json.at("reviews").is_array()) {
+            json["reviews"] = nlohmann::json::array();
+        }
+
+        database.exec("UPDATE forwarders SET json = ? WHERE id = ?;", json.dump(), it.at("id"));
+    }
 }
 
 void ff::setup_database(database& database) {

@@ -165,6 +165,43 @@ body {
     max-height: 50%;
 }
 
+.view_floating_window_comment_meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    width: 100%;
+    text-align: center;
+}
+
+.view_floating_window_comment_logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.view_floating_window_comment_author {
+    font-weight: bold;
+}
+
+.view_floating_window_comment_date {
+    color: #888;
+    font-size: 0.9em;
+}
+
+.view_floating_window_comment_text {
+    margin-top: 0.5em;
+}
+
+.view_floating_window_comment {
+    background-color: #fafafa;
+    max-width: 50%;
+    margin: 0 auto;
+    border-radius: 10px;
+    padding: 10px;
+}
+
 .preview {
     background-color: #f0f0f0;
     color: #000000;
