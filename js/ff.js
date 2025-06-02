@@ -942,55 +942,37 @@ function print_beta() {
     document.body.appendChild(span);
 }
 
-function print_discord() {
+function show_discord() {
     const url = "https://discord.gg/TuDcKUdqDS";
-    const img = document.createElement('img');
-    img.src = '/img/discord.svg';
-    img.className = 'discord-watermark';
-    img.id = 'discord-watermark';
 
-    /* bottom left */
-    img.style.position = 'absolute';
-    img.style.bottom = '0';
-    img.style.left = '0';
-    img.style.maxWidth = '25px';
-    img.style.maxHeight = '25px';
-    img.style.padding = '10px';
-    img.style.userSelect = 'none';
-    img.style.cursor = 'pointer';
-    /* on hover, scale */
-    img.onmouseover = () => {
-        img.style.transform = 'scale(1.1)';
-    }
-    img.onmouseleave = () => {
-        img.style.transform = 'scale(1.0)';
-    }
-    img.onclick = () => {
-        play_click();
+    play_click();
 
-        const w = create_window('discord-window');
+    const w = create_window('discord-window');
 
-        const logo = document.createElement('img');
-        logo.src = '/img/discord.svg';
-        logo.style.width = '50px';
-        logo.style.height = '50px';
+    const logo = document.createElement('img');
+    logo.src = '/img/discord.svg';
+    logo.style.width = '50px';
+    logo.style.height = '50px';
 
-        const title = document.createElement('h1');
-        title.innerHTML = 'Join our Discord server!';
-        title.className = 'floating_window_title';
+    const title = document.createElement('h1');
+    title.innerHTML = 'Join our Discord server!';
+    title.className = 'floating_window_title';
 
-        const paragraph = document.createElement('p');
-        paragraph.innerHTML = "Join our Discord server to chat with other users, get help, share cool things, and more."
-        paragraph.innerHTML += "<br/><br/><small>Content shared on Discord does not necessarily reflect the views of Forwarder Factory. Please be aware of Discord's Terms of Service before using the service.</small>";
+    const paragraph = document.createElement('p');
+    paragraph.innerHTML = "Join our Discord server to chat with other users, get help, share cool things, and more."
+    paragraph.innerHTML += "<br/><br/><small>Content shared on Discord does not necessarily reflect the views of Forwarder Factory. Please be aware of Discord's Terms of Service before using the service.</small>";
 
-        w.appendChild(logo);
-        w.appendChild(title);
-        w.appendChild(paragraph);
-
+    const button = document.createElement('button');
+    button.innerHTML = 'Join Discord';
+    button.onclick = () => {
         window.open(url, '_blank');
+        hide_all_windows();
     }
 
-    document.body.appendChild(img);
+    w.appendChild(logo);
+    w.appendChild(title);
+    w.appendChild(paragraph);
+    w.appendChild(button);
 }
 
 function get_announcement(title, author, date, text) {
@@ -1056,6 +1038,8 @@ function get_announcements() {
            const description = document.createElement('description');
            description.innerHTML = 'No announcements available. Come back later!';
            description.className = 'floating_window_paragraph';
+           w.appendChild(document.createElement('br'));
+           w.appendChild(document.createElement('br'));
            w.appendChild(description);
            return;
        }
@@ -1116,6 +1100,7 @@ function get_announcements() {
                 div.appendChild(text);
            }
 
+           w.appendChild(document.createElement('br'));
            w.appendChild(div);
        });
     });
@@ -1201,39 +1186,6 @@ function get_announcements() {
 
     document.body.appendChild(w);
 }
-
-function print_announcements() {
-    const img = document.createElement('img');
-
-    img.id = 'announcements-watermark';
-    img.style.fontSize = '22px';
-    img.style.zIndex = '9999999999';
-    img.style.pointerEvents = 'auto';
-    img.src = "/img/announcements.svg";
-
-    /* bottom left */
-    img.style.position = 'absolute';
-    img.style.bottom = '0';
-    img.style.left = '50px';
-    img.style.maxWidth = '25px';
-    img.style.maxHeight = '25px';
-    img.style.padding = '10px';
-    img.style.userSelect = 'none';
-    img.style.cursor = 'pointer';
-    /* on hover, scale */
-    img.onmouseover = () => {
-        img.style.transform = 'scale(1.1)';
-    }
-    img.onmouseleave = () => {
-        img.style.transform = 'scale(1.0)';
-    }
-    img.onclick = () => {
-        get_announcements();
-    }
-
-    document.body.appendChild(img);
-}
-
 
 function update_profile(profile, icon = null) {
     play_click();
@@ -1503,16 +1455,15 @@ function print_username(username, display_name, profile_key) {
     span.className = 'logged-in-watermark';
     span.id = 'logged-in-watermark';
     span.style.position = 'absolute';
-    /*
-    span.style.top = '0';
-    span.style.right = '0';
-    */
-    // top left instead now that is not beta
     span.style.top = '0';
     span.style.left = '0';
     span.style.padding = '10px';
     span.style.userSelect = 'none';
     span.style.cursor = 'pointer';
+
+    if (is_phone()) {
+        span.style.fontSize = '10px';
+    }
 
     // Create either the profile image or fallback icon
     if (profile_key) {
@@ -1522,6 +1473,11 @@ function print_username(username, display_name, profile_key) {
         img.alt = display_name + "'s profile picture";
         img.style.width = '20px';
         img.style.height = '20px';
+
+        if (is_phone()) {
+            img.style.width = '10px';
+            img.style.height = '10px';
+        }
         img.style.borderRadius = '50%';
         img.style.marginRight = '5px';
         span.appendChild(img);
@@ -5081,6 +5037,7 @@ function get_link_box(p) {
         link_box.setAttribute('style', style);
     }
 
+
     const title = document.createElement('h2');
     title.className = 'link_box_title';
     title.textContent = p.title;
@@ -5088,6 +5045,13 @@ function get_link_box(p) {
     const description = document.createElement('p');
     description.className = 'link_box_description';
     description.textContent = p.description;
+
+    if (p.img) {
+        const icon = document.createElement('img');
+        icon.src = p.img;
+        icon.style.width = '24px';
+        link_box.appendChild(icon);
+    }
 
     link_box.appendChild(title);
     link_box.appendChild(description);
@@ -5149,6 +5113,20 @@ function init_page() {
     }
 
     list.push(get_link_box({
+       title: "Discord",
+       description: "Join our awesome Discord server.",
+       id: "discord-button",
+       onclick: "play_click(); show_discord()",
+       img: "/img/discord.svg"
+    }));
+    list.push(get_link_box({
+        title: "Announcements",
+        description: "View the latest announcements.",
+        id: "announcements-button",
+        onclick: "play_click(); get_announcements()",
+        img: "/img/announcements.svg"
+    }));
+    list.push(get_link_box({
         title: "Credits",
         description: "View the credits for Forwarder Factory.",
         id: "credits-button",
@@ -5195,9 +5173,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // i hate being dependent on a third party for something as trivial as icons
     include('https://kit.fontawesome.com/aa55cd1c33.js');
 
-    //if (!is_phone()) {
+    if (!is_phone()) {
         WSCBackgroundRepeatingSpawner();
-    //}
+    }
 
     let username = get_cookie('username');
     let display_name = username;
@@ -5240,6 +5218,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     print_username(username, display_name, profile_key);
-    print_discord();
-    print_announcements();
 });
