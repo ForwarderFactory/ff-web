@@ -4,6 +4,10 @@
  * Copyright (c) 2025 Jacob Nilsson
  */
 
+function is_phone() {
+    return window.innerWidth <= 600;
+}
+
 function include(file) {
     const script = document.createElement('script');
     script.src = file;
@@ -41,66 +45,90 @@ function cookie_exists(name) {
 }
 
 function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
-    const spawnCount = 10; /* hacky as fuck */
+    const spawnCount = 10;
     const horizontalSpacing = 400;
 
-    // Store interval ID to clear later
     if (WSCBackgroundRepeatingSpawner.intervalId) {
         clearInterval(WSCBackgroundRepeatingSpawner.intervalId);
+        WSCBackgroundRepeatingSpawner.intervalId = null;
     }
 
-    // Remove existing images
-    const images = document.querySelectorAll(`img.background-image`);
-    images.forEach(img => img.remove());
+    const oldContainer = document.getElementById('background-spawner-container');
+    if (oldContainer) {
+        oldContainer.remove();
+    }
 
-    const cached_image = new Image();
-    cached_image.src = '/img/background-logo-1.png';
+    const container = document.createElement('div');
+    container.id = 'background-spawner-container';
+    Object.assign(container.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100vw',
+        height: '100vh',
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        zIndex: '-9999',
+    });
+    document.body.appendChild(container);
 
-    function create_img(topOffset, rightOffset) {
+    document.body.style.overflow = 'hidden';
+
+    const cachedImageSrc = '/img/background-logo-1.png';
+
+    function createImage(initialX, initialY) {
         const img = document.createElement('img');
-
-        img.className = "background-image";
+        img.className = 'fwf-image';
+        img.src = cachedImageSrc;
         img.style.position = 'absolute';
-        img.style.top = `${topOffset}px`;
-        img.style.right = `${rightOffset}px`;
+        img.style.top = '0';
+        img.style.right = '0';
         img.style.opacity = '0.2';
-        img.style.zIndex = '-9999';
-        img.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
-        img.src = cached_image.src;
-
         img.style.userSelect = 'none';
         img.draggable = false;
+        img.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
+        img.style.width = '150px';
+        img.style.height = 'auto';
 
-        document.body.appendChild(img);
+        container.appendChild(img);
 
-        const move_image = () => {
-            const rect = img.getBoundingClientRect();
-            if (rect.top > window.innerHeight || rect.left < -rect.width) {
+        let x = initialX;
+        let y = initialY;
+
+        function animate() {
+            x += speed;
+            y += speed;
+
+            img.style.transform = `translate(${-x}px, ${y}px)`;
+
+            if (y > window.innerHeight || x > window.innerWidth + 200) {
                 img.remove();
                 return;
             }
-            img.style.top = `${parseFloat(img.style.top) + speed}px`;
-            img.style.right = `${parseFloat(img.style.right) + speed}px`;
+            requestAnimationFrame(animate);
+        }
 
-            requestAnimationFrame(move_image);
-        };
-
-        move_image();
+        animate();
     }
 
-    const image_spawner = (topOffset, rightOffset) => {
-        const numberOfColumns = Math.floor((window.innerWidth / horizontalSpacing) * 2);
-
-        for (let col = 0; col < numberOfColumns; col++) {
-            create_img(topOffset, rightOffset + col * horizontalSpacing - 500);
+    function spawnImages(topOffset, rightOffset) {
+        const colCount = Math.floor((window.innerWidth / horizontalSpacing) * 2);
+        for (let col = 0; col < colCount; col++) {
+            const initialX = rightOffset + col * horizontalSpacing;
+            const initialY = topOffset;
+            createImage(initialX, initialY);
         }
-    };
+    }
 
     for (let i = 0; i < spawnCount; i++) {
-        const topOffset = -200 + i * speed * creation_interval / 30;
-        const rightOffset = -500 + i * speed * creation_interval / 30;
-        image_spawner(topOffset, rightOffset);
+        const topOffset = -200 + (i * speed * creation_interval) / 30;
+        const rightOffset = -500 + (i * speed * creation_interval) / 30;
+        spawnImages(topOffset, rightOffset);
     }
+
+    WSCBackgroundRepeatingSpawner.intervalId = setInterval(() => {
+        spawnImages(-200, -500);
+    }, creation_interval);
 
     if (WSCBackgroundRepeatingSpawner.resizeTimeout) {
         clearTimeout(WSCBackgroundRepeatingSpawner.resizeTimeout);
@@ -108,19 +136,29 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
     window.onresize = () => {
         clearTimeout(WSCBackgroundRepeatingSpawner.resizeTimeout);
         WSCBackgroundRepeatingSpawner.resizeTimeout = setTimeout(() => {
+            // Remove container and re-enable scrolling before restart
+            if (WSCBackgroundRepeatingSpawner.intervalId) {
+                clearInterval(WSCBackgroundRepeatingSpawner.intervalId);
+                WSCBackgroundRepeatingSpawner.intervalId = null;
+            }
+            container.remove();
+            document.body.style.overflow = ''; // restore scroll
+
             WSCBackgroundRepeatingSpawner(speed, creation_interval);
         }, 200);
     };
 
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
+            if (WSCBackgroundRepeatingSpawner.intervalId) {
+                clearInterval(WSCBackgroundRepeatingSpawner.intervalId);
+                WSCBackgroundRepeatingSpawner.intervalId = null;
+            }
+            container.remove();
+            document.body.style.overflow = '';
             WSCBackgroundRepeatingSpawner(speed, creation_interval);
         }
     });
-
-    WSCBackgroundRepeatingSpawner.intervalId = setInterval(() => {
-        image_spawner(-200, -500);
-    }, creation_interval);
 }
 
 const click_object = new Audio('/audio/click.wav');
@@ -1460,25 +1498,43 @@ function print_username(username, display_name, profile_key) {
     if (display_name == null) {
         return;
     }
-    const text = document.createTextNode(display_name);
+
     const span = document.createElement('span');
-
-    const i = document.createElement('i');
-    i.className = 'fas fa-user';
-    i.style.marginRight = '5px';
-
-    span.appendChild(i);
-
-    span.appendChild(text);
     span.className = 'logged-in-watermark';
     span.id = 'logged-in-watermark';
     span.style.position = 'absolute';
+    /*
     span.style.top = '0';
     span.style.right = '0';
+    */
+    // top left instead now that is not beta
+    span.style.top = '0';
+    span.style.left = '0';
     span.style.padding = '10px';
     span.style.userSelect = 'none';
-
     span.style.cursor = 'pointer';
+
+    // Create either the profile image or fallback icon
+    if (profile_key) {
+        const img = document.createElement('img');
+
+        img.src = "/download/" + profile_key;
+        img.alt = display_name + "'s profile picture";
+        img.style.width = '20px';
+        img.style.height = '20px';
+        img.style.borderRadius = '50%';
+        img.style.marginRight = '5px';
+        span.appendChild(img);
+    } else {
+        const i = document.createElement('i');
+        i.className = 'fas fa-user';
+        i.style.marginRight = '5px';
+        span.appendChild(i);
+    }
+
+    const text = document.createTextNode(display_name);
+    span.appendChild(text);
+
     span.onclick = () => {
         view_profile(username);
     }
@@ -1491,6 +1547,8 @@ function print_username(username, display_name, profile_key) {
 
     document.body.appendChild(span);
 }
+
+
 function show_logout() {
     const logout = create_window('logout-window');
     const title = document.createElement('h1');
@@ -3766,7 +3824,7 @@ function show_sandbox(uploader = '') {
                         }
 
                         const grid = document.createElement('div');
-                        grid.className = 'grid-item preview';
+                        grid.className = 'window-item preview';
                         grid.id = file.id;
                         grid.style.padding = '10px';
                         grid.style.flex = '1 1 50px';
@@ -4187,7 +4245,7 @@ function show_browse(uploader = '') {
                         }
 
                         const grid = document.createElement('div');
-                        grid.className = 'grid-item preview';
+                        grid.className = 'window-item preview';
                         grid.id = forwarder.id;
                         grid.style.padding = '10px';
                         grid.style.flex = '1 1 50px';
@@ -4971,28 +5029,32 @@ function setup(_error = "") {
 function get_grid(elements) {
     const container = document.createElement('div');
     container.className = 'grid';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'row';
-    container.style.flexWrap = 'wrap';
-    container.style.gap = '10px';
-    container.style.paddingTop = '10px';
-    container.style.justifyContent = 'center';
 
-    container.style.position = 'absolute';
-    container.style.top = '50%';
-    container.style.left = '50%';
-    container.style.transform = 'translate(-50%, -50%)';
+    container.style.display = 'flex';
+    container.style.justifyContent = 'center';
+    container.style.alignItems = 'center';
+    container.style.height = '100vh';
+    container.style.width = '100vw';
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-inner';
+
+    grid.style.display = 'flex';
+    grid.style.flexWrap = 'wrap';
+    grid.style.gap = '10px';
+    grid.style.justifyContent = 'center';
+    grid.style.maxWidth = '90vw';
 
     elements.forEach(element => {
-        element.className += ' grid-item';
-        element.style.padding = '10px';
-        element.style.flex = '1 1 50px';
-        element.style.boxSizing = 'border-box';
-        container.appendChild(element);
+        element.classList.add('grid-item');
+        grid.appendChild(element);
     });
 
+    container.appendChild(grid);
     return container;
 }
+
+
 
 function get_link_box(p) {
     const link_box = document.createElement('div');
@@ -5133,7 +5195,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // i hate being dependent on a third party for something as trivial as icons
     include('https://kit.fontawesome.com/aa55cd1c33.js');
 
-    WSCBackgroundRepeatingSpawner();
+    //if (!is_phone()) {
+        WSCBackgroundRepeatingSpawner();
+    //}
 
     let username = get_cookie('username');
     let display_name = username;
@@ -5176,7 +5240,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     print_username(username, display_name, profile_key);
-    print_beta();
     print_discord();
     print_announcements();
 });
