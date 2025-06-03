@@ -152,6 +152,10 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
             db_json["meta"]["youtube"] = limhamn::http::utils::htmlspecialchars(youtube);
         }
     }
+
+    bool is_forwarder{false};
+    std::string location{};
+
     if (meta.find("type") != meta.end() && meta.at("type").is_string()) {
         std::string type = meta.at("type");
         if (type != "Select" && type != "Forwarder" && type != "Channel") {
@@ -160,8 +164,10 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
 
         if (type == "Select" || type == "Channel") {
             db_json["meta"]["type"] = 1; // 1 = channel
+            is_forwarder = false;
         } else {
             db_json["meta"]["type"] = 0; // 0 = forwarder
+            is_forwarder = true;
         }
     } else if (meta.find("type") != meta.end() && meta.at("type").is_number_integer()) {
         int type = meta.at("type");
@@ -186,14 +192,47 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         if (meta.at("location").size() > 100) {
             return {ff::UploadStatus::Failure, ""};
         }
-        db_json["meta"]["location"] = limhamn::http::utils::htmlspecialchars(meta.at("location"));
+        db_json["meta"]["location"] = location = limhamn::http::utils::htmlspecialchars(meta.at("location"));
+    } else {
+        return {ff::UploadStatus::Failure, ""};
     }
     db_json["meta"]["vwii_compatible"] = wad_info.supports_vwii;
+
+    // replace dol in forwarder if applicable
+    if (is_forwarder && !location.empty()) {
+        const std::string path = ff::get_temp_path();
+        if (!std::filesystem::is_directory(path)) {
+            std::filesystem::create_directory(path);
+        }
+        const std::string out_p = path + "/temp-dol";
+        try {
+            create_patched_dol(location, out_p);
+
+            if (!std::filesystem::exists(out_p)) {
+#if FF_DEBUG
+                logger.write_to_log(limhamn::logger::type::notice, "Generated DOL file does not exist: " + out_p + "\n");
+#endif
+                return {ff::UploadStatus::Failure, ""};
+            }
+
+            if (!ff::replace_dol_in_wad(wad_path, out_p)) {
+#if FF_DEBUG
+                logger.write_to_log(limhamn::logger::type::notice, "Failed to replace dol in wad\n");
+#endif
+                return {ff::UploadStatus::Failure, ""};
+            }
+        } catch (const std::exception& e) {
+#if FF_DEBUG
+            logger.write_to_log(limhamn::logger::type::notice, "Exception while generating DOL for forwarder: " + location + ", error: " + e.what() + "\n");
+#endif
+            return {ff::UploadStatus::Failure, ""};
+        }
+    }
 
     std::string banner_ext{};
     std::string icon_ext{};
     try {
-        if (ff::validate_image(banner_path)) {
+        if (ff::validate_image(banner_path) && std::filesystem::exists(banner_path)) {
             db_json["meta"]["banner_type"] = "image";
             if (settings.convert_images_to_webp) {
                 if (!ff::convert_to_webp(banner_path, banner_path)) {
@@ -201,7 +240,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
                 }
                 banner_ext = ".webp";
             }
-        } else if (ff::validate_video(banner_path)) {
+        } else if (ff::validate_video(banner_path) && std::filesystem::exists(banner_path)) {
             db_json["meta"]["banner_type"] = "video";
             if (settings.convert_videos_to_webm) {
                 const std::string out_p = ff::get_temp_path();
@@ -220,7 +259,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
     }
 
     try {
-        if (ff::validate_image(icon_path)) {
+        if (ff::validate_image(icon_path) && std::filesystem::exists(icon_path)) {
             db_json["meta"]["icon_type"] = "image";
             if (settings.convert_images_to_webp) {
                 if (!ff::convert_to_webp(icon_path, icon_path)) {
@@ -228,7 +267,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
                 }
                 icon_ext = ".webp";
             }
-        } else if (ff::validate_video(icon_path)) {
+        } else if (ff::validate_video(icon_path) && std::filesystem::exists(icon_path)) {
             db_json["meta"]["icon_type"] = "video";
             if (settings.convert_videos_to_webm) {
                 const std::string out_p = ff::get_temp_path();

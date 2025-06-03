@@ -23,6 +23,7 @@ set(PROJECT_SOURCE_FILES
     src/scrypto.cpp
     src/av_io.cpp
     src/wadinfo.cpp
+    src/dol.cpp
 )
 
 include_directories(include)

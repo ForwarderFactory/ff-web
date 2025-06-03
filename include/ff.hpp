@@ -374,6 +374,8 @@ namespace ff {
     bool generate_thumbnail(const std::string& input, const std::string& output);
     std::string get_temp_path();
 
+    bool replace_dol_in_wad(const std::string& wad, const std::string& dol);
+
     std::string get_default_profile();
 
     void update_to_latest(database& db);
@@ -381,6 +383,7 @@ namespace ff {
     std::string upload_file(database& db, const ff::FileConstruct& c);
     RetrievedFile download_file(database& db, const ff::UserProperties& prop, const std::string& file_key);
     std::string get_path_from_file(database& db, const std::string& file_key);
+    void create_patched_dol(const std::string& path, const std::string& output_path);
 
     bool is_file(database& db, const std::string& file_key);
 

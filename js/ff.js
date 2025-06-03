@@ -2155,6 +2155,8 @@ function show_upload(_error = "") {
         paragraph.innerHTML = "We need the type of forwarder you're uploading, the location it forwards to, and the categories it belongs to.";
         paragraph.innerHTML += '<br>';
         paragraph.innerHTML += 'The type is the type of forwarder you are uploading. It can be a forwarder (i.e. it forwards to a program) or a channel (self contained)';
+        paragraph.innerHTML += '<br>';
+        paragraph.innerHTML += "The location is the location of the program the forwarder forwards to. This is only required for forwarders, and is not required for channels. Your uploaded forwarder will forward to this location on either the SD card or attached USB drive. Only one path should be specified.";
 
         const type = document.createElement('select');
         type.name = 'type';
@@ -2177,7 +2179,7 @@ function show_upload(_error = "") {
         const location = document.createElement('input');
         location.type = 'text';
         location.name = 'location';
-        location.placeholder = 'Location (e.g. SD:/apps/usbloader_gx/boot.dol or USB:/apps/usbloader_gx/boot.dol or both)';
+        location.placeholder = 'Location (e.g. /apps/usbloader_gx/boot.dol)';
         location.className = 'upload-input';
         location.id = 'upload-location';
         location.style.width = '80%';
