@@ -2555,6 +2555,8 @@ function show_upload(_error = "") {
                     video.style.marginBottom = '10px';
                     video.style.borderRadius = '5px';
                     video.controls = true;
+                    video.playsInline = true;
+                    video.type = 'video/webm';
 
                     const preview = document.getElementById('upload-banner-preview');
                     if (preview) {
@@ -2665,6 +2667,8 @@ function show_upload(_error = "") {
                     video.style.marginBottom = '10px';
                     video.style.borderRadius = '5px';
                     video.controls = true;
+                    video.playsInline = true;
+                    video.type = 'video/webm';
 
                     const preview = document.getElementById('upload-icon-preview');
                     if (preview) {
@@ -3047,6 +3051,8 @@ async function draw_article(type, forwarder, id) {
                 banner.autoplay = true;
                 banner.loop = true;
                 banner.muted = false;
+                banner.playsInline = true;
+                banner.type = 'video/webm';
             } else {
                 banner = document.createElement('img');
                 banner.src = `/download/${forwarder.banner_download_key}`;
@@ -3306,6 +3312,56 @@ async function draw_article(type, forwarder, id) {
             img.style.objectFit = 'cover';
             img.style.borderRadius = '8px';
             img.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+
+            // on click, show an enlarged version of the image
+            img.onclick = () => {
+                const _modal = document.getElementById('view_floating_window_modal');
+                if (_modal) {
+                    _modal.remove();
+                }
+
+                const enlarged_img = document.createElement('img');
+                enlarged_img.src = img.src;
+                enlarged_img.style.width = '80%';
+                enlarged_img.style.maxWidth = '600px';
+                enlarged_img.style.height = 'auto';
+                enlarged_img.style.borderRadius = '8px';
+                enlarged_img.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                enlarged_img.style.zIndex = '99999';
+                enlarged_img.style.position = 'fixed';
+                enlarged_img.style.top = '50%';
+                enlarged_img.style.left = '50%';
+                enlarged_img.style.transform = 'translate(-50%, -50%)';
+
+                const blacken = document.createElement('div');
+                blacken.id = 'blacken';
+                blacken.style.position = 'absolute';
+                blacken.style.top = '0';
+                blacken.style.left = '0';
+                blacken.style.width = '100%';
+                blacken.style.height = '100%';
+                blacken.style.backgroundColor = 'black';
+                blacken.style.opacity = '0.90';
+                blacken.style.zIndex = '99999';
+
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.id = 'view_floating_window_modal';
+                modal.onclick = () => {
+                    modal.remove();
+                    blacken.remove();
+                };
+
+                blacken.onclick = () => {
+                    modal.remove();
+                    blacken.remove();
+                }
+
+                modal.appendChild(enlarged_img);
+                document.body.appendChild(blacken);
+                document.body.appendChild(modal);
+            }
+
             screenshots_container.appendChild(img);
         });
 
@@ -4252,10 +4308,13 @@ function show_browse(uploader = '') {
                             if (isVideo) {
                                 icon = document.createElement('video');
                                 icon.src = `/download/${forwarder.icon_download_key}`;
+                                icon.type = 'video/webm';
                                 icon.controls = false;
                                 icon.autoplay = true;
                                 icon.loop = true;
                                 icon.muted = true;
+                                icon.playsInline = true;
+                                icon.type = 'video/webm';
                             } else {
                                 icon = document.createElement('img');
                                 icon.src = `/download/${forwarder.icon_download_key}`;
