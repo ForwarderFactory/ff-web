@@ -405,7 +405,8 @@ namespace ff {
     limhamn::http::server::response handle_api_update_profile(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_get_profile(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_get_announcements(const limhamn::http::server::request& request, database& db);
-    limhamn::http::server::response handle_api_delete_announcements(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_announcement(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_edit_announcement(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_create_announcement(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_rate_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_rate_file_endpoint(const limhamn::http::server::request& request, database& db);

@@ -1113,12 +1113,91 @@ function get_announcements() {
            }
 
            if (is_admin) {
+                const edit_button = document.createElement('button');
+                edit_button.innerHTML = 'Edit';
+                edit_button.className = 'edit-announcement-button';
+                edit_button.onclick = (event) => {
+                    play_click();
+                    event.stopPropagation();
+                    const create = create_window('edit-announcement-window');
+
+                    const title = document.createElement('h1');
+                    title.innerHTML = 'Edit announcement';
+                    title.className = 'floating_window_title';
+
+                    const paragraph = document.createElement('p');
+                    paragraph.innerHTML = 'Please edit the title and text for the announcement.';
+
+                    const title_input = document.createElement('input');
+                    title_input.type = 'text';
+                    title_input.name = 'title';
+                    title_input.placeholder = 'Title';
+                    title_input.className = 'announcement-input';
+                    title_input.id = 'announcement-title';
+                    title_input.value = announcement.title;
+
+                    const text_input = document.createElement('textarea');
+                    text_input.name = 'text';
+                    text_input.placeholder = 'Text (markdown)';
+                    text_input.className = 'announcement-input';
+                    text_input.id = 'announcement-text';
+                    text_input.style.height = '200px';
+                    text_input.style.width = '80%';
+                    text_input.value = announcement.text_markdown;
+
+                    const submit_button = document.createElement('button');
+                    submit_button.innerHTML = 'Submit';
+                    submit_button.className = 'create-announcement-button';
+                    submit_button.onclick = () => {
+                        play_click();
+                        const json = {
+                            announcement_id: announcement.index,
+                            title: title_input.value,
+                            text_markdown: text_input.value,
+                        };
+
+                        fetch('/api/edit_announcement', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(json),
+                        })
+                            .then(() => {
+                                if (json.error_str) {
+                                    show_register(json.error_str);
+                                    return;
+                                }
+                                hide_all_windows();
+                                get_announcements();
+                            })
+                            .catch((error) => {
+                                console.error('Error:', error);
+                            });
+                    }
+
+                    create.appendChild(title);
+                    create.appendChild(paragraph);
+                    create.appendChild(document.createElement('br'));
+                    create.appendChild(document.createElement('br'));
+                    create.appendChild(title_input);
+                    create.appendChild(document.createElement('br'));
+                    create.appendChild(document.createElement('br'));
+                    create.appendChild(text_input);
+                    create.appendChild(document.createElement('br'));
+                    create.appendChild(document.createElement('br'));
+                    create.appendChild(submit_button);
+
+                    document.body.appendChild(create);
+                }
+                div.appendChild(edit_button);
+
                 const delete_button = document.createElement('button');
                 delete_button.innerHTML = 'Delete';
                 delete_button.className = 'delete-announcement-button';
                 delete_button.onclick = (event) => {
                     play_click();
-                    event.stopPropagation(); // prevent the announcement from being clicked
+                    event.stopPropagation();
                     fetch('/api/delete_announcement', {
                         method: 'POST',
                         headers: {
