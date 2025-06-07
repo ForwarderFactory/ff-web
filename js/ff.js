@@ -1067,6 +1067,8 @@ function get_announcements() {
 
     w.appendChild(title);
 
+    const is_admin = get_cookie('user_type') === '1';
+
     get_json().then(data => {
        if (!data || !data.announcements || data.announcements.length === 0) {
            const description = document.createElement('description');
@@ -1082,15 +1084,17 @@ function get_announcements() {
            throw new Error('Invalid response from server: ' + JSON.stringify(data));
        }
 
-       const announcements = data.announcements;
+       let announcements = data.announcements;
+       announcements = announcements.map((announcement, index) => ({
+           ...announcement,
+           index,
+       }));
 
-       // sort by publish_timestamp
-        announcements.sort((a, b) => b.publish_timestamp - a.publish_timestamp);
-
-        announcements.forEach(announcement => {
+       announcements.sort((a, b) => b.publish_timestamp - a.publish_timestamp);
+       announcements.forEach(announcement => {
            const div = document.createElement('div');
            div.className = 'announcement_div';
-           div.id = "announcement-" + announcement.id;
+           div.id = "announcement-" + announcement.index;
            div.style.marginBottom = '10px';
            div.style.padding = '10px';
            div.style.borderRadius = '10px';
@@ -1108,6 +1112,34 @@ function get_announcements() {
                return;
            }
 
+           if (is_admin) {
+                const delete_button = document.createElement('button');
+                delete_button.innerHTML = 'Delete';
+                delete_button.className = 'delete-announcement-button';
+                delete_button.onclick = (event) => {
+                    play_click();
+                    event.stopPropagation(); // prevent the announcement from being clicked
+                    fetch('/api/delete_announcement', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ announcement_id: announcement.index }),
+                    })
+                        .then(() => {
+                            const announcement_div = document.getElementById('announcement-' + announcement.index);
+                            if (announcement_div) {
+                                announcement_div.remove();
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                        });
+                }
+
+                div.appendChild(delete_button);
+           }
+
            if (announcement.title) {
                 const title = document.createElement('h1');
                 title.innerHTML = announcement.title;
@@ -1122,6 +1154,21 @@ function get_announcements() {
                 div.appendChild(title);
 
                 let shortened_text = announcement.text_html;
+
+                // remove any non p tags
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(shortened_text, 'text/html');
+                const paragraphs = doc.querySelectorAll('p');
+
+                if (paragraphs.length > 0) {
+                    shortened_text = '';
+                    paragraphs.forEach((p, index) => {
+                        if (index > 0) {
+                            shortened_text += '<br/>';
+                        }
+                        shortened_text += p.innerHTML;
+                    });
+                }
                 if (shortened_text.length > 100) {
                     shortened_text = shortened_text.substring(0, 100) + '...';
                 }

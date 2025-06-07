@@ -282,7 +282,7 @@ void ff::start_server() {
                 {"/api/get_profile", ff::handle_api_get_profile},
                 {"/api/create_announcement", ff::handle_api_create_announcement},
                 {"/api/get_announcements", ff::handle_api_get_announcements},
-                //{"/api/delete_announcements", ff::handle_api_delete_announcements},
+                {"/api/delete_announcement", ff::handle_api_delete_announcements},
                 {"/api/stay_logged_in", ff::handle_api_stay_logged_in},
                 {"/api/try_logout", ff::handle_api_try_logout_endpoint},
             };
