@@ -42,7 +42,7 @@ namespace scrypto {
      * @brief  Function that returns the amount of time in milliseconds since the Unix epoch.
      * @return Returns the amount of milliseconds in the form of a 64 bit integer.
      */
-    int64_t return_unix_timestamp();
+    int64_t return_unix_millis();
     /**
      * @brief  Converts a YYYY-MM-DD format date into Unix millis.
      * @return int64_t

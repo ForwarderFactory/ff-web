@@ -455,22 +455,56 @@ function show_login(_error = "") {
                     show_login(json.error_str);
                     return;
                 } else if (json.key) {
-                    // a session entry has now been created, this was done by the server so
-                    // we don't need to do anything.
-                    // however, we have a key, though it's only useful if we can't use
-                    // cookies for some reason (e.g. if we're using a different device)
-                    // let's redir to the home page
-                    window.location.href = '/';
+                    const login = create_window('login-window');
+                    const title = document.createElement('h1');
+
+                    title.innerHTML = 'Stay logged in?';
+                    title.className = 'floating_window_title';
+
+                    const paragraph = document.createElement('p');
+                    paragraph.innerHTML = 'Do you want to stay logged in? This will allow you to access your account without having to log in again for 30 days, or until Forwarder Factory is updated. Note that this may pose a significant security risk if you are using a shared or public computer.';
+                    paragraph.className = 'floating_window_paragraph';
+                    paragraph.id = 'login-window-paragraph';
+
+                    const yes_button = document.createElement('button');
+                    yes_button.innerHTML = 'Sure!';
+                    yes_button.className = 'login-button';
+                    yes_button.onclick = () => {
+                        // just send an empty request to /api/stay_logged_in
+                        fetch('/api/stay_logged_in', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ key: json.key }),
+                        })
+                            .then(() => {
+                                hide_all_windows();
+                                window.location.reload();
+                            })
+                            .catch((error) => {
+                                console.error('Error:', error);
+                            });
+                    }
+                    const no_button = document.createElement('button');
+                    no_button.innerHTML = 'No thanks';
+                    no_button.className = 'login-button';
+                    no_button.onclick = () => {
+                        window.location.href = '/';
+                    }
+                    no_button.style.marginLeft = '10px';
+                    no_button.style.marginRight = '10px';
+
+                    login.appendChild(title);
+                    login.appendChild(paragraph);
+                    login.appendChild(yes_button);
+                    login.appendChild(no_button);
+
                     return;
                 }
 
                 throw new Error('Invalid response from server: ' + JSON.stringify(json));
             })
-            /*
-            .then(data => {
-                hide_all_windows();
-            })
-            */
             .catch((error) => {
                 console.error('Error:', error);
             });
@@ -1525,14 +1559,24 @@ function show_logout() {
     button.className = 'logout-button';
     button.onclick = () => {
         play_click();
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i];
-            const eq = cookie.indexOf('=');
-            const name = eq > -1 ? cookie.substr(0, eq).trim() : cookie.trim();
-            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
-        }
-        window.location.href = '/';
+        fetch('/api/try_logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+            .then(response => {
+                if (response.status === 204) {
+                    hide_all_windows();
+                    window.location.href = '/';
+                } else {
+                    throw new Error('Logout failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                show_logout('Logout failed. Please try again.');
+            });
     }
 
     const next_button = document.createElement('button');
@@ -3813,7 +3857,7 @@ function show_sandbox(uploader = '') {
                     parent.style.flexWrap = 'wrap';
                     parent.style.gap = '10px';
                     parent.style.paddingTop = '10px';
-                    parent.style.justifyContent = 'center';
+                    parent.style.justifyContent = 'flex-start';
 
                     container.appendChild(parent);
 
@@ -3832,7 +3876,7 @@ function show_sandbox(uploader = '') {
                             parent.style.flexWrap = 'wrap';
                             parent.style.gap = '10px';
                             parent.style.paddingTop = '10px';
-                            parent.style.justifyContent = 'center';
+                            parent.style.justifyContent = 'flex-start';
                             container.appendChild(parent);
                             item_c = 0;
                         }
@@ -4234,7 +4278,7 @@ function show_browse(uploader = '') {
                     parent.style.flexWrap = 'wrap';
                     parent.style.gap = '10px';
                     parent.style.paddingTop = '10px';
-                    parent.style.justifyContent = 'center';
+                    parent.style.justifyContent = 'flex-start';
 
                     container.appendChild(parent);
 
@@ -4253,7 +4297,7 @@ function show_browse(uploader = '') {
                             parent.style.flexWrap = 'wrap';
                             parent.style.gap = '10px';
                             parent.style.paddingTop = '10px';
-                            parent.style.justifyContent = 'center';
+                            parent.style.justifyContent = 'flex-start';
                             container.appendChild(parent);
                             item_c = 0;
                         }

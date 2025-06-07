@@ -96,7 +96,7 @@ std::string ff::upload_file(database& db, const ff::FileConstruct& c) {
     json["username"] = c.username;
     json["ip_address"] = c.ip_address;
     json["user_agent"] = c.user_agent;
-    json["uploaded_at"] = scrypto::return_unix_timestamp();
+    json["uploaded_at"] = scrypto::return_unix_millis();
     json["downloads"] = 0;
     json["downloaders"] = nlohmann::json::array(); /* combine username, ip address, user agent and timestamp */
 
@@ -227,7 +227,7 @@ ff::RetrievedFile ff::download_file(database& db, const ff::UserProperties& prop
     downloaders["username"] = prop.username;
     downloaders["ip_address"] = prop.ip_address;
     downloaders["user_agent"] = prop.user_agent;
-    downloaders["timestamp"] = scrypto::return_unix_timestamp();
+    downloaders["timestamp"] = scrypto::return_unix_millis();
 
     if (prop.username.empty()) {
         downloaders["username"] = "_nouser_";

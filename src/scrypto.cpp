@@ -76,7 +76,7 @@ std::string scrypto::generate_random_string(const int length) {
     return str;
 }
 
-int64_t scrypto::return_unix_timestamp() {
+int64_t scrypto::return_unix_millis() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
@@ -98,7 +98,7 @@ std::string scrypto::generate_key(const std::vector<std::string>& strings) {
         str += it;
     }
 
-    std::string key = sha256hash(str + std::to_string(scrypto::return_unix_timestamp()) + scrypto::generate_random_string());
+    std::string key = sha256hash(str + std::to_string(scrypto::return_unix_millis()) + scrypto::generate_random_string());
 
     // equivalent to boost::erase_all()
     for (auto& it : key) {

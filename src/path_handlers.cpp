@@ -1706,7 +1706,7 @@ limhamn::http::server::response ff::handle_api_create_announcement(const limhamn
     if (input.find("publish_timestamp") != input.end() && input.at("publish_timestamp").is_number_integer()) {
         announcement["publish_timestamp"] = input.at("publish_timestamp").get<int64_t>();
     } else {
-        announcement["publish_timestamp"] = scrypto::return_unix_timestamp();
+        announcement["publish_timestamp"] = scrypto::return_unix_millis();
     }
 
     announcement["author"] = username;
@@ -2239,7 +2239,7 @@ limhamn::http::server::response ff::handle_api_comment_forwarder_endpoint(const 
 
     db_json["reviews"].push_back({
         {"comment", limhamn::http::utils::htmlspecialchars(comment_text)},
-        {"timestamp", scrypto::return_unix_timestamp()},
+        {"timestamp", scrypto::return_unix_millis()},
         {"username", username}
     });
 
@@ -2391,7 +2391,7 @@ limhamn::http::server::response ff::handle_api_comment_file_endpoint(const limha
 
     db_json["reviews"].push_back({
         {"comment", limhamn::http::utils::htmlspecialchars(comment_text)},
-        {"timestamp", scrypto::return_unix_timestamp()},
+        {"timestamp", scrypto::return_unix_millis()},
         {"username", username}
     });
 
@@ -2399,5 +2399,51 @@ limhamn::http::server::response ff::handle_api_comment_file_endpoint(const limha
 
     response.http_status = 204;
     response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+
+    if (request.session_id.empty()) {
+        nlohmann::json json;
+        json["error"] = "FF_SESSION_NOT_FOUND";
+        json["error_str"] = "Session not found.";
+        response.body = json.dump();
+        response.http_status = 400;
+        return response;
+    }
+
+    auto now = scrypto::return_unix_millis();
+    auto expires = now + (30LL * 24 * 60 * 60 * 1000);
+
+    ff::logger.write_to_log(limhamn::logger::type::notice, "Setting session cookie with name: " + settings.session_cookie_name + ", value: " + request.session_id + ", expires: " + std::to_string(expires) + "\n");
+
+    response.cookies.push_back(limhamn::http::server::cookie{
+        .name = settings.session_cookie_name,
+        .expires = expires,
+        .value = request.session_id,
+        .http_only = true,
+        .same_site = "Strict",
+        .path = "/",
+    });
+
+    response.http_status = 204;
+    response.body = "";
+    response.content_type = "application/json";
+
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_try_logout_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+
+    response.content_type = "application/json";
+    response.http_status = 204;
+    response.body = "";
+    response.delete_cookies.push_back(settings.session_cookie_name);
+    response.delete_cookies.push_back("username");
+    response.delete_cookies.push_back("user_type");
+
     return response;
 }

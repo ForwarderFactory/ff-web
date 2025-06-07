@@ -188,7 +188,7 @@ std::pair<ff::LoginStatus, std::string> ff::try_login(database& database, const 
             return {ff::LoginStatus::InvalidPassword, {}};
         }
 
-        const int64_t last_login{scrypto::return_unix_timestamp()};
+        const int64_t last_login{scrypto::return_unix_millis()};
         std::string key{scrypto::generate_key({base_password})};
 
         if (!database.exec("UPDATE users SET updated_at = ?, ip_address = ?, user_agent = ?, key = ? WHERE username = ?;", last_login, base_ip_address, base_user_agent, key, base_username)) {
@@ -232,7 +232,7 @@ ff::AccountCreationStatus ff::make_account(database& database, const std::string
     std::string base_email{email};
     const std::string hashed_password{scrypto::password_hash(password)};
     const std::string key{scrypto::generate_key({base_password})};
-    const int64_t current_time{scrypto::return_unix_timestamp()};
+    const int64_t current_time{scrypto::return_unix_millis()};
     constexpr int uploads{0};
 
     try {
@@ -302,7 +302,7 @@ ff::AccountCreationStatus ff::make_account(database& database, const std::string
 
     if (ff::settings.enable_email_verification && !needs_setup) {
         try {
-            int64_t ct = scrypto::return_unix_timestamp();
+            int64_t ct = scrypto::return_unix_millis();
             std::string activation_url = "/activate/" + scrypto::generate_random_string(32);
             if (!database.exec("INSERT INTO activation_urls (url, created_at, username) VALUES (?, ?, ?);", activation_url, ct, base_username)) {
                 throw std::runtime_error{"Error inserting into the activation_urls table."};
