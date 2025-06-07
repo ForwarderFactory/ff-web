@@ -3076,6 +3076,46 @@ async function draw_article(type, forwarder, id) {
         thumbnail.id = 'view_floating_window_banner_thumbnail';
         thumbnail.style.cursor = 'pointer';
 
+        document.title = forwarder.meta.title || 'Forwarder Details';
+        document.title = forwarder?.meta?.title || 'No title provided';
+
+        const meta_description = document.createElement('meta');
+        meta_description.name = 'description';
+        meta_description.content = forwarder?.meta?.description || 'No description provided';
+        meta_description.id = 'view_floating_window_meta_description';
+
+        const meta_keywords = document.createElement('meta');
+        meta_keywords.name = 'keywords';
+        meta_keywords.content = forwarder?.categories ? forwarder.categories.join(', ') : 'No categories provided';
+        meta_keywords.id = 'view_floating_window_meta_keywords';
+
+        const meta_author = document.createElement('meta');
+        meta_author.name = 'author';
+        meta_author.content = forwarder?.meta?.author || 'Unknown Author';
+        meta_author.id = 'view_floating_window_meta_author';
+
+        const og_title = document.createElement('meta');
+        og_title.setAttribute('property', 'og:title');
+        og_title.content = forwarder?.meta?.title || 'No title provided';
+        og_title.id = 'view_floating_window_og_title';
+
+        const og_description = document.createElement('meta');
+        og_description.setAttribute('property', 'og:description');
+        og_description.content = forwarder?.meta?.description || 'No description provided';
+        og_description.id = 'view_floating_window_og_description';
+
+        const og_image = document.createElement('meta');
+        og_image.setAttribute('property', 'og:image');
+        og_image.content = `/download/${forwarder.banner_thumbnail_download_key}`;
+        og_image.id = 'view_floating_window_og_image';
+
+        document.head.appendChild(meta_description);
+        document.head.appendChild(meta_keywords);
+        document.head.appendChild(meta_author);
+        document.head.appendChild(og_title);
+        document.head.appendChild(og_description);
+        document.head.appendChild(og_image);
+
         let banner = null;
         let is_hover = false;
 
@@ -3142,7 +3182,6 @@ async function draw_article(type, forwarder, id) {
         view_window.appendChild(thumbnail);
     }
 
-
     const title = document.createElement('h1');
     if (forwarder.meta.title) {
         title.innerHTML = forwarder.meta.title;
@@ -3154,7 +3193,7 @@ async function draw_article(type, forwarder, id) {
 
     const uploader = document.createElement('p');
     uploader.className = 'view_floating_window_uploader';
-    if (forwarder.uploader) {
+    if (forwarder.uploader && forwarder.uploader !== '') {
         const profile = await get_profile_for_user(forwarder.uploader);
         if (profile.profile_key === '' || profile.profile_key === undefined) {
             const fa = document.createElement('i');
@@ -3226,7 +3265,6 @@ async function draw_article(type, forwarder, id) {
         star.style.marginRight = '5px';
         star.style.width = '20px';
         star.style.height = '20px';
-        star.style.cursor = 'pointer';
         star.alt = 'Empty star';
 
         if (is_logged_in()) {

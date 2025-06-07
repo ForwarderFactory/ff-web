@@ -41,6 +41,7 @@ namespace ff {
             {"/img/announcements.svg", "/etc/ff/img/announcements.svg"},
             {"/fonts/font.woff2", "/etc/ff/fonts/font.woff2"},
             {"/audio/click.wav", "/etc/ff/audio/click.wav"},
+            {"/img/favicon.ico", "/etc/ff/img/favicon.ico"},
         };
         int64_t max_request_size{250 * 1024 * 1024}; // 250mb
         std::string site_url{"https://forwarderfactory.com"};
