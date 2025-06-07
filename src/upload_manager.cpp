@@ -120,9 +120,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
         db_json["meta"]["description"] = limhamn::http::utils::htmlspecialchars(meta.at("description"));
     }
     std::string title{};
-    std::string title_id{};
-
-    db_json["meta"]["title_id"] = title_id = wad_info.title_id;
+    std::string title_id = wad_info.title_id;
 
     if (meta.find("title") != meta.end() && meta.at("title").is_string() && !meta.at("title").get<std::string>().empty()) {
         if (meta.at("title").size() > 255) {
@@ -196,7 +194,32 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
     } else {
         return {ff::UploadStatus::Failure, ""};
     }
-    db_json["meta"]["vwii_compatible"] = wad_info.supports_vwii;
+
+    if (wad_info.ios == 61) {
+        try {
+            ff::set_ios_in_wad(wad_path, 36);
+        } catch (const std::exception&) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+    }
+
+    bool changed = false;
+    for (auto& it : title_id) {
+        if (it == 'E' || it == 'F' || it == 'J' || it == 'L' || it == 'M' || it == 'N' || it == 'P' || it == 'Q' || it == 'X') {
+            it = 'K';
+            changed = true;
+        }
+    }
+    if (changed) {
+        try {
+            ff::set_title_id_in_wad(wad_path, title_id);
+        } catch (const std::exception&) {
+            return {ff::UploadStatus::Failure, ""};
+        }
+    }
+
+    db_json["meta"]["title_id"] = title_id;
+    db_json["meta"]["vwii_compatible"] = true;
 
     // replace dol in forwarder if applicable
     if (is_forwarder && !location.empty()) {
@@ -215,12 +238,7 @@ std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn:
                 return {ff::UploadStatus::Failure, ""};
             }
 
-            if (!ff::replace_dol_in_wad(wad_path, out_p)) {
-#if FF_DEBUG
-                logger.write_to_log(limhamn::logger::type::notice, "Failed to replace dol in wad\n");
-#endif
-                return {ff::UploadStatus::Failure, ""};
-            }
+            ff::replace_dol_in_wad(wad_path, out_p);
         } catch (const std::exception& e) {
 #if FF_DEBUG
             logger.write_to_log(limhamn::logger::type::notice, "Exception while generating DOL for forwarder: " + location + ", error: " + e.what() + "\n");

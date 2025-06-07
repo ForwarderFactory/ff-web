@@ -331,6 +331,9 @@ namespace ff {
     };
 
     WADInfo get_info_from_wad(const std::string& wad_path);
+    void replace_dol_in_wad(const std::string& wad, const std::string& dol);
+    void set_ios_in_wad(const std::string& wad, int ios);
+    void set_title_id_in_wad(const std::string& wad, const std::string& title_id);
 
     inline static const std::string virtual_stylesheet_path = "/css/index.css";
     inline static const std::string virtual_font_path = "/fonts/font.ttf";
@@ -374,8 +377,6 @@ namespace ff {
     bool convert_to_webp(const std::string& input, const std::string& output);
     bool generate_thumbnail(const std::string& input, const std::string& output);
     std::string get_temp_path();
-
-    bool replace_dol_in_wad(const std::string& wad, const std::string& dol);
 
     std::string get_default_profile();
 

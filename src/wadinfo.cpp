@@ -55,12 +55,66 @@ ff::WADInfo ff::get_info_from_wad(const std::string& wad_path) {
     return ret;
 }
 
-bool ff::replace_dol_in_wad(const std::string& wad, const std::string& dol) {
+void ff::set_ios_in_wad(const std::string& wad, int ios) {
+    auto temp_dir = std::filesystem::temp_directory_path();
+    std::string input_file = (temp_dir / ("in-" + scrypto::generate_random_string(12))).string();
+    std::string output_file_base = (temp_dir / ("out-" + scrypto::generate_random_string(12))).string();
+    std::string output_file = output_file_base + ".wad";
+
+    try {
+        std::filesystem::copy(wad, input_file);
+    } catch (const std::exception& e) {
+        throw std::runtime_error{"Failed to copy WAD file: " + std::string(e.what())};
+    }
+
+    std::string command = "Sharpii WAD -e \"" + input_file + "\" \"" + output_file_base + "\" -ios " + std::to_string(ios);
+#ifdef FF_DEBUG
+    ff::logger.write_to_log(limhamn::logger::type::notice, "Command: " + command + "\n");
+#endif
+    if (std::system(command.c_str()) != 0) {
+        throw std::runtime_error{"Failed to set IOS in WAD file. Command failed."};
+    }
+
+    try {
+        std::filesystem::rename(output_file, wad);
+    } catch (const std::exception& e) {
+        throw std::runtime_error{"Rename failed: " + std::string(e.what())};
+    }
+}
+
+void ff::set_title_id_in_wad(const std::string& wad, const std::string& title_id) {
+    auto temp_dir = std::filesystem::temp_directory_path();
+    std::string input_file = (temp_dir / ("in-" + scrypto::generate_random_string(12))).string();
+    std::string output_file_base = (temp_dir / ("out-" + scrypto::generate_random_string(12))).string();
+    std::string output_file = output_file_base + ".wad";
+
+    try {
+        std::filesystem::copy(wad, input_file);
+    } catch (const std::exception& e) {
+        throw std::runtime_error{"Failed to copy WAD file: " + std::string(e.what())};
+    }
+
+    std::string command = "Sharpii WAD -e \"" + input_file + "\" \"" + output_file_base + "\" -id " + title_id;
+#ifdef FF_DEBUG
+    ff::logger.write_to_log(limhamn::logger::type::notice, "Command: " + command + "\n");
+#endif
+    if (std::system(command.c_str()) != 0) {
+        throw std::runtime_error{"Failed to set title ID in WAD file. Command failed."};
+    }
+
+    try {
+        std::filesystem::rename(output_file, wad);
+    } catch (const std::exception& e) {
+        throw std::runtime_error{"Rename failed: " + std::string(e.what())};
+    }
+}
+
+void ff::replace_dol_in_wad(const std::string& wad, const std::string& dol) {
     if (!std::filesystem::exists(dol)) {
 #ifdef FF_DEBUG
         ff::logger.write_to_log(limhamn::logger::type::notice, "DOL file does not exist: " + dol + "\n");
 #endif
-        return false;
+        throw std::runtime_error{"DOL file does not exist: " + dol};
     }
 
     auto temp_dir = std::filesystem::temp_directory_path();
@@ -76,14 +130,14 @@ bool ff::replace_dol_in_wad(const std::string& wad, const std::string& dol) {
 #ifdef FF_DEBUG
         ff::logger.write_to_log(limhamn::logger::type::error, "Failed to copy files: " + std::string(e.what()) + "\n");
 #endif
-        return false;
+        throw std::runtime_error{"Failed to copy files: " + std::string(e.what())};
     }
 
     if (!std::filesystem::exists(input_file) || !std::filesystem::exists(input_dol)) {
 #ifdef FF_DEBUG
         ff::logger.write_to_log(limhamn::logger::type::error, "Input file or DOL file does not exist after copy.\n");
 #endif
-        return false;
+        throw std::runtime_error{"Input file or DOL file does not exist after copy."};
     }
 
     std::string command = "Sharpii WAD -e \"" + input_file + "\" \"" + output_file_base + "\" -dol \"" + input_dol + "\"";
@@ -104,7 +158,7 @@ bool ff::replace_dol_in_wad(const std::string& wad, const std::string& dol) {
 #endif
 
     if (result_code != 0 || !std::filesystem::exists(output_file)) {
-        return false;
+        throw std::runtime_error{"Failed to replace DOL in WAD file. Command failed or output file does not exist."};
     }
 
     try {
@@ -113,8 +167,6 @@ bool ff::replace_dol_in_wad(const std::string& wad, const std::string& dol) {
 #ifdef FF_DEBUG
         ff::logger.write_to_log(limhamn::logger::type::error, "Rename failed: " + std::string(e.what()) + "\n");
 #endif
-        return false;
+        throw std::runtime_error{"Rename failed: " + std::string(e.what())};
     }
-
-    return std::filesystem::exists(wad);
 }
