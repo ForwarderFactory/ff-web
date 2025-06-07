@@ -53,6 +53,9 @@ tar -xf "$FILENAME" || {
 
 [ -f "Sharpii" ] && {
     echo "Sharpii binary found, moving to ${PREFIX}/bin"
+    [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] && {
+        codesign --sign - --force --preserve-metadata=entitlements,requirements,flags,runtime ./Sharpii
+    }
     mv Sharpii ${PREFIX}/bin/Sharpii || {
         echo "Failed to move Sharpii binary to ${PREFIX}/bin"
         exit 1
