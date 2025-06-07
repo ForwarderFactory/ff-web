@@ -288,6 +288,8 @@ void ff::start_server() {
                 {"/api/edit_announcement", ff::handle_api_edit_announcement},
                 {"/api/stay_logged_in", ff::handle_api_stay_logged_in},
                 {"/api/try_logout", ff::handle_api_try_logout_endpoint},
+                {"/api/delete_forwarder", ff::handle_api_delete_forwarder_endpoint},
+                {"/api/delete_file", ff::handle_api_delete_file_endpoint},
             };
             const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, ff::database&)>> setup_handlers{
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},

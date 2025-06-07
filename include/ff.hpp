@@ -399,6 +399,8 @@ namespace ff {
     limhamn::http::server::response handle_api_try_login_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_try_upload_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_try_upload_file_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_file_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_get_forwarders_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_get_files_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_set_approval_for_uploads_endpoint(const limhamn::http::server::request& request, database& db);

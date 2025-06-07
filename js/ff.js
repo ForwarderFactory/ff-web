@@ -3200,6 +3200,50 @@ function update_stars_for_file(id, stars) {
         });
 }
 
+function delete_forwarder(id) {
+    const json = {
+        forwarder_identifier: id
+    };
+
+    fetch('/api/delete_forwarder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_browse();
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function delete_file(id) {
+    const json = {
+        file_identifier: id
+    };
+
+    fetch('/api/delete_file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_sandbox();
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
 function update_stars_for_forwarder(id, stars) {
     const json = {
         forwarder_identifier: id,
@@ -3721,6 +3765,59 @@ async function draw_article(type, forwarder, id) {
 
         view_window.appendChild(accept_button);
         view_window.appendChild(reject_button);
+    }
+    if (get_cookie('username') === forwarder.uploader || get_cookie('user_type') === '1') {
+        const delete_button = document.createElement('button');
+        delete_button.innerHTML = 'Delete';
+        delete_button.className = 'view_floating_window_delete';
+        delete_button.onclick = () => {
+            play_click();
+
+            const confirmation = create_window('confirmation-window');
+
+            const confirmation_title = document.createElement('h1');
+            confirmation_title.innerHTML = 'Are you sure?';
+            confirmation_title.className = 'confirmation_window_title';
+            confirmation_title.id = 'confirmation-window-title';
+
+            const confirmation_text = document.createElement('p');
+            confirmation_text.innerHTML = 'Are you sure you want to delete this? This action cannot be undone.';
+            confirmation_text.className = 'confirmation_window_text';
+            confirmation_text.id = 'confirmation-window-text';
+
+            const yes_button = document.createElement('button');
+            yes_button.innerHTML = 'Yes';
+            yes_button.className = 'confirmation_window_yes';
+            yes_button.id = 'confirmation-window-yes';
+            yes_button.style.marginRight = '10px';
+            yes_button.onclick = () => {
+                play_click();
+
+                confirmation.remove();
+
+                if (type === Forwarder) {
+                    delete_forwarder(id);
+                } else {
+                    delete_file(id);
+                }
+            }
+
+            const no_button = document.createElement('button');
+            no_button.innerHTML = 'No';
+            no_button.className = 'confirmation_window_no';
+            no_button.id = 'confirmation-window-no';
+            no_button.onclick = () => {
+                play_click();
+                draw_article(type, forwarder, id);
+            }
+
+            confirmation.appendChild(confirmation_title);
+            confirmation.appendChild(confirmation_text);
+            confirmation.appendChild(yes_button);
+            confirmation.appendChild(no_button);
+        }
+
+        view_window.appendChild(delete_button);
     }
 
     const post_comment = document.createElement('div');

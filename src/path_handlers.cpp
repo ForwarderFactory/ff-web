@@ -3083,6 +3083,238 @@ limhamn::http::server::response ff::handle_api_delete_comment_file_endpoint(cons
     return response;
 }
 
+limhamn::http::server::response ff::handle_api_delete_file_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("file_identifier") || !json.at("file_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string& file_identifier = json.at("file_identifier").get<std::string>();
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", file_identifier));
+        const auto& uploader = db_json.at("uploader").get<std::string>();
+        if (username != uploader && get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only delete your own files";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+        db.exec("DELETE FROM sandbox WHERE identifier = ?", file_identifier);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_delete_forwarder_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("forwarder_identifier") || !json.at("forwarder_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string& forwarder_identifier = json.at("forwarder_identifier").get<std::string>();
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", forwarder_identifier));
+        const auto& uploader = db_json.at("uploader").get<std::string>();
+        if (username != uploader && get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only delete your own files";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+        db.exec("DELETE FROM forwarders WHERE identifier = ?", forwarder_identifier);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
 limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
