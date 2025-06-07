@@ -2427,6 +2427,18 @@ limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::htt
         .same_site = "Strict",
         .path = "/",
     });
+    for (const auto& it : request.cookies) {
+        if (it.name == "username" || it.name == "user_type") {
+            response.cookies.push_back(limhamn::http::server::cookie{
+                .name = it.name,
+                .expires = expires,
+                .value = it.value,
+                .http_only = true,
+                .same_site = "Strict",
+                .path = "/",
+            });
+        }
+    }
 
     response.http_status = 204;
     response.body = "";
