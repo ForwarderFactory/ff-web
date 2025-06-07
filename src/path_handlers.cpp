@@ -2421,21 +2421,21 @@ limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::htt
 
     response.cookies.push_back(limhamn::http::server::cookie{
         .name = settings.session_cookie_name,
-        .expires = expires,
         .value = request.session_id,
-        .http_only = true,
-        .same_site = "Strict",
+        .expires = expires,
         .path = "/",
+        .same_site = "Strict",
+        .http_only = true,
     });
     for (const auto& it : request.cookies) {
         if (it.name == "username" || it.name == "user_type") {
             response.cookies.push_back(limhamn::http::server::cookie{
                 .name = it.name,
-                .expires = expires,
                 .value = it.value,
-                .http_only = true,
-                .same_site = "Strict",
+                .expires = expires,
                 .path = "/",
+                .same_site = "Strict",
+                .http_only = true,
             });
         }
     }
