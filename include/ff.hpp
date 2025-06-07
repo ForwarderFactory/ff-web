@@ -412,6 +412,8 @@ namespace ff {
     limhamn::http::server::response handle_api_rate_file_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_comment_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_comment_file_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_comment_forwarder_endpoint(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_comment_file_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_stay_logged_in(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_try_logout_endpoint(const limhamn::http::server::request& request, database& db);
 } // namespace ff

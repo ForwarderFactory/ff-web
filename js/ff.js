@@ -3131,6 +3131,52 @@ function post_comment_file(id, comment_str) {
         });
 }
 
+function delete_comment_file(id, comment_id) {
+    const json = {
+        file_identifier: id,
+        comment_identifier: comment_id
+    };
+
+    fetch('/api/delete_comment_file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_file(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function delete_comment_forwarder(id, comment_id) {
+    const json = {
+        forwarder_identifier: id,
+        comment_identifier: comment_id
+    };
+
+    fetch('/api/delete_comment_forwarder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(json),
+    })
+        .then(response => {
+            if (response.status === 204) {
+                show_forwarder(id);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
 function update_stars_for_file(id, stars) {
     const json = {
         file_identifier: id,
@@ -3745,7 +3791,7 @@ async function draw_article(type, forwarder, id) {
         const next = reviews.slice(index, index + bsize);
         index += bsize;
 
-        for (const review of  next) {
+        for (const [comment_id, review] of next.entries()) {
             const profile = await get_profile_for_user(review.username);
 
             const comment_div = document.createElement('div');
@@ -3773,6 +3819,20 @@ async function draw_article(type, forwarder, id) {
             const comment_author = document.createElement('span');
             comment_author.className = 'view_floating_window_comment_author';
             comment_author.innerHTML = `<strong>${review.username} </strong>`;
+
+            if (comment_author === get_cookie("username") || get_cookie("user_type") === '1') {
+                const delete_button = document.createElement('button');
+                delete_button.className = 'view_floating_window_comment_delete';
+                delete_button.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                delete_button.onclick = () => {
+                    if (type === Forwarder) {
+                        delete_comment_forwarder(id, comment_id);
+                    } else {
+                        delete_comment_file(id, comment_id);
+                    }
+                };
+                comment_author.appendChild(delete_button);
+            }
 
             const comment_date = document.createElement('span');
             comment_date.className = 'view_floating_window_comment_date';

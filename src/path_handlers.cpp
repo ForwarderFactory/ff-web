@@ -1352,11 +1352,11 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
                 try {
                     json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", identifier));
                 } catch (const std::exception&) {
-                    nlohmann::json json;
-                    json["error_str"] = "Invalid JSON received";
-                    json["error"] = "FF_INVALID_JSON";
+                    nlohmann::json _json;
+                    _json["error_str"] = "Invalid JSON received";
+                    _json["error"] = "FF_INVALID_JSON";
                     response.http_status = 400;
-                    response.body = json.dump();
+                    response.body = _json.dump();
                     return response;
                 }
 
@@ -2769,6 +2769,320 @@ limhamn::http::server::response ff::handle_api_comment_file_endpoint(const limha
     return response;
 }
 
+limhamn::http::server::response ff::handle_api_delete_comment_forwarder_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("forwarder_identifier") || !json.at("forwarder_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("comment_identifier") || !json.at("comment_identifier").is_number_integer()) {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string forwarder_identifier = json.at("forwarder_identifier").get<std::string>();
+    if (forwarder_identifier.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "forwarder_identifier is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const int comment_identifier = json.at("comment_identifier").get<int>();
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", forwarder_identifier));
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+    if (db_json.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "Forwarder not found";
+        ret["error"] = "FF_FORWARDER_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    auto& reviews = db_json["reviews"];
+    if (reviews.is_array() && comment_identifier >= 0 && comment_identifier < static_cast<int>(reviews.size())) {
+        // it must have the same username as the user who is trying to delete the comment OR user_type must be Administrator
+        if ((reviews[comment_identifier].find("username") == reviews[comment_identifier].end() ||
+            reviews[comment_identifier].at("username").get<std::string>() != username) && get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only delete your own comments";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+        reviews.erase(reviews.begin() + comment_identifier);
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid comment_identifier";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    ff::set_json_in_table(db, "forwarders", "identifier", forwarder_identifier, db_json.dump());
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_delete_comment_file_endpoint(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("file_identifier") || !json.at("file_identifier").is_string()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (!json.contains("comment_identifier") || !json.at("comment_identifier").is_number_integer()) {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_identifier is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const std::string file_identifier = json.at("file_identifier").get<std::string>();
+    if (file_identifier.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "file_identifier is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    const int comment_identifier = json.at("comment_identifier").get<int>();
+
+    nlohmann::json db_json;
+    try {
+        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", file_identifier));
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+    if (db_json.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "File not found";
+        ret["error"] = "FF_FILE_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    auto& reviews = db_json["reviews"];
+    if (reviews.is_array() && comment_identifier >= 0 && comment_identifier < static_cast<int>(reviews.size())) {
+        // it must have the same username as the user who is trying to delete the comment OR user_type must be Administrator
+        if ((reviews[comment_identifier].find("username") == reviews[comment_identifier].end() ||
+            reviews[comment_identifier].at("username").get<std::string>() != username) && get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only delete your own comments";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+        reviews.erase(reviews.begin() + comment_identifier);
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid comment_identifier";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    ff::set_json_in_table(db, "sandbox", "identifier", file_identifier, db_json.dump());
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
 limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
@@ -2820,9 +3134,9 @@ limhamn::http::server::response ff::handle_api_try_logout_endpoint(const limhamn
     response.content_type = "application/json";
     response.http_status = 204;
     response.body = "";
-    response.delete_cookies.push_back(settings.session_cookie_name);
-    response.delete_cookies.push_back("username");
-    response.delete_cookies.push_back("user_type");
+    response.delete_cookies.emplace_back(settings.session_cookie_name);
+    response.delete_cookies.emplace_back("username");
+    response.delete_cookies.emplace_back("user_type");
 
     return response;
 }

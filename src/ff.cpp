@@ -278,6 +278,8 @@ void ff::start_server() {
                 {"/api/rate_file", ff::handle_api_rate_file_endpoint},
                 {"/api/comment_forwarder", ff::handle_api_comment_forwarder_endpoint},
                 {"/api/comment_file", ff::handle_api_comment_file_endpoint},
+                {"/api/delete_comment_forwarder", ff::handle_api_delete_comment_forwarder_endpoint},
+                {"/api/delete_comment_file", ff::handle_api_delete_comment_file_endpoint},
                 {"/api/update_profile", ff::handle_api_update_profile},
                 {"/api/get_profile", ff::handle_api_get_profile},
                 {"/api/create_announcement", ff::handle_api_create_announcement},
