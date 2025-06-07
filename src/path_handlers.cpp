@@ -2435,7 +2435,7 @@ limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::htt
                 .expires = expires,
                 .path = "/",
                 .same_site = "Strict",
-                .http_only = true,
+                .http_only = false,
             });
         }
     }
