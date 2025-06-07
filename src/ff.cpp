@@ -239,6 +239,10 @@ void ff::start_server() {
             .enable_session = true,
             .session_directory = settings.session_directory,
             .session_cookie_name = settings.session_cookie_name,
+            .associated_session_cookies = {
+                "username",
+                "user_type",
+            },
             .max_request_size = settings.max_request_size,
             .rate_limits = {},
             .blacklisted_ips = settings.blacklisted_ips,
