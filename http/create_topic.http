@@ -1,0 +1,11 @@
+POST /api/create_topic HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+    "title": "New Topic",
+    "description": "This is a new topic created for testing purposes.",
+
+    "username": "jacob",
+    "key": "baR5ZE7v07z5MygYKlHuWUPJbB0pDDkfmLFNbMuna6lrrwxOH96zQXJojUrUtHq2"
+}

@@ -79,6 +79,7 @@ ff::Settings ff::load_settings(const std::string& _config_file) {
         if (config["upload"]["convert_images_to_webp"]) settings.convert_images_to_webp = config["upload"]["convert_images_to_webp"].as<bool>();
         if (config["upload"]["convert_videos_to_webm"]) settings.convert_videos_to_webm = config["upload"]["convert_videos_to_webm"].as<bool>();
         if (config["download"]["preview_files"]) settings.preview_files = config["download"]["preview_files"].as<bool>();
+    	if (config["topic"]["topics_require_admin"]) settings.topics_require_admin = config["topic"]["topics_require_admin"].as<bool>();
         if (config["smtp"]["server"]) settings.smtp_server = config["smtp"]["server"].as<std::string>();
         if (config["smtp"]["port"]) settings.smtp_port = config["smtp"]["port"].as<int>();
         if (config["smtp"]["username"]) settings.email_username = config["smtp"]["username"].as<std::string>();
@@ -278,6 +279,10 @@ std::string ff::generate_default_config() {
     ss << "  convert_images_to_webp: " << (ff::settings.convert_images_to_webp ? "true" : "false") << "\n";
     ss << "  convert_videos_to_webm: " << (ff::settings.convert_videos_to_webm ? "true" : "false") << "\n";
     ss << "\n";
+	ss << "# Topic options:\n";
+	ss << "#   topics_require_admin: Whether to require admin when creating topics.\n";
+	ss << "topic:\n";
+	ss << "  topics_require_admin: " << (ff::settings.topics_require_admin ? "true" : "false") << "\n";
     ss << "# Download options:\n";
     ss << "#   preview_files: Whether to preview files in the browser when downloading them.\n";
     ss << "download:\n";

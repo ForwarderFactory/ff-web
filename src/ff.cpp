@@ -290,6 +290,20 @@ void ff::start_server() {
                 {"/api/try_logout", ff::handle_api_try_logout_endpoint},
                 {"/api/delete_forwarder", ff::handle_api_delete_forwarder_endpoint},
                 {"/api/delete_file", ff::handle_api_delete_file_endpoint},
+
+                {"/api/create_post", ff::handle_api_create_post},
+                {"/api/delete_post", ff::handle_api_delete_post},
+                {"/api/edit_post", ff::handle_api_edit_post},
+                {"/api/close_post", ff::handle_api_close_post},
+                {"/api/get_posts", ff::handle_api_get_posts},
+                {"/api/comment_post", ff::handle_api_comment_post},
+                {"/api/delete_comment_post", ff::handle_api_delete_comment_post},
+                {"/api/create_topic", ff::handle_api_create_topic},
+                {"/api/delete_topic", ff::handle_api_delete_topic},
+                {"/api/get_topics", ff::handle_api_get_topics},
+                {"/api/edit_topic", ff::handle_api_edit_topic},
+                {"/api/close_topic", ff::handle_api_close_topic},
+                //{"/api/pin_post_to_topic", ff::handle_api_pin_post_to_topic},
             };
             const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, ff::database&)>> setup_handlers{
                 {virtual_favicon_path, ff::handle_virtual_favicon_endpoint},
@@ -376,6 +390,10 @@ void ff::start_server() {
             } else if (file.find("/file/") != std::string::npos) {
                 return handlers.at("/")(request, *database);
             } else if (file.find("/profile/") != std::string::npos) {
+                return handlers.at("/")(request, *database);
+            } else if (file.find("/topic") != std::string::npos) {
+                return handlers.at("/")(request, *database);
+            } else if (file.find("/post/") != std::string::npos) {
                 return handlers.at("/")(request, *database);
             }
 

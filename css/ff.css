@@ -36,6 +36,10 @@
     background-color: #000000;
     color: #fff;
 }
+#forum-button, #forum-window {
+    background-color: #f0f0f0;
+    color: #000;
+}
 #sandbox-button, #sandbox-window, #file-window {
     background-color: #c4c4c4;
     color: #000;
@@ -203,7 +207,7 @@ body {
     min-height: 60%;
 }
 
-#view-window, #file-window {
+#view-window, #file-window, #forum-window {
     min-width: 70%;
     min-height: 70%;
 }

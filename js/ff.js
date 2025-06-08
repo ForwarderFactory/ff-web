@@ -5210,6 +5210,13 @@ const generate_stars = (n, w) => {
     }
 }
 
+function show_forum_index() {
+    set_path('/topic');
+    hide_initial();
+
+    const forum = create_window('forum-window');
+}
+
 function show_credits() {
     set_path('/');
     hide_initial();
@@ -5501,6 +5508,13 @@ function init_page() {
         id: "sandbox-button",
         onclick: "play_click(); show_sandbox()"
     }))
+    list.push(get_link_box({
+       title: "Forum",
+       description: "Check out the Forwarder Factory forum.",
+        background_color: "",
+        id: "forum-button",
+        onclick: "play_click(); show_forum_index()",
+    }))
 
     if (get_cookie("username") === null) {
         list.push(get_link_box({
@@ -5629,6 +5643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (get_path() === "/admin" && is_logged_in()) show_admin();
     if (get_path() === "/admin" && !is_logged_in()) show_login();
     if (get_path() === "/logout" && is_logged_in()) show_logout();
+    if (get_path() === "/topic") show_forum_index();
 
     if (get_path().startsWith("/view/")) {
         const id = get_path().substring(6);

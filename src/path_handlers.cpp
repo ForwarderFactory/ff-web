@@ -316,6 +316,7 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
     // TODO: Just like the name, this function is UGLY AS FUCK, and does not belong anywhere near
     // a project like this. But I simply cannot be bothered to write a JS minifier myself, nor
     // am I aware of any C++ library for doing such a thing, and I am therefore just going to call uglifyjs.
+#ifndef FF_DEBUG
     const auto uglify_file = [](const std::string& path) -> std::string {
         static const std::string temp_file = settings.temp_directory + "/ff_temp.js";
         if (static_exists.is_file(temp_file)) {
@@ -334,6 +335,7 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
 
         return temp_file;
     };
+#endif
 
 #if FF_DEBUG
     response.body = ff::cache_manager.open_file(settings.script_file);
@@ -3171,9 +3173,8 @@ limhamn::http::server::response ff::handle_api_delete_file_endpoint(const limham
 
     const std::string& file_identifier = json.at("file_identifier").get<std::string>();
 
-    nlohmann::json db_json;
     try {
-        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", file_identifier));
+        nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "sandbox", "identifier", file_identifier));
         const auto& uploader = db_json.at("uploader").get<std::string>();
         if (username != uploader && get_user_type(db, username) != ff::UserType::Administrator) {
             nlohmann::json ret;
@@ -3287,9 +3288,8 @@ limhamn::http::server::response ff::handle_api_delete_forwarder_endpoint(const l
 
     const std::string& forwarder_identifier = json.at("forwarder_identifier").get<std::string>();
 
-    nlohmann::json db_json;
     try {
-        db_json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", forwarder_identifier));
+        nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "forwarders", "identifier", forwarder_identifier));
         const auto& uploader = db_json.at("uploader").get<std::string>();
         if (username != uploader && get_user_type(db, username) != ff::UserType::Administrator) {
             nlohmann::json ret;
@@ -3371,4 +3371,1780 @@ limhamn::http::server::response ff::handle_api_try_logout_endpoint(const limhamn
     response.delete_cookies.emplace_back("user_type");
 
     return response;
+}
+
+limhamn::http::server::response ff::handle_api_create_topic(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	if (get_user_type(db, username) != ff::UserType::Administrator && settings.topics_require_admin) {
+		nlohmann::json ret;
+		ret["error_str"] = "You are not allowed to create topics";
+		ret["error"] = "FF_NOT_AUTHORIZED";
+		response.http_status = 403;
+		response.body = ret.dump();
+		return response;
+	}
+
+    std::string title{};
+    std::string description{};
+    std::string topic_id = scrypto::generate_random_string(4);
+
+    if (json.contains("title") && json.at("title").is_string()) {
+        title = json.at("title").get<std::string>();
+    }
+
+    if (json.contains("description") && json.at("description").is_string()) {
+        description = json.at("description").get<std::string>();
+    }
+
+    if (json.contains("topic_id") && json.at("topic_id").is_string()) {
+        topic_id = json.at("topic_id").get<std::string>();
+    }
+
+    const auto check_if_topic_exists = [&db, &topic_id]() -> bool {
+        try {
+            nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+            return !db_json.empty();
+        } catch (const std::exception&) {
+            return false;
+        }
+    };
+
+    int i = 4;
+    while (check_if_topic_exists()) {
+        topic_id = scrypto::generate_random_string(i);
+        ++i;
+    }
+
+	bool open = true;
+	if (json.contains("open") && json.at("open").is_boolean()) {
+		open = json.at("open").get<bool>();
+	}
+
+    nlohmann::json db_json;
+
+    db_json["title"] = limhamn::http::utils::htmlspecialchars(title);
+    db_json["description"] = limhamn::http::utils::htmlspecialchars(description);
+    db_json["created_by"] = username;
+    db_json["created_at"] = scrypto::return_unix_millis();
+    db_json["identifier"] = topic_id;
+    db_json["topics"] = nlohmann::json::array(); // {identifier, pinned?}
+    db_json["posts"] = nlohmann::json::array(); // {identifier, pinned?}
+    db_json["open"] = open;
+
+    try {
+        ff::set_json_in_table(db, "topics", "identifier", topic_id, db_json.dump());
+    } catch (const std::exception& e) {
+        nlohmann::json ret;
+        ret["error_str"] = "Failed to create topic: " + std::string(e.what());
+        ret["error"] = "FF_DATABASE_ERROR";
+        response.http_status = 500;
+        response.body = ret.dump();
+        return response;
+    }
+
+    nlohmann::json ret;
+    ret["topic_id"] = topic_id;
+
+    response.http_status = 200;
+    response.content_type = "application/json";
+    response.body = ret.dump();
+
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_delete_topic(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    std::string topic_id{};
+    if (json.contains("topic_id") && json.at("topic_id").is_string()) {
+        topic_id = json.at("topic_id").get<std::string>();
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "topic_id is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (topic_id.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "topic_id is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	try {
+		const auto db_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+		if (db_json.empty()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Topic not found";
+			ret["error"] = "FF_TOPIC_NOT_FOUND";
+			response.http_status = 404;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("created_by") != db_json.end() && db_json.at("created_by").get<std::string>() != username &&
+			get_user_type(db, username) != ff::UserType::Administrator) {
+			nlohmann::json ret;
+			ret["error_str"] = "You can only delete your own topics";
+			ret["error"] = "FF_NOT_AUTHORIZED";
+			response.http_status = 403;
+			response.body = ret.dump();
+			return response;
+		}
+	} catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Topic not found";
+        ret["error"] = "FF_TOPIC_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+    try {
+        db.exec("DELETE FROM topics WHERE identifier = ?", topic_id);
+
+    	const auto posts = db.query("SELECT * FROM posts;");
+    	for (const auto& post : posts) {
+    		const auto post_json = nlohmann::json::parse(post.at("json"));
+
+    		if (post_json.contains("topic_id") && post_json.at("topic_id").get<std::string>() == topic_id) {
+    			db.exec("DELETE FROM posts WHERE identifier = ?", post.at("identifier"));
+    		}
+    	}
+    } catch (const std::exception& e) {
+        nlohmann::json ret;
+        ret["error_str"] = "Failed to delete topic: " + std::string(e.what());
+        ret["error"] = "FF_DATABASE_ERROR";
+        response.http_status = 500;
+        response.body = ret.dump();
+        return response;
+    }
+
+    response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_get_topics(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+	int start_index{};
+	int end_index = -1;
+	std::vector<std::string> ids{};
+
+    try {
+		nlohmann::json input_json = nlohmann::json::parse(request.body);
+
+        if (input_json.contains("ids") && input_json.at("ids").is_array()) {
+            for (const auto& it : input_json.at("ids")) {
+                if (it.is_string()) {
+                    ids.push_back(it.get<std::string>());
+                }
+            }
+        }
+
+        if (input_json.contains("start_index") && input_json.at("start_index").is_number_integer()) {
+            start_index = input_json.at("start_index").get<int>();
+        }
+
+        if (input_json.contains("end_index") && input_json.at("end_index").is_number_integer()) {
+            end_index = input_json.at("end_index").get<int>();
+        }
+    } catch (const std::exception&) {}
+
+	nlohmann::json json;
+
+	json["topics"] = nlohmann::json::array();
+
+    try {
+    	auto contents = db.query("SELECT * FROM topics");
+
+    	int i{};
+    	for (const auto& it : contents) {
+    		if (i < start_index) {
+    			++i;
+    			continue;
+    		}
+    		if (end_index >= 0 && i > end_index) {
+    			break;
+    		}
+
+    		const auto db_json = nlohmann::json::parse(it.at("json"));
+
+    		if (!db_json.contains("identifier") || !db_json.at("identifier").is_string()) {
+    			continue;
+    		}
+
+    		if (!ids.empty() && std::find(ids.begin(), ids.end(), db_json.at("identifier").get<std::string>()) == ids.end()) {
+    			continue; // skip if the identifier is not in the list of ids
+    		}
+
+    		json["topics"].push_back(db_json);
+    		++i;
+    	}
+    } catch (const std::exception& e) {
+        nlohmann::json ret;
+        ret["error_str"] = "Failed to get topics: " + std::string(e.what());
+        ret["error"] = "FF_DATABASE_ERROR";
+        response.http_status = 500;
+        response.body = ret.dump();
+        return response;
+    }
+
+    response.http_status = 200;
+    response.body = json.dump();
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_close_topic(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    std::string topic_id{};
+    if (json.contains("topic_id") && json.at("topic_id").is_string()) {
+        topic_id = json.at("topic_id").get<std::string>();
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "topic_id is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+    if (topic_id.empty()) {
+        nlohmann::json ret;
+        ret["error_str"] = "topic_id is empty";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	bool open = false;
+	if (json.contains("open") && json.at("open").is_boolean()) {
+		open = json.at("open").get<bool>();
+	}
+
+    try {
+        nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+        if (db_json.empty()) {
+            nlohmann::json ret;
+            ret["error_str"] = "Topic not found";
+            ret["error"] = "FF_TOPIC_NOT_FOUND";
+            response.http_status = 404;
+            response.body = ret.dump();
+            return response;
+        }
+
+        if (db_json.find("created_by") != db_json.end() && db_json.at("created_by").get<std::string>() != username &&
+            get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only close your own topics";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+        db_json["open"] = open;
+
+        ff::set_json_in_table(db, "topics", "identifier", topic_id, db_json.dump());
+    } catch (const std::exception&) {
+	    nlohmann::json ret;
+    	ret["error_str"] = "Topic not found";
+    	ret["error"] = "FF_TOPIC_NOT_FOUND";
+    	response.http_status = 404;
+    	response.body = ret.dump();
+    	return response;
+    }
+
+	response.http_status = 204;
+    response.body = "";
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_edit_topic(const limhamn::http::server::request& request, database& db) {
+	limhamn::http::server::response response{};
+	response.content_type = "application/json";
+
+	const auto get_username = [&request]() -> std::string {
+		if (request.session.find("username") != request.session.end()) {
+			return request.session.at("username");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("username") != json.end() && json.at("username").is_string()) {
+				return json.at("username").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const auto get_key = [&request]() -> std::string {
+		if (request.session.find("key") != request.session.end()) {
+			return request.session.at("key");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("key") != json.end() && json.at("key").is_string()) {
+				return json.at("key").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const std::string username{get_username()};
+	const std::string key{get_key()};
+
+	if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Username or key is empty.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Invalid credentials.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse(request.body);
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Invalid JSON";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	std::string topic_id{};
+	if (json.contains("topic_id") && json.at("topic_id").is_string()) {
+		topic_id = json.at("topic_id").get<std::string>();
+	} else {
+		nlohmann::json ret;
+		ret["error_str"] = "topic_id is required";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	if (topic_id.empty()) {
+		nlohmann::json ret;
+		ret["error_str"] = "topic_id is empty";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	try {
+		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+		if (db_json.empty()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Topic not found";
+			ret["error"] = "FF_TOPIC_NOT_FOUND";
+			response.http_status = 404;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("created_by") != db_json.end() && db_json.at("created_by").get<std::string>() != username &&
+            get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only edit your own topics";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+		if (json.contains("title") && json.at("title").is_string()) {
+            db_json["title"] = limhamn::http::utils::htmlspecialchars(json.at("title").get<std::string>());
+        }
+		if (json.contains("description") && json.at("description").is_string()) {
+            db_json["description"] = limhamn::http::utils::htmlspecialchars(json.at("description").get<std::string>());
+        }
+
+		ff::set_json_in_table(db, "topics", "identifier", topic_id, db_json.dump());
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Topic not found";
+		ret["error"] = "FF_TOPIC_NOT_FOUND";
+		response.http_status = 404;
+		response.body = ret.dump();
+		return response;
+	}
+
+	response.http_status = 204;
+	response.body = "";
+	return response;
+}
+
+limhamn::http::server::response ff::handle_api_create_post(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	if (get_user_type(db, username) != ff::UserType::Administrator && settings.topics_require_admin) {
+		nlohmann::json ret;
+		ret["error_str"] = "You are not allowed to create topics";
+		ret["error"] = "FF_NOT_AUTHORIZED";
+		response.http_status = 403;
+		response.body = ret.dump();
+		return response;
+	}
+
+    std::string title{};
+    std::string text{};
+    std::string post_id = scrypto::generate_random_string(4);
+	std::string topic_id{};
+
+    if (json.contains("title") && json.at("title").is_string()) {
+        title = json.at("title").get<std::string>();
+    }
+
+    if (json.contains("text") && json.at("text").is_string()) {
+        text = json.at("description").get<std::string>();
+    }
+
+    if (json.contains("post_id") && json.at("post_id").is_string()) {
+        post_id = json.at("post_id").get<std::string>();
+    }
+
+	if (json.contains("topic_id") && json.at("topic_id").is_string()) {
+		topic_id = json.at("topic_id").get<std::string>();
+	} else {
+		nlohmann::json ret;
+		ret["error_str"] = "topic_id is required";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+    const auto check_if_topic_exists = [&db, &topic_id]() -> bool {
+        try {
+            nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+            return !db_json.empty();
+        } catch (const std::exception&) {
+            return false;
+        }
+    };
+
+	if (!check_if_topic_exists()) {
+		nlohmann::json ret;
+		ret["error_str"] = "Topic not found";
+		ret["error"] = "FF_TOPIC_NOT_FOUND";
+		response.http_status = 404;
+		response.body = ret.dump();
+		return response;
+	}
+
+	const auto check_if_post_exists = [&db, &post_id]() -> bool {
+        try {
+            nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+            return !db_json.empty();
+        } catch (const std::exception&) {
+            return false;
+        }
+    };
+
+    int i = 4;
+    while (check_if_post_exists()) {
+        post_id = scrypto::generate_random_string(i);
+        ++i;
+    }
+
+	bool open = true;
+	if (json.contains("open") && json.at("open").is_boolean()) {
+		open = json.at("open").get<bool>();
+	}
+
+    nlohmann::json db_json;
+
+    db_json["title"] = limhamn::http::utils::htmlspecialchars(title);
+    db_json["text"] = limhamn::http::utils::htmlspecialchars(text);
+    db_json["created_by"] = username;
+    db_json["created_at"] = scrypto::return_unix_millis();
+    db_json["identifier"] = post_id;
+    db_json["open"] = open;
+	db_json["comments"] = nlohmann::json::array();
+    db_json["topic_id"] = topic_id;
+
+    try {
+        ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
+    } catch (const std::exception& e) {
+        nlohmann::json ret;
+        ret["error_str"] = "Failed to create post: " + std::string(e.what());
+        ret["error"] = "FF_DATABASE_ERROR";
+        response.http_status = 500;
+        response.body = ret.dump();
+        return response;
+    }
+
+    nlohmann::json ret;
+	ret["post_id"] = post_id;
+    ret["topic_id"] = topic_id;
+
+    response.http_status = 200;
+    response.content_type = "application/json";
+    response.body = ret.dump();
+
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_delete_post(const limhamn::http::server::request& request, database& db) {
+    limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+    const auto get_username = [&request]() -> std::string {
+        if (request.session.find("username") != request.session.end()) {
+            return request.session.at("username");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("username") != json.end() && json.at("username").is_string()) {
+                return json.at("username").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const auto get_key = [&request]() -> std::string {
+        if (request.session.find("key") != request.session.end()) {
+            return request.session.at("key");
+        }
+
+        try {
+            const auto json = nlohmann::json::parse(request.body);
+            if (json.find("key") != json.end() && json.at("key").is_string()) {
+                return json.at("key").get<std::string>();
+            }
+        } catch (const std::exception&) {
+            // ignore
+        }
+
+        return "";
+    };
+
+    const std::string username{get_username()};
+    const std::string key{get_key()};
+
+    if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Username or key is empty.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+        nlohmann::json json;
+        json["error_str"] = "Invalid credentials.";
+        json["error"] = "FF_INVALID_CREDENTIALS";
+        response.http_status = 400;
+        response.body = json.dump();
+        return response;
+    }
+
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse(request.body);
+    } catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Invalid JSON";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	if (get_user_type(db, username) != ff::UserType::Administrator && settings.topics_require_admin) {
+		nlohmann::json ret;
+		ret["error_str"] = "You are not allowed to create topics";
+		ret["error"] = "FF_NOT_AUTHORIZED";
+		response.http_status = 403;
+		response.body = ret.dump();
+		return response;
+	}
+
+    std::string post_id = scrypto::generate_random_string(4);
+    if (json.contains("post_id") && json.at("post_id").is_string()) {
+        post_id = json.at("post_id").get<std::string>();
+    }
+
+	const auto check_if_post_exists = [&db, &post_id]() -> bool {
+        try {
+            nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+            return !db_json.empty();
+        } catch (const std::exception&) {
+            return false;
+        }
+    };
+
+	if (!check_if_post_exists()) {
+        nlohmann::json ret;
+        ret["error_str"] = "Post not found";
+        ret["error"] = "FF_POST_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+
+	try {
+		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+
+		if (db_json.empty()) {
+            nlohmann::json ret;
+            ret["error_str"] = "Post not found";
+            ret["error"] = "FF_POST_NOT_FOUND";
+            response.http_status = 404;
+            response.body = ret.dump();
+            return response;
+        }
+
+        if (db_json.find("created_by") != db_json.end() && db_json.at("created_by").get<std::string>() != username &&
+            get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only delete your own posts";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+		if (db_json.find("topic_id") != db_json.end() && db_json.at("topic_id").is_string()) {
+            const std::string topic_id = db_json.at("topic_id").get<std::string>();
+            nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+            if (topic_json.empty()) {
+                nlohmann::json ret;
+                ret["error_str"] = "Topic not found";
+                ret["error"] = "FF_TOPIC_NOT_FOUND";
+                response.http_status = 404;
+                response.body = ret.dump();
+                return response;
+            }
+
+            if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+                nlohmann::json ret;
+                ret["error_str"] = "Topic is closed";
+                ret["error"] = "FF_TOPIC_CLOSED";
+                response.http_status = 403;
+                response.body = ret.dump();
+                return response;
+            }
+
+			auto& posts = topic_json["posts"];
+            posts.erase(std::remove_if(posts.begin(), posts.end(),
+                [&post_id](const nlohmann::json& post) {
+                    return post.contains("identifier") && post.at("identifier").get<std::string>() == post_id;
+                }), posts.end());
+
+            ff::set_json_in_table(db, "topics", "identifier", topic_id, topic_json.dump());
+        }
+
+		// now delete the post
+        db.exec("DELETE FROM posts WHERE identifier = ?", post_id);
+
+        response.http_status = 204;
+        response.body = "";
+
+        return response;
+	} catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Post not found";
+        ret["error"] = "FF_POST_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+}
+
+limhamn::http::server::response ff::handle_api_close_post(const limhamn::http::server::request& request, database& db) {
+	limhamn::http::server::response response{};
+	response.content_type = "application/json";
+
+	const auto get_username = [&request]() -> std::string {
+		if (request.session.find("username") != request.session.end()) {
+			return request.session.at("username");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("username") != json.end() && json.at("username").is_string()) {
+				return json.at("username").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const auto get_key = [&request]() -> std::string {
+		if (request.session.find("key") != request.session.end()) {
+			return request.session.at("key");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("key") != json.end() && json.at("key").is_string()) {
+				return json.at("key").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const std::string username{get_username()};
+	const std::string key{get_key()};
+
+	if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Username or key is empty.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Invalid credentials.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse(request.body);
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Invalid JSON";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	std::string post_id{};
+	if (json.contains("post_id") && json.at("post_id").is_string()) {
+		post_id = json.at("post_id").get<std::string>();
+	} else {
+		nlohmann::json ret;
+		ret["error_str"] = "post_id is required";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	if (post_id.empty()) {
+		nlohmann::json ret;
+		ret["error_str"] = "post_id is empty";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	bool open = false;
+	if (json.contains("open") && json.at("open").is_boolean()) {
+        open = json.at("open").get<bool>();
+    }
+
+	try {
+		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+		if (db_json.empty()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Post not found";
+			ret["error"] = "FF_POST_NOT_FOUND";
+			response.http_status = 404;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("created_by") != db_json.end() && db_json.at("created_by").get<std::string>() != username &&
+            get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only close your own posts";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+		if (db_json.find("topic_id") != db_json.end() && db_json.at("topic_id").is_string()) {
+			nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", db_json.at("topic_id").get<std::string>()));
+			if (topic_json.empty()) {
+                nlohmann::json ret;
+                ret["error_str"] = "Topic not found";
+                ret["error"] = "FF_TOPIC_NOT_FOUND";
+                response.http_status = 404;
+                response.body = ret.dump();
+                return response;
+            }
+
+			if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+                nlohmann::json ret;
+                ret["error_str"] = "Topic is closed";
+                ret["error"] = "FF_TOPIC_CLOSED";
+                response.http_status = 403;
+                response.body = ret.dump();
+                return response;
+            }
+		}
+
+		db_json["open"] = open;
+
+		ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Topic not found";
+		ret["error"] = "FF_TOPIC_NOT_FOUND";
+		response.http_status = 404;
+		response.body = ret.dump();
+		return response;
+	}
+
+	response.http_status = 204;
+	response.body = "";
+	return response;
+}
+
+limhamn::http::server::response ff::handle_api_get_posts(const limhamn::http::server::request& request, database& db) {
+	limhamn::http::server::response response{};
+    response.content_type = "application/json";
+
+	std::vector<std::string> ids{};
+	int start_index{};
+	int end_index = -1;
+
+    try {
+		nlohmann::json input_json = nlohmann::json::parse(request.body);
+
+        if (input_json.contains("ids") && input_json.at("ids").is_array()) {
+            for (const auto& it : input_json.at("ids")) {
+                if (it.is_string()) {
+                    ids.push_back(it.get<std::string>());
+                }
+            }
+        }
+
+        if (input_json.contains("start_index") && input_json.at("start_index").is_number_integer()) {
+            start_index = input_json.at("start_index").get<int>();
+        }
+
+        if (input_json.contains("end_index") && input_json.at("end_index").is_number_integer()) {
+            end_index = input_json.at("end_index").get<int>();
+        }
+    } catch (const std::exception&) {}
+
+    nlohmann::json json;
+	json["posts"] = nlohmann::json::array();
+
+    try {
+    	auto contents = db.query("SELECT * FROM posts");
+
+    	int i{};
+    	for (const auto& it : contents) {
+    		if (i < start_index) {
+    			++i;
+    			continue;
+    		}
+    		if (end_index >= 0 && i > end_index) {
+    			break;
+    		}
+
+    		const auto db_json = nlohmann::json::parse(it.at("json"));
+
+    		if (!db_json.contains("identifier") || !db_json.at("identifier").is_string()) {
+    			continue;
+    		}
+
+    		if (!ids.empty() && std::find(ids.begin(), ids.end(), db_json.at("identifier").get<std::string>()) == ids.end()) {
+    			continue; // skip if the identifier is not in the list of ids
+    		}
+
+    		json["posts"].push_back(db_json);
+    		++i;
+    	}
+    } catch (const std::exception& e) {
+        nlohmann::json ret;
+        ret["error_str"] = "Failed to get posts: " + std::string(e.what());
+        ret["error"] = "FF_DATABASE_ERROR";
+        response.http_status = 500;
+        response.body = ret.dump();
+        return response;
+    }
+
+    response.http_status = 200;
+    response.body = json.dump();
+    return response;
+}
+
+limhamn::http::server::response ff::handle_api_edit_post(const limhamn::http::server::request& request, database& db) {
+	limhamn::http::server::response response{};
+	response.content_type = "application/json";
+
+	const auto get_username = [&request]() -> std::string {
+		if (request.session.find("username") != request.session.end()) {
+			return request.session.at("username");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("username") != json.end() && json.at("username").is_string()) {
+				return json.at("username").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const auto get_key = [&request]() -> std::string {
+		if (request.session.find("key") != request.session.end()) {
+			return request.session.at("key");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("key") != json.end() && json.at("key").is_string()) {
+				return json.at("key").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const std::string username{get_username()};
+	const std::string key{get_key()};
+
+	if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Username or key is empty.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Invalid credentials.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse(request.body);
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Invalid JSON";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	std::string post_id{};
+	if (json.contains("post_id") && json.at("post_id").is_string()) {
+        post_id = json.at("post_id").get<std::string>();
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "post_id is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	try {
+		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+		if (db_json.empty()) {
+            nlohmann::json ret;
+            ret["error_str"] = "Post not found";
+            ret["error"] = "FF_POST_NOT_FOUND";
+            response.http_status = 404;
+            response.body = ret.dump();
+            return response;
+        }
+
+		if (db_json.find("created_by") != db_json.end() && db_json.at("created_by").get<std::string>() != username &&
+            get_user_type(db, username) != ff::UserType::Administrator) {
+            nlohmann::json ret;
+            ret["error_str"] = "You can only edit your own posts";
+            ret["error"] = "FF_NOT_AUTHORIZED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+		if (db_json.find("open") != db_json.end() && !db_json.at("open").get<bool>()) {
+            nlohmann::json ret;
+            ret["error_str"] = "Post is closed";
+            ret["error"] = "FF_POST_CLOSED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+		if (db_json.find("topic_id") != db_json.end() && db_json.at("topic_id").is_string()) {
+            nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", db_json.at("topic_id").get<std::string>()));
+            if (topic_json.empty()) {
+                nlohmann::json ret;
+                ret["error_str"] = "Topic not found";
+                ret["error"] = "FF_TOPIC_NOT_FOUND";
+                response.http_status = 404;
+                response.body = ret.dump();
+                return response;
+            }
+
+            if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+                nlohmann::json ret;
+                ret["error_str"] = "Topic is closed";
+                ret["error"] = "FF_TOPIC_CLOSED";
+                response.http_status = 403;
+                response.body = ret.dump();
+                return response;
+            }
+        }
+
+		if (json.contains("title") && json.at("title").is_string()) {
+            db_json["title"] = limhamn::http::utils::htmlspecialchars(json.at("title").get<std::string>());
+        }
+		if (json.contains("text") && json.at("text").is_string()) {
+            db_json["text"] = limhamn::http::utils::htmlspecialchars(json.at("text").get<std::string>());
+        }
+
+		ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
+
+		nlohmann::json ret;
+		ret["post_id"] = post_id;
+		ret["topic_id"] = db_json.at("topic_id").get<std::string>();
+		response.http_status = 200;
+		response.body = ret.dump();
+		return response;
+	} catch (const std::exception&) {
+        nlohmann::json ret;
+        ret["error_str"] = "Post not found";
+        ret["error"] = "FF_POST_NOT_FOUND";
+        response.http_status = 404;
+        response.body = ret.dump();
+        return response;
+    }
+}
+
+limhamn::http::server::response ff::handle_api_comment_post(const limhamn::http::server::request& request, database& db) {
+	limhamn::http::server::response response{};
+	response.content_type = "application/json";
+
+	const auto get_username = [&request]() -> std::string {
+		if (request.session.find("username") != request.session.end()) {
+			return request.session.at("username");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("username") != json.end() && json.at("username").is_string()) {
+				return json.at("username").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const auto get_key = [&request]() -> std::string {
+		if (request.session.find("key") != request.session.end()) {
+			return request.session.at("key");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("key") != json.end() && json.at("key").is_string()) {
+				return json.at("key").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const std::string username{get_username()};
+	const std::string key{get_key()};
+
+	if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Username or key is empty.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Invalid credentials.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse(request.body);
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Invalid JSON";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	std::string post_id{};
+	if (json.contains("post_id") && json.at("post_id").is_string()) {
+		post_id = json.at("post_id").get<std::string>();
+	} else {
+		nlohmann::json ret;
+		ret["error_str"] = "post_id is required";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	std::string comment{};
+	if (json.contains("comment") && json.at("comment").is_string()) {
+        comment = json.at("comment").get<std::string>();
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "comment is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	try {
+		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+		if (db_json.empty()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Post not found";
+			ret["error"] = "FF_POST_NOT_FOUND";
+			response.http_status = 404;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("open") != db_json.end() && !db_json.at("open").get<bool>()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Post is closed";
+			ret["error"] = "FF_POST_CLOSED";
+			response.http_status = 403;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("topic_id") != db_json.end() && db_json.at("topic_id").is_string()) {
+			nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", db_json.at("topic_id").get<std::string>()));
+			if (topic_json.empty()) {
+				nlohmann::json ret;
+				ret["error_str"] = "Topic not found";
+				ret["error"] = "FF_TOPIC_NOT_FOUND";
+				response.http_status = 404;
+				response.body = ret.dump();
+				return response;
+			}
+
+			if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+				nlohmann::json ret;
+				ret["error_str"] = "Topic is closed";
+				ret["error"] = "FF_TOPIC_CLOSED";
+				response.http_status = 403;
+				response.body = ret.dump();
+				return response;
+			}
+		}
+
+		if (db_json.find("comments") == db_json.end() || !db_json.at("comments").is_array()) {
+            db_json["comments"] = nlohmann::json::array();
+        }
+
+		nlohmann::json comment_json;
+		comment_json["comment"] = limhamn::http::utils::htmlspecialchars(comment);
+		comment_json["created_by"] = username;
+		comment_json["created_at"] = scrypto::return_unix_millis();
+
+		db_json["comments"].push_back(comment_json);
+
+		ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
+
+		nlohmann::json ret;
+		ret["post_id"] = post_id;
+		ret["topic_id"] = db_json.at("topic_id").get<std::string>();
+		response.http_status = 200;
+		response.body = ret.dump();
+		return response;
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Post not found";
+		ret["error"] = "FF_POST_NOT_FOUND";
+		response.http_status = 404;
+		response.body = ret.dump();
+		return response;
+	}
+}
+
+limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn::http::server::request& request, database& db) {
+	limhamn::http::server::response response{};
+	response.content_type = "application/json";
+
+	const auto get_username = [&request]() -> std::string {
+		if (request.session.find("username") != request.session.end()) {
+			return request.session.at("username");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("username") != json.end() && json.at("username").is_string()) {
+				return json.at("username").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const auto get_key = [&request]() -> std::string {
+		if (request.session.find("key") != request.session.end()) {
+			return request.session.at("key");
+		}
+
+		try {
+			const auto json = nlohmann::json::parse(request.body);
+			if (json.find("key") != json.end() && json.at("key").is_string()) {
+				return json.at("key").get<std::string>();
+			}
+		} catch (const std::exception&) {
+			// ignore
+		}
+
+		return "";
+	};
+
+	const std::string username{get_username()};
+	const std::string key{get_key()};
+
+	if (username.empty() || key.empty()) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Username or key is empty.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	if (!ff::verify_key(db, username, key)) {
+#ifdef FF_DEBUG
+		logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
+#endif
+		nlohmann::json json;
+		json["error_str"] = "Invalid credentials.";
+		json["error"] = "FF_INVALID_CREDENTIALS";
+		response.http_status = 400;
+		response.body = json.dump();
+		return response;
+	}
+
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse(request.body);
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Invalid JSON";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	std::string post_id{};
+	if (json.contains("post_id") && json.at("post_id").is_string()) {
+		post_id = json.at("post_id").get<std::string>();
+	} else {
+		nlohmann::json ret;
+		ret["error_str"] = "post_id is required";
+		ret["error"] = "FF_INVALID_JSON";
+		response.http_status = 400;
+		response.body = ret.dump();
+		return response;
+	}
+
+	int comment_id{};
+	if (json.contains("comment_id") && json.at("comment_id").is_number_integer()) {
+        comment_id = json.at("comment_id").get<int>();
+    } else {
+        nlohmann::json ret;
+        ret["error_str"] = "comment_id is required";
+        ret["error"] = "FF_INVALID_JSON";
+        response.http_status = 400;
+        response.body = ret.dump();
+        return response;
+    }
+
+	try {
+		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
+		if (db_json.empty()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Post not found";
+			ret["error"] = "FF_POST_NOT_FOUND";
+			response.http_status = 404;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("open") != db_json.end() && !db_json.at("open").get<bool>()) {
+			nlohmann::json ret;
+			ret["error_str"] = "Post is closed";
+			ret["error"] = "FF_POST_CLOSED";
+			response.http_status = 403;
+			response.body = ret.dump();
+			return response;
+		}
+
+		if (db_json.find("topic_id") != db_json.end() && db_json.at("topic_id").is_string()) {
+			nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", db_json.at("topic_id").get<std::string>()));
+			if (topic_json.empty()) {
+				nlohmann::json ret;
+				ret["error_str"] = "Topic not found";
+				ret["error"] = "FF_TOPIC_NOT_FOUND";
+				response.http_status = 404;
+				response.body = ret.dump();
+				return response;
+			}
+
+			if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+				nlohmann::json ret;
+				ret["error_str"] = "Topic is closed";
+				ret["error"] = "FF_TOPIC_CLOSED";
+				response.http_status = 403;
+				response.body = ret.dump();
+				return response;
+			}
+		}
+
+		if (db_json.find("comments") != db_json.end() && db_json.at("comments").is_array()) {
+            auto& comments = db_json["comments"];
+            auto it = std::remove_if(comments.begin(), comments.end(),
+                [&username, &db, comment_id](const nlohmann::json& comment) {
+                	// must be our comment, or we must be an admin
+                    return comment.contains("id") && comment.at("id").get<int>() == comment_id &&
+                           (comment.contains("created_by") && comment.at("created_by").get<std::string>() != username &&
+                            get_user_type(db, username) != ff::UserType::Administrator);
+                });
+            if (it != comments.end()) {
+                comments.erase(it, comments.end());
+            } else {
+                nlohmann::json ret;
+                ret["error_str"] = "Comment not found";
+                ret["error"] = "FF_COMMENT_NOT_FOUND";
+                response.http_status = 404;
+                response.body = ret.dump();
+                return response;
+            }
+        } else {
+            nlohmann::json ret;
+            ret["error_str"] = "No comments found";
+            ret["error"] = "FF_NO_COMMENTS";
+            response.http_status = 404;
+            response.body = ret.dump();
+            return response;
+        }
+
+		nlohmann::json ret;
+		response.http_status = 204;
+		response.body = "";
+		return response;
+	} catch (const std::exception&) {
+		nlohmann::json ret;
+		ret["error_str"] = "Post not found";
+		ret["error"] = "FF_POST_NOT_FOUND";
+		response.http_status = 404;
+		response.body = ret.dump();
+		return response;
+	}
 }

@@ -116,6 +116,7 @@ namespace ff {
         bool cache_exists{false};
         bool convert_images_to_webp{true};
         bool convert_videos_to_webm{false};
+        bool topics_require_admin{false};
     };
 
     enum class AccountCreationStatus {
@@ -418,4 +419,18 @@ namespace ff {
     limhamn::http::server::response handle_api_delete_comment_file_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_stay_logged_in(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_api_try_logout_endpoint(const limhamn::http::server::request& request, database& db);
+
+    limhamn::http::server::response handle_api_create_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_edit_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_close_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_posts(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_comment_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_comment_post(const limhamn::http::server::request& request, database& db);
+
+    limhamn::http::server::response handle_api_create_topic(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_delete_topic(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_get_topics(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_edit_topic(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response handle_api_close_topic(const limhamn::http::server::request& request, database& db);
 } // namespace ff
