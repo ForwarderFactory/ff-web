@@ -282,10 +282,10 @@ function create_window(id, prop = new WindowProperties()){
     if (prop.remove_existing) {
         const windows = document.getElementsByClassName('floating_window');
         for (let i = 0; i < windows.length; i++) {
-            windows[i].style.display = 'none';
             while (windows[i].firstChild) {
                 windows[i].removeChild(windows[i].firstChild);
             }
+            windows[i].remove();
         }
     }
     // remove existing with same id always
@@ -306,7 +306,12 @@ function create_window(id, prop = new WindowProperties()){
                     prop.function_on_close();
                     return;
                 }
-                hide_all_windows();
+                //hide_all_windows();
+                window.remove();
+                const windows = document.getElementsByClassName('floating_window');
+                if (windows.length === 0) {
+                    hide_all_windows();
+                }
             }
         }
     }
@@ -317,7 +322,12 @@ function create_window(id, prop = new WindowProperties()){
                     prop.function_on_close();
                     return;
                 }
-                hide_all_windows();
+                //hide_all_windows();
+                window.remove();
+                const windows = document.getElementsByClassName('floating_window');
+                if (windows.length === 0) {
+                    hide_all_windows();
+                }
             }
         }
     }
@@ -365,7 +375,11 @@ function create_window(id, prop = new WindowProperties()){
                 prop.function_on_close();
                 return;
             }
-            hide_all_windows();
+            window.remove();
+            const windows = document.getElementsByClassName('floating_window');
+            if (windows.length === 0) {
+                hide_all_windows();
+            }
         }
 
         window.appendChild(close);
@@ -5210,11 +5224,288 @@ const generate_stars = (n, w) => {
     }
 }
 
-function show_forum_index() {
+function get_posts(topic_id, start_index = 0, end_index = -1) {
+    if (topic_id == null || topic_id === '') {
+        return Promise.resolve([]);
+    }
+
+    const url = '/api/get_posts';
+    const requestBody = JSON.stringify({ topic_id: topic_id, start_index: start_index, end_index: end_index });
+    return fetch(url, {
+        method: 'POST',
+        body: requestBody,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then (response => response.text())
+    .then (text => {
+        const json = JSON.parse(text);
+        if (json.error) {
+            console.error(json.error);
+            return Promise.resolve([]);
+        }
+
+        return json.posts;
+    })
+    .catch(error => {
+        console.error('Error fetching posts:', error);
+        return Promise.resolve([]);
+    });
+}
+
+function get_topics(start_index = 0, end_index = -1) {
+    // fetch /api/get_topics
+    const url = '/api/get_topics';
+    const requestBody = JSON.stringify({ start_index: start_index, end_index: end_index });
+    return fetch(url, {
+        method: 'POST',
+        body: requestBody,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.text())
+    .then(text => {
+        const json = JSON.parse(text);
+        if (json.error) {
+            console.error(json.error);
+            return [];
+        }
+
+        return json.topics;
+    })
+    .catch(error => {
+        console.error('Error fetching topics:', error);
+        return [];
+    });
+}
+
+function show_topic(topic_id = '', parent_topic_id = '') {
     set_path('/topic');
     hide_initial();
 
+    if (topic_id !== '') {
+        set_path('/topic/' + topic_id);
+    }
+
     const forum = create_window('forum-window');
+
+    const topics_list = document.createElement('div');
+    topics_list.className = 'forum-topics-list';
+    topics_list.id = 'forum-topics-list';
+
+    const topics = get_topics();
+
+    // iterate over topics and create elements
+    topics.then(topics => {
+        topics.forEach(topic => {
+            if (topic_id === '' || topic_id === null) { // root topic then, we'll show all topics that are not referenced anywhere
+                let found = false;
+                // in that case, the topic.identifier must not be found in any topic's topics array
+                topics.forEach(t => {
+                    if (t.topics && t.topics.includes(topic.identifier)) {
+                        found = true;
+                    }
+                });
+
+                if (found) {
+                    return; // skip this topic if it is a subtopic
+                }
+            } else if (parent_topic_id !== '' && parent_topic_id !== null) {
+                // our topic_id must be found in the parent's topics array
+                if (!topic.topics || !topic.topics.includes(parent_topic_id)) {
+                    return; // skip this topic if it is not a subtopic of the given parent_topic_id
+                }
+            }
+            // same id = skip
+            if (topic.identifier === topic_id) {
+                return;
+            }
+
+            const topic_div = document.createElement('div');
+            topic_div.className = 'forum-topic';
+            topic_div.id = topic.id;
+
+            const title = document.createElement('strong');
+            title.innerHTML = topic.title;
+            title.className = 'forum-topic-title';
+
+            const description = document.createElement('p');
+            description.innerHTML = topic.description;
+            description.className = 'forum-topic-description';
+            if (description.innerHTML.length > 100) {
+                description.innerHTML = description.innerHTML.substring(0, 100) + '...';
+            }
+
+            const author = document.createElement('p');
+            author.innerHTML = `Posted by ${topic.created_by} on ${new Date(topic.created_at).toLocaleDateString()}`;
+            author.className = 'forum-topic-author';
+
+            topic_div.appendChild(title);
+            topic_div.appendChild(author);
+            topic_div.appendChild(description);
+
+            topic_div.onclick = () => {
+                play_click();
+                show_topic(topic.identifier, topic_id);
+            };
+
+            topics_list.appendChild(topic_div);
+        });
+    });
+
+    const posts_div = document.createElement('div');
+    posts_div.className = 'forum-posts-list';
+    posts_div.id = 'forum-posts-list';
+
+    const posts = get_posts(topic_id);
+    posts.then(posts => {
+        posts.forEach(post => {
+            const post_div = document.createElement('div');
+            post_div.className = 'forum-post';
+            post_div.id = post.id;
+
+            const author = document.createElement('strong');
+            author.innerHTML = post.created_by;
+            author.className = 'forum-post-author';
+
+            const content = document.createElement('p');
+            content.innerHTML = post.text;
+            content.className = 'forum-post-content';
+
+            const date = document.createElement('p');
+            date.innerHTML = new Date(post.created_at).toLocaleDateString();
+            date.className = 'forum-post-date';
+
+            post_div.appendChild(author);
+            post_div.appendChild(date);
+            post_div.appendChild(content);
+
+            posts_div.appendChild(post_div);
+        });
+    });
+
+    if (is_logged_in() && get_cookie('user_type') === '1') {
+        const create_topic_button = document.createElement('button');
+        create_topic_button.innerHTML = 'Create Topic';
+        create_topic_button.className = 'forum-create-topic-button';
+        create_topic_button.onclick = () => {
+            play_click();
+
+            const window = create_window('create-topic-window', {back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+
+            const title_input = document.createElement('input');
+            title_input.type = 'text';
+            title_input.name = 'title';
+            title_input.placeholder = 'Title';
+
+            const description_input = document.createElement('textarea');
+            description_input.name = 'description';
+            description_input.placeholder = 'Description';
+
+            const button = document.createElement('button');
+            button.innerHTML = 'Create Topic';
+            button.className = 'forum-create-topic-submit-button';
+            button.onclick = () => {
+                if (title_input.value && description_input.value) {
+                    play_click();
+
+                    const json = {
+                        title: title_input.value,
+                        description: description_input.value,
+                    };
+
+                    if (parent_topic_id !== '' && parent_topic_id !== null) {
+                        json.parent_topics = [parent_topic_id];
+                    }
+                    fetch('/api/create_topic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(json)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                show_topic(parent_topic_id);
+                            } else {
+                                alert('Error creating topic: ' + data.error);
+                            }
+                        });
+                }
+            }
+
+            window.appendChild(title_input);
+            window.appendChild(description_input);
+            window.appendChild(button);
+        };
+        forum.appendChild(create_topic_button);
+    }
+    if (is_logged_in() && topic_id !== '' && topic_id !== null) {
+        const create_post_button = document.createElement('button');
+        create_post_button.innerHTML = 'Create Post';
+        create_post_button.className = 'forum-create-post-button';
+        create_post_button.onclick = () => {
+            play_click();
+
+            const window = create_window('create-post-window', {back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+
+            const title = document.createElement('h2');
+            title.innerHTML = 'Create Post';
+            title.className = 'forum-create-post-title';
+
+            const title_input = document.createElement('input');
+            title_input.type = 'text';
+            title_input.name = 'title';
+            title_input.placeholder = 'Title';
+            title_input.className = 'forum-create-post-title-input';
+
+            const content_input = document.createElement('textarea');
+            content_input.name = 'content';
+            content_input.placeholder = 'Content';
+            content_input.className = 'forum-create-post-content-input';
+            content_input.style.height = '200px';
+            content_input.style.width = '80%';
+
+            const button = document.createElement('button');
+            button.innerHTML = 'Create Post';
+            button.className = 'forum-create-post-submit-button';
+            button.onclick = () => {
+                if (content_input.value) {
+                    fetch('/api/create_post', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            topic_id: topic_id,
+                            title: title_input.value,
+                            text: content_input.value,
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                show_topic(topic_id);
+                            } else {
+                                alert('Error creating post: ' + data.error);
+                            }
+                        });
+                }
+            }
+
+            window.appendChild(title);
+            window.appendChild(title_input);
+            window.appendChild(content_input);
+            window.appendChild(button);
+        };
+        forum.appendChild(create_post_button);
+    }
+
+    forum.appendChild(topics_list);
+    forum.appendChild(posts_div);
 }
 
 function show_credits() {
@@ -5513,7 +5804,7 @@ function init_page() {
        description: "Check out the Forwarder Factory forum.",
         background_color: "",
         id: "forum-button",
-        onclick: "play_click(); show_forum_index()",
+        onclick: "play_click(); show_topic()",
     }))
 
     if (get_cookie("username") === null) {
@@ -5643,7 +5934,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (get_path() === "/admin" && is_logged_in()) show_admin();
     if (get_path() === "/admin" && !is_logged_in()) show_login();
     if (get_path() === "/logout" && is_logged_in()) show_logout();
-    if (get_path() === "/topic") show_forum_index();
+    if (get_path() === "/topic") show_topic();
 
     if (get_path().startsWith("/view/")) {
         const id = get_path().substring(6);
@@ -5656,6 +5947,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (get_path().startsWith("/profile/")) {
         const name = get_path().substring(9);
         view_profile(name);
+    }
+    if (get_path().startsWith("/topic/")) {
+        const topic_id = get_path().substring(7);
+        show_topic(topic_id);
     }
 
     print_username(username, display_name, profile_key);

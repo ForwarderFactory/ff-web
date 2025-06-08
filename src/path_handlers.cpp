@@ -3506,8 +3506,38 @@ limhamn::http::server::response ff::handle_api_create_topic(const limhamn::http:
     db_json["posts"] = nlohmann::json::array(); // {identifier, pinned?}
     db_json["open"] = open;
 
+	// if we find parent_topics in the JSON, that means we are creating a sub-topic
+	// this identifier should then be added to the "topics" array of each parent topic
+	if (json.contains("parent_topics") && json.at("parent_topics").is_array()) {
+        for (const auto& parent_topic : json.at("parent_topics")) {
+            if (parent_topic.is_string()) {
+                try {
+                    nlohmann::json parent_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", parent_topic.get<std::string>()));
+                    if (!parent_json.empty()) {
+                        if (parent_json.find("topics") == parent_json.end() || !parent_json.at("topics").is_array()) {
+                            parent_json["topics"] = nlohmann::json::array();
+                        }
+                        parent_json["topics"].push_back(topic_id);
+                        ff::set_json_in_table(db, "topics", "identifier", parent_topic.get<std::string>(), parent_json.dump());
+                    }
+                } catch (const std::exception&) {
+                	nlohmann::json ret;
+                    ret["error_str"] = "Parent topic not found: " + parent_topic.get<std::string>();
+                    ret["error"] = "FF_TOPIC_NOT_FOUND";
+                    response.http_status = 404;
+                    response.body = ret.dump();
+                    return response;
+                }
+            }
+        }
+    }
+
+	// to check if it's a root topic, simply check if its ID is part of any topic's "topics" array
+	// yes -> it's not a root topic because it has parent topics
+	// no -> it's a root topic because it has no parent topics
+
     try {
-        ff::set_json_in_table(db, "topics", "identifier", topic_id, db_json.dump());
+    	db.exec("INSERT INTO topics (identifier, json) VALUES (?, ?)", topic_id, db_json.dump());
     } catch (const std::exception& e) {
         nlohmann::json ret;
         ret["error_str"] = "Failed to create topic: " + std::string(e.what());
@@ -4129,7 +4159,7 @@ limhamn::http::server::response ff::handle_api_create_post(const limhamn::http::
     }
 
     if (json.contains("text") && json.at("text").is_string()) {
-        text = json.at("description").get<std::string>();
+        text = json.at("text").get<std::string>();
     }
 
     if (json.contains("post_id") && json.at("post_id").is_string()) {
@@ -4197,7 +4227,33 @@ limhamn::http::server::response ff::handle_api_create_post(const limhamn::http::
     db_json["topic_id"] = topic_id;
 
     try {
-        ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
+    	nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
+
+    	if (topic_json.empty()) {
+            nlohmann::json ret;
+            ret["error_str"] = "Topic not found";
+            ret["error"] = "FF_TOPIC_NOT_FOUND";
+            response.http_status = 404;
+            response.body = ret.dump();
+            return response;
+        }
+    	if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+            nlohmann::json ret;
+            ret["error_str"] = "Topic is closed";
+            ret["error"] = "FF_TOPIC_CLOSED";
+            response.http_status = 403;
+            response.body = ret.dump();
+            return response;
+        }
+
+        if (topic_json.find("posts") == topic_json.end() || !topic_json.at("posts").is_array()) {
+            topic_json["posts"] = nlohmann::json::array();
+        }
+        topic_json["posts"].push_back(post_id);
+
+    	db.exec("INSERT INTO posts (identifier, json) VALUES (?, ?)", post_id, db_json.dump());
+
+        ff::set_json_in_table(db, "topics", "identifier", topic_id, topic_json.dump());
     } catch (const std::exception& e) {
         nlohmann::json ret;
         ret["error_str"] = "Failed to create post: " + std::string(e.what());
