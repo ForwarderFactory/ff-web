@@ -24,6 +24,7 @@ set(PROJECT_SOURCE_FILES
     src/av_io.cpp
     src/wadinfo.cpp
     src/dol.cpp
+    src/post_handlers.cpp
 )
 
 include_directories(include)

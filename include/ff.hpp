@@ -390,6 +390,9 @@ namespace ff {
 
     bool is_file(database& db, const std::string& file_key);
 
+    limhamn::http::server::response try_upload_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response try_upload_post_comment(const limhamn::http::server::request& request, database& db);
+
     limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_setup_endpoint(const limhamn::http::server::request& request, database& db);

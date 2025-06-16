@@ -249,6 +249,9 @@ void ff::start_server() {
             .whitelisted_ips = settings.whitelisted_ips,
             .default_rate_limit = settings.rate_limit,
             .trust_x_forwarded_for = settings.trust_x_forwarded_for,
+#ifndef FF_DEBUG
+        	.secure = true,
+#endif
             }, [&](const limhamn::http::server::request& request) -> limhamn::http::server::response {
             ff::logger.write_to_log(limhamn::logger::type::access, "Request received from " + request.ip_address + " to " + request.endpoint + " received, handling it.\n");
 
@@ -261,6 +264,9 @@ void ff::start_server() {
                 {"/browse", ff::handle_root_endpoint},
                 {"/sandbox", ff::handle_root_endpoint},
                 {"/view", ff::handle_root_endpoint},
+                {"/post", ff::handle_root_endpoint},
+                {"/forum", ff::handle_root_endpoint},
+                {"/topic", ff::handle_root_endpoint},
                 {"/upload", ff::handle_root_endpoint},
                 {"/login", ff::handle_root_endpoint},
                 {"/register", ff::handle_root_endpoint},

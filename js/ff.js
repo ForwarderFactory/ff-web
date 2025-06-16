@@ -260,7 +260,7 @@ function hide_initial() {
 
 class WindowProperties {
     constructor({
-        back_button = null,
+        classes = [],
         close_button = true,
         moveable = false,
         close_on_click_outside = false,
@@ -268,7 +268,7 @@ class WindowProperties {
         remove_existing = true,
         function_on_close = null
     } = {}) {
-        this.back_button = back_button;
+        this.classes = classes;
         this.close_button = close_button;
         this.moveable = moveable;
         this.close_on_click_outside = close_on_click_outside;
@@ -298,6 +298,13 @@ function create_window(id, prop = new WindowProperties()){
     }
     const window = document.createElement('div');
     window.className = 'floating_window';
+
+    if (prop.classes && prop.classes.length > 0) {
+        for (const cls of prop.classes) {
+            window.classList.add(cls);
+        }
+    }
+
     window.id = id;
     if (prop.close_on_click_outside) {
         window.onclick = (event) => {
@@ -322,7 +329,7 @@ function create_window(id, prop = new WindowProperties()){
                     prop.function_on_close();
                     return;
                 }
-                //hide_all_windows();
+
                 window.remove();
                 const windows = document.getElementsByClassName('floating_window');
                 if (windows.length === 0) {
@@ -384,25 +391,6 @@ function create_window(id, prop = new WindowProperties()){
 
         window.appendChild(close);
     }
-    if (prop.back_button) {
-        const back = document.createElement('a');
-        back.innerHTML = '←';
-        back.id = 'window-back';
-        back.style.position = 'fixed';
-        back.style.padding = '10px';
-        back.style.top = '0';
-        back.style.left = '0';
-        back.style.textDecoration = 'none';
-        back.style.color = 'black';
-        back.onclick = () => {
-            play_click();
-            if (prop.function_on_close) {
-                prop.function_on_close();
-            }
-        }
-
-        window.appendChild(back);
-    }
 
     document.body.appendChild(window);
 
@@ -411,28 +399,31 @@ function create_window(id, prop = new WindowProperties()){
 
 function show_terms() {
     play_click();
-    const terms = create_window('terms-window');
+    const terms = create_window('tos-window');
 
     const title = document.createElement('h1');
     title.innerHTML = 'Terms of Service';
 
     const paragraph = document.createElement('p');
-    let terms_str = "By contributing, logging in and/or registering to this website (hereinafter referred to as 'Forwarder Factory'), you agree to the following terms of service:";
-    terms_str += "<br>1. Forwarder Factory, its contributors and its members shall not be held responsible for any damages caused by the use of files, software, information, or any other content found on this website.";
-    terms_str += "<br>2. Forwarder Factory reserves the right to remove any content at any time for any reason, including but not limited to, a DMCA takedown request.";
-    terms_str += "<br>3. Forwarder Factory reserves the right to ban users who upload harmful, malicious or otherwise dangerous content.";
-    terms_str += "<br>4. Forwarder Factory reserves the right to change these terms at any time without notice.";
-    terms_str += "<br>5. Forwarder Factory cannot guarantee it will keep your data safe, and it shall not be held responsible for any data breaches. We therefore highly urge our users not to use the same password on Forwarder Factory as they do on other websites. Data breaches are not expected, but they are possible, and we want to be transparent about it.";
-    terms_str += "<br>6. Any data you submit to Forwarder Factory may be stored indefinitely, until a request for deletion is received. Forwarder Factory will not sell your data to third parties.";
-    terms_str += " In the event of a data breach, we will attempt to notify all affected users as soon as possible, within reason.";
-    terms_str += "<br>European Union: By using this website, you agree to the use of cookies. We only use cookies for session management, not for tracking or advertising purposes. You have the right to request that your data be deleted at any time, and we will comply with any such requests. Send requests in the form of an email to contact@forwarderfactory.com.";
-    terms_str += "<br>Note: Forwarder Factory is not affiliated with Nintendo. All trademarks are property of their respective owners.";
-    terms_str += "<br>Forwarder Factory is hosted in Sweden, and is therefore subject to Swedish law. Uploads that do not comply with Swedish law will be removed on sight, as we are legally required to do so.";
-
-    paragraph.innerHTML = terms_str;
+    paragraph.innerHTML = 'Loading terms...';
 
     terms.appendChild(title);
     terms.appendChild(paragraph);
+
+    fetch('https://raw.githubusercontent.com/ForwarderFactory/documents/refs/heads/master/terms-of-service.txt')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('network response was not ok.');
+            }
+            return response.text();
+        })
+        .then(text => {
+            paragraph.innerHTML = text.replace(/\n/g, '<br>');
+        })
+        .catch(error => {
+            paragraph.innerHTML = 'failed to load terms of service.';
+            console.error('error fetching terms:', error);
+        });
 }
 
 function show_login(_error = "") {
@@ -5204,20 +5195,30 @@ function show_admin() {
     unfinished.className = 'admin-unfinished';
     admin.appendChild(unfinished);
 }
-const generate_stars = (n, w) => {
+
+function generate_stars(n, w) {
+    const size = 4;
+    const win_box = w.getBoundingClientRect();
+
     for (let i = 0; i < n; i++) {
         const star = document.createElement('div');
 
         star.className = 'star';
         star.style.position = 'absolute';
-        star.style.width = '4px';
-        star.style.height = '4px';
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
         star.style.backgroundColor = 'white';
         star.style.borderRadius = '50%';
-        star.style.top = `${Math.random() * 100}%`;
-        star.style.left = `${Math.random() * 100}%`;
+
+        const max_top = w.clientHeight - size;
+        const max_left = w.clientWidth - size;
+
+        star.style.top = `${Math.random() * max_top}px`;
+        star.style.left = `${Math.random() * max_left}px`;
+
         star.style.setProperty('--random-x', Math.random() - 0.5);
         star.style.setProperty('--random-y', Math.random() - 0.5);
+
         star.style.animationDuration = `${Math.random() * 10 + 10}s`;
 
         w.appendChild(star);
@@ -5281,51 +5282,124 @@ function get_topics(start_index = 0, end_index = -1) {
     });
 }
 
+function show_post(post_id, topic_id = '') {
+    set_path('/post');
+
+    if (post_id === null || post_id === '') {
+        console.error('post_id is null');
+        return;
+    }
+
+    // get the post from the server
+    const url = '/api/get_posts';
+    const requestBody = JSON.stringify({ post_id: post_id, topic_id: topic_id });
+    fetch(url, {
+        method: 'POST',
+        body: requestBody,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.text())
+    .then(text => {
+        const json = JSON.parse(text);
+        if (json.error) {
+            console.error(json.error);
+            return;
+        }
+
+        const posts = json.posts;
+        let post;
+        posts.forEach(p => {
+            if (p.identifier === post_id) {
+                post = p;
+            }
+        });
+
+        if (post === undefined) {
+            console.error(`Post with ID ${post_id} not found`);
+            return;
+        }
+
+        set_path('/post/' + post_id);
+
+        const post_window = create_window('post-window-' + topic_id || "root" + "-" + post_id || "root", { classes: ["forum_window"], close_button: true, back_button: null });
+
+        const title = document.createElement('h1');
+        title.innerHTML = post.title || 'No title';
+        title.className = 'post-title';
+
+        const author = document.createElement('p');
+        author.innerHTML = `Posted by ${post.created_by} on ${new Date(post.created_at).toLocaleDateString()}`;
+        author.className = 'post-author';
+
+        const content = document.createElement('div');
+        content.innerHTML = post.text || 'No content';
+        content.className = 'post-content';
+
+        post_window.appendChild(title);
+        post_window.appendChild(author);
+        post_window.appendChild(content);
+    })
+}
+
 function show_topic(topic_id = '', parent_topic_id = '') {
     set_path('/topic');
-    hide_initial();
 
     if (topic_id !== '') {
         set_path('/topic/' + topic_id);
     }
 
-    const forum = create_window('forum-window');
+    console.log(`Showing topic: ${topic_id}, parent_topic_id: ${parent_topic_id}`);
+
+    const forum = create_window('forum-window-' + topic_id || 'root', { classes: ["forum_window"]});
 
     const topics_list = document.createElement('div');
     topics_list.className = 'forum-topics-list';
     topics_list.id = 'forum-topics-list';
 
     const topics = get_topics();
+    let current_is_subtopic = false;
 
     // iterate over topics and create elements
     topics.then(topics => {
         topics.forEach(topic => {
-            if (topic_id === '' || topic_id === null) { // root topic then, we'll show all topics that are not referenced anywhere
-                let found = false;
-                // in that case, the topic.identifier must not be found in any topic's topics array
-                topics.forEach(t => {
-                    if (t.topics && t.topics.includes(topic.identifier)) {
-                        found = true;
-                    }
-                });
+            let is_ours = false;
+            // check if this topic is part of any other topics' topics list
+            topics.forEach(t => {
+                if (t.topics && t.topics.includes(topic.identifier)) {
+                    current_is_subtopic = true;
+                }
+                if (t.identifier === topic_id && topic_id !== '' && t.topics && t.topics.includes(topic.identifier)) {
+                    is_ours = true;
+                }
+            });
 
-                if (found) {
-                    return; // skip this topic if it is a subtopic
-                }
-            } else if (parent_topic_id !== '' && parent_topic_id !== null) {
-                // our topic_id must be found in the parent's topics array
-                if (!topic.topics || !topic.topics.includes(parent_topic_id)) {
-                    return; // skip this topic if it is not a subtopic of the given parent_topic_id
-                }
+            console.log(`Topic: ${topic.identifier}, Current is subtopic: ${current_is_subtopic}`);
+
+            if (current_is_subtopic && topic_id === '') {
+                return;
             }
-            // same id = skip
-            if (topic.identifier === topic_id) {
+
+            if (topic.identifier === topic_id && topic_id !== '') {
+                return;
+            }
+
+            if (!current_is_subtopic && topic_id !== '') {
+                return;
+            }
+
+            if (topic_id === '' && current_is_subtopic) {
+                return;
+            }
+
+            if (!is_ours && topic_id !== '') {
                 return;
             }
 
             const topic_div = document.createElement('div');
             topic_div.className = 'forum-topic';
-            topic_div.id = topic.id;
+            topic_div.id = topic.identifier;
 
             const title = document.createElement('strong');
             title.innerHTML = topic.title;
@@ -5362,26 +5436,56 @@ function show_topic(topic_id = '', parent_topic_id = '') {
     const posts = get_posts(topic_id);
     posts.then(posts => {
         posts.forEach(post => {
+            if (topic_id === '') {
+                return;
+            }
+
+            if (post.topic_id !== topic_id) {
+                return;
+            }
+
             const post_div = document.createElement('div');
             post_div.className = 'forum-post';
-            post_div.id = post.id;
+            post_div.id = post.identifier;
+            post_div.onclick = () => {
+                play_click();
 
-            const author = document.createElement('strong');
-            author.innerHTML = post.created_by;
+                show_post(post.identifier, topic_id);
+            }
+
+            const post_span = document.createElement('span');
+            post_span.className = 'forum-post';
+            post_span.id = post.identifier + "_div";
+
+            const title = document.createElement('strong');
+            title.innerHTML = post.title || 'No title';
+            title.className = 'forum-post-title';
+
+            const author = document.createElement('em');
+            author.innerHTML = " — by " + post.created_by || ' — by Anonymous';
             author.className = 'forum-post-author';
 
-            const content = document.createElement('p');
-            content.innerHTML = post.text;
-            content.className = 'forum-post-content';
-
-            const date = document.createElement('p');
-            date.innerHTML = new Date(post.created_at).toLocaleDateString();
+            const date = document.createElement('span');
+            date.innerHTML = new Date(post.created_at || '').toLocaleDateString();
+            date.innerHTML = ' — ' + date.innerHTML;
             date.className = 'forum-post-date';
 
-            post_div.appendChild(author);
-            post_div.appendChild(date);
-            post_div.appendChild(content);
+            const content = document.createElement('p');
+            content.className = 'forum-post-content';
 
+            if (post.text) {
+                content.innerHTML = post.text.substring(0, 50).replace(/\n/g, ' ');
+                if (post.text.length > 50) {
+                    content.innerHTML += '...';
+                }
+            }
+
+            post_span.appendChild(title);
+            post_span.appendChild(author);
+            post_span.appendChild(date);
+            post_span.appendChild(content);
+
+            post_div.appendChild(post_span);
             posts_div.appendChild(post_div);
         });
     });
@@ -5393,7 +5497,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
         create_topic_button.onclick = () => {
             play_click();
 
-            const window = create_window('create-topic-window', {back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+            const window = create_window('create-topic-window', {classes: ["forum_window"], back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
 
             const title_input = document.createElement('input');
             title_input.type = 'text';
@@ -5416,9 +5520,12 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                         description: description_input.value,
                     };
 
-                    if (parent_topic_id !== '' && parent_topic_id !== null) {
-                        json.parent_topics = [parent_topic_id];
+                    if (topic_id !== '' && topic_id !== null) {
+                        json.parent_topics = [topic_id];
                     }
+
+                    console.log(`Creating topic with data: ${JSON.stringify(json)}`);
+
                     fetch('/api/create_topic', {
                         method: 'POST',
                         headers: {
@@ -5450,7 +5557,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
         create_post_button.onclick = () => {
             play_click();
 
-            const window = create_window('create-post-window', {back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+            const window = create_window('create-post-window', {classes: ["forum_window"], back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
 
             const title = document.createElement('h2');
             title.innerHTML = 'Create Post';
@@ -5469,29 +5576,53 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             content_input.style.height = '200px';
             content_input.style.width = '80%';
 
+            const file_upload = document.createElement('input');
+            file_upload.type = 'file';
+            file_upload.name = 'file';
+            file_upload.accept = '*/*';
+            file_upload.className = 'forum-create-topic-file-upload';
+            file_upload.multiple = true;
+
             const button = document.createElement('button');
             button.innerHTML = 'Create Post';
             button.className = 'forum-create-post-submit-button';
             button.onclick = () => {
                 if (content_input.value) {
+                    const form_data = new FormData();
+
+                    const json = {
+                        topic_id: topic_id,
+                        title: title_input.value,
+                        text: content_input.value,
+                    };
+
+                    form_data.append('json', new Blob([JSON.stringify(json)], { type: 'application/json' }));
+
+                    if (file_upload.files.length > 0) {
+                        for (let i = 0; i < file_upload.files.length; i++) {
+                            if (file_upload.files[i].name === 'json') {
+                                continue;
+                            }
+
+                            form_data.append('file_' + i, file_upload.files[i]);
+                        }
+                    }
+
                     fetch('/api/create_post', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            topic_id: topic_id,
-                            title: title_input.value,
-                            text: content_input.value,
-                        })
+                        body: form_data
                     })
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                show_topic(topic_id);
+                                show_post(data.post_id, topic_id);
                             } else {
                                 alert('Error creating post: ' + data.error);
                             }
+                        })
+                        .catch(error => {
+                            console.error('Error creating post:', error);
+                            alert('Error creating post: ' + error.message);
                         });
                 }
             }
@@ -5499,8 +5630,10 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             window.appendChild(title);
             window.appendChild(title_input);
             window.appendChild(content_input);
+            window.appendChild(file_upload);
             window.appendChild(button);
         };
+
         forum.appendChild(create_post_button);
     }
 
@@ -5746,6 +5879,8 @@ function get_link_box(p) {
         link_box.setAttribute('onclick', p.onclick);
     }
 
+    link_box.style.overflow = 'hidden';
+
     if (p.id) {
         link_box.id = p.id;
     }
@@ -5866,6 +6001,14 @@ function init_page() {
 
     const grid = get_grid(list, 'initial-link-grid');
     document.body.appendChild(grid);
+
+    // special case: credits-button should have fancy stars
+    // just copy from the credits window
+    const credits_button = document.getElementById('credits-button');
+    if (credits_button) {
+        console.log('Generating stars for credits button');
+        generate_stars(50, credits_button);
+    }
 }
 
 async function get_profile_for_user(username) {
@@ -5951,6 +6094,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (get_path().startsWith("/topic/")) {
         const topic_id = get_path().substring(7);
         show_topic(topic_id);
+    }
+    if (get_path().startsWith("/post/")) {
+        const post_id = get_path().substring(6);
+        show_post(post_id);
     }
 
     print_username(username, display_name, profile_key);

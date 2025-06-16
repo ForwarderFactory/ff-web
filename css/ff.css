@@ -4,7 +4,7 @@
 }
 
 /* buttons */
-#login-button, #login-window {
+#login-button, #login-window, #tos-window {
     background-color: #a9def9;
     color: #000;
 }
@@ -12,7 +12,7 @@
     background-color: #ff99c8;
     color: #000;
 }
-#logout-button {
+#logout-button, #logout-window {
     background-color: #f08080;
     color: #000;
 }
@@ -36,7 +36,15 @@
     background-color: #000000;
     color: #fff;
 }
-#forum-button, #forum-window {
+#credits-button {
+    position: relative;
+    overflow: hidden;
+}
+#forum-button {
+    background-color: #f0f0f0;
+    color: #000;
+}
+.forum_window {
     background-color: #f0f0f0;
     color: #000;
 }
@@ -182,9 +190,6 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
 
-    background-color: #70d6ff;
-    color: #000000;
-
     box-sizing: border-box;
 }
 
@@ -207,7 +212,7 @@ body {
     min-height: 60%;
 }
 
-#view-window, #file-window, #forum-window {
+#view-window, #file-window, .forum_window {
     min-width: 70%;
     min-height: 70%;
 }
@@ -407,6 +412,27 @@ input, button, select, textarea {
     background-color: white;
     border-radius: 50%;
     animation: move 10s linear infinite;
+}
+
+.sprite-container {
+    position: relative;     /* Ensures absolutely positioned children are relative to this */
+    width: 100%;            /* Or a fixed value */
+    height: 100%;
+    overflow: hidden;       /* Prevents overflow */
+}
+
+.sprite {
+    position: absolute;
+    animation: sprite-fall 20s linear infinite;
+}
+
+@keyframes sprite-fall {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(200px);  /* Adjust how far they "fall" */
+    }
 }
 
 .grid-item {
