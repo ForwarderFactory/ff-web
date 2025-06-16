@@ -74,7 +74,8 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
 
     document.body.style.overflow = 'hidden';
 
-    const cachedImageSrc = '/img/background-logo-1.png';
+    const cachedImageSrc = '/img/logo.svg';
+    //const cachedImageSrc = '/img/background-logo-1.png';
 
     function createImage(initialX, initialY) {
         const img = document.createElement('img');
@@ -87,7 +88,7 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
         img.style.userSelect = 'none';
         img.draggable = false;
         img.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
-        img.style.width = '150px';
+        img.style.width = '75px';
         img.style.height = 'auto';
 
         container.appendChild(img);
@@ -174,6 +175,7 @@ function hide_all_windows() {
         while (windows[i].firstChild) {
             windows[i].removeChild(windows[i].firstChild);
         }
+        windows[i].remove();
     }
 
     const grids = document.getElementsByClassName('grid');
@@ -184,21 +186,21 @@ function hide_all_windows() {
     // hide #browse-search and #browse-filter-button if they exist
     const search = document.getElementById('sandbox-search');
     if (search) {
-        search.style.display = 'none';
+        search.remove();
     }
     const filter = document.getElementById('sandbox-filter-button');
     if (filter) {
-        filter.style.display = 'none';
+        filter.remove();
     }
 
     // hide #browse-search and #browse-filter-button if they exist
     const browse_search = document.getElementById('browse-search');
     if (browse_search) {
-        browse_search.style.display = 'none';
+        browse_search.remove();
     }
     const browse_filter = document.getElementById('browse-filter-button');
     if (browse_filter) {
-        browse_filter.style.display = 'none';
+        browse_filter.remove();
     }
 
     // show title if hidden
@@ -263,7 +265,6 @@ class WindowProperties {
         classes = [],
         close_button = true,
         moveable = false,
-        close_on_click_outside = false,
         close_on_escape = true,
         remove_existing = true,
         function_on_close = null
@@ -271,7 +272,6 @@ class WindowProperties {
         this.classes = classes;
         this.close_button = close_button;
         this.moveable = moveable;
-        this.close_on_click_outside = close_on_click_outside;
         this.close_on_escape = close_on_escape;
         this.remove_existing = remove_existing;
         this.function_on_close = function_on_close;
@@ -306,6 +306,7 @@ function create_window(id, prop = new WindowProperties()){
     }
 
     window.id = id;
+    /*
     if (prop.close_on_click_outside) {
         window.onclick = (event) => {
             if (event.target === window) {
@@ -322,6 +323,8 @@ function create_window(id, prop = new WindowProperties()){
             }
         }
     }
+    */
+
     if (prop.close_on_escape) {
         document.onkeydown = (event) => {
             if (event.key === 'Escape') {
@@ -5225,6 +5228,80 @@ function generate_stars(n, w) {
     }
 }
 
+function generate_sprites(container, url, img_properties = {}, size = 24, distance = 48) {
+    const wrapper = document.createElement('div');
+    const random_string = Math.random().toString(36).substring(2, 15);
+    wrapper.id = 'tiled-wrapper-' + random_string;
+
+    Object.assign(wrapper.style, {
+        position: 'absolute',
+        top: `-${distance}px`,
+        left: `-${distance}px`,
+        width: `calc(100% + ${distance * 2}px)`,
+        height: `calc(100% + ${distance * 2}px)`,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        willChange: "transform",
+        zIndex: '-1'
+    });
+
+    const animate = (el) => {
+        let start = null;
+
+        const step = (timestamp) => {
+            if (!start) start = timestamp;
+
+            const progress = (timestamp - start) % 4000;
+            const fraction = progress / 4000;
+
+            const x = -distance * fraction;
+            const y = distance * fraction;
+
+            el.style.transform = `translate(${x}px, ${y}px)`;
+            requestAnimationFrame(step);
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    animate(wrapper);
+
+    const cols = Math.ceil((container.offsetWidth + distance * 2) / distance);
+    const rows = Math.ceil((container.offsetHeight + distance * 2) / distance);
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if ((x + y) % 2 === 0) {
+                const sprite = document.createElement('div');
+                sprite.className = 'sprite';
+                sprite.style.left = `${x * distance}px`;
+                sprite.style.top = `${y * distance}px`;
+                sprite.style.position = "absolute";
+                sprite.style.width = `${size}px`;
+                sprite.style.height = `${size}px`;
+                sprite.style.backgroundImage = `url(${url})`;
+                sprite.style.backgroundSize = "cover";
+
+                const filters = [];
+
+                if (img_properties.invert) filters.push('invert(1)');
+                if (img_properties.random_colors) filters.push(`hue-rotate(${Math.random() * 360}deg)`);
+                if (img_properties.hue !== undefined) filters.push(`hue-rotate(${img_properties.hue}deg)`);
+                if (img_properties.monochrome) filters.push('grayscale(1)');
+
+                if (filters.length > 0) sprite.style.filter = filters.join(' ');
+
+                sprite.style.opacity = img_properties.opacity !== undefined ? img_properties.opacity : 0.25;
+
+                wrapper.appendChild(sprite);
+            }
+        }
+    }
+
+    container.prepend(wrapper);
+}
+
+
 function get_posts(topic_id, start_index = 0, end_index = -1) {
     if (topic_id == null || topic_id === '') {
         return Promise.resolve([]);
@@ -5323,7 +5400,11 @@ function show_post(post_id, topic_id = '') {
 
         set_path('/post/' + post_id);
 
-        const post_window = create_window('post-window-' + topic_id || "root" + "-" + post_id || "root", { classes: ["forum_window"], close_button: true, back_button: null });
+        const post_window = create_window('post-window-' + (topic_id || "root") + ("-" + post_id || "root"), { classes: ["forum_window"], close_button: true, back_button: null, function_on_close: () => {
+            hide_all_windows();
+            show_topic(topic_id || post.topic_id);
+        }
+        });
 
         const title = document.createElement('h1');
         title.innerHTML = post.title || 'No title';
@@ -5340,31 +5421,80 @@ function show_post(post_id, topic_id = '') {
         post_window.appendChild(title);
         post_window.appendChild(author);
         post_window.appendChild(content);
+
+        // in a grid, show files. they're in data/x/download_key. We can display data/x/filename
+        if (post.data && post.data.length > 0) {
+            const files_grid = document.createElement('div');
+            files_grid.className = 'post-files-grid';
+
+            post.data.forEach(file => {
+                const file_div = document.createElement('div');
+                file_div.className = 'post-file';
+                file_div.id = file.download_key;
+
+                const file_name = document.createElement('p');
+                file_name.innerHTML = file.filename || 'No filename';
+                file_name.className = 'post-file-name';
+
+                const download_link = document.createElement('a');
+                download_link.href = `/download/${file.download_key}`;
+                download_link.innerHTML = 'Download';
+                download_link.className = 'post-file-download';
+
+                file_div.appendChild(file_name);
+                file_div.appendChild(download_link);
+                files_grid.appendChild(file_div);
+            });
+
+            post_window.appendChild(files_grid);
+        }
     })
 }
 
 function show_topic(topic_id = '', parent_topic_id = '') {
+    hide_all_windows();
     set_path('/topic');
 
     if (topic_id !== '') {
         set_path('/topic/' + topic_id);
     }
 
-    console.log(`Showing topic: ${topic_id}, parent_topic_id: ${parent_topic_id}`);
-
-    const forum = create_window('forum-window-' + topic_id || 'root', { classes: ["forum_window"]});
+    const forum = create_window('forum-window-' + (topic_id || 'root') + '-' + (parent_topic_id || 'root'), { close_button: true, classes: ["forum_window"], function_on_close: () => {
+        hide_all_windows();
+        if (parent_topic_id !== '') {
+            show_topic(parent_topic_id);
+        } else if (topic_id !== '') {
+            // dig and get the topic this topic is in
+            get_topics().then(topics => {
+                let parent_topic = '';
+                topics.forEach(t => {
+                    if (t.topics && t.topics.includes(topic_id)) {
+                        parent_topic = t.identifier;
+                    }
+                });
+                if (parent_topic !== '') {
+                    show_topic(parent_topic);
+                } else {
+                    show_topic();
+                }
+            });
+        } else {
+            hide_all_windows();
+        }
+    }});
 
     const topics_list = document.createElement('div');
     topics_list.className = 'forum-topics-list';
     topics_list.id = 'forum-topics-list';
 
     const topics = get_topics();
-    let current_is_subtopic = false;
 
     // iterate over topics and create elements
     topics.then(topics => {
         topics.forEach(topic => {
             let is_ours = false;
+            let current_is_subtopic = false;
+
             // check if this topic is part of any other topics' topics list
             topics.forEach(t => {
                 if (t.topics && t.topics.includes(topic.identifier)) {
@@ -5374,8 +5504,6 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                     is_ours = true;
                 }
             });
-
-            console.log(`Topic: ${topic.identifier}, Current is subtopic: ${current_is_subtopic}`);
 
             if (current_is_subtopic && topic_id === '') {
                 return;
@@ -5493,11 +5621,20 @@ function show_topic(topic_id = '', parent_topic_id = '') {
     if (is_logged_in() && get_cookie('user_type') === '1') {
         const create_topic_button = document.createElement('button');
         create_topic_button.innerHTML = 'Create Topic';
+        create_topic_button.style.marginRight = '10px';
         create_topic_button.className = 'forum-create-topic-button';
         create_topic_button.onclick = () => {
             play_click();
 
             const window = create_window('create-topic-window', {classes: ["forum_window"], back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+
+            const title = document.createElement('h2');
+            title.innerHTML = 'Create Topic';
+            title.className = 'forum-create-topic-title';
+
+            const paragraph = document.createElement('p');
+            paragraph.innerHTML = 'Enter a title and description for your fancy topic. These will (obviously) be shown to users.';
+            paragraph.className = 'forum-create-topic-paragraph';
 
             const title_input = document.createElement('input');
             title_input.type = 'text';
@@ -5507,6 +5644,16 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             const description_input = document.createElement('textarea');
             description_input.name = 'description';
             description_input.placeholder = 'Description';
+
+            const closed = document.createElement('input');
+            closed.type = 'checkbox';
+            closed.name = 'closed';
+            closed.id = 'forum-create-topic-closed';
+
+            const closed_label = document.createElement('label');
+            closed_label.for = 'closed';
+            closed_label.innerHTML = 'Closed';
+            closed_label.className = 'forum-create-topic-closed-label';
 
             const button = document.createElement('button');
             button.innerHTML = 'Create Topic';
@@ -5523,8 +5670,9 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                     if (topic_id !== '' && topic_id !== null) {
                         json.parent_topics = [topic_id];
                     }
-
-                    console.log(`Creating topic with data: ${JSON.stringify(json)}`);
+                    if (closed && closed.checked) {
+                        json.closed = true;
+                    }
 
                     fetch('/api/create_topic', {
                         method: 'POST',
@@ -5544,8 +5692,18 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                 }
             }
 
+            window.appendChild(title);
+            window.appendChild(paragraph);
             window.appendChild(title_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(description_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
+            window.appendChild(closed);
+            window.appendChild(closed_label);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(button);
         };
         forum.appendChild(create_topic_button);
@@ -5872,47 +6030,46 @@ function get_grid(elements) {
 function get_link_box(p) {
     const link_box = document.createElement('div');
     link_box.className = 'link_box';
-
-    if (p.location) {
-        link_box.setAttribute('onclick', `location.href='${p.location}';`);
-    } else if (p.onclick) {
-        link_box.setAttribute('onclick', p.onclick);
-    }
-
     link_box.style.overflow = 'hidden';
+    link_box.style.position = 'relative';
+    link_box.style.zIndex = '1';
 
     if (p.id) {
         link_box.id = p.id;
     }
 
-    if (p.background_color || p.color) {
-        let style = '';
-        if (p.background_color) {
-            style += `background-color: ${p.background_color};`;
-        }
-        if (p.color) {
-            style += `color: ${p.color};`;
-        }
-        link_box.setAttribute('style', style);
+    if (p.location) {
+        link_box.onclick = () => location.href = p.location;
+        link_box.style.cursor = 'pointer';
+    } else if (p.onclick) {
+        link_box.setAttribute('onclick', p.onclick);
     }
 
-
-    const title = document.createElement('h2');
-    title.className = 'link_box_title';
-    title.textContent = p.title;
-
-    const description = document.createElement('p');
-    description.className = 'link_box_description';
-    description.textContent = p.description;
+    if (p.background_color) {
+        link_box.style.backgroundColor = p.background_color;
+    }
+    if (p.color) {
+        link_box.style.color = p.color;
+    }
 
     if (p.img) {
         const icon = document.createElement('img');
         icon.src = p.img;
+        icon.alt = '';
         icon.style.width = '24px';
+        icon.style.verticalAlign = 'middle';
+        icon.style.marginRight = '8px';
         link_box.appendChild(icon);
     }
 
+    const title = document.createElement('h2');
+    title.className = 'link_box_title';
+    title.textContent = p.title;
     link_box.appendChild(title);
+
+    const description = document.createElement('p');
+    description.className = 'link_box_description';
+    description.textContent = p.description;
     link_box.appendChild(description);
 
     return link_box;
@@ -5925,21 +6082,21 @@ function init_page() {
         description: "Browse channels uploaded by others.",
         background_color: "",
         id: "browse-button",
-        onclick: "play_click(); show_browse()"
+        onclick: "hide_all_windows(); play_click(); show_browse()"
     }));
     list.push(get_link_box({
         title: "Sandbox",
         description: "Check out files uploaded by users.",
         background_color: "",
         id: "sandbox-button",
-        onclick: "play_click(); show_sandbox()"
+        onclick: "hide_all_windows(); play_click(); show_sandbox()"
     }))
     list.push(get_link_box({
        title: "Forum",
        description: "Check out the Forwarder Factory forum.",
         background_color: "",
         id: "forum-button",
-        onclick: "play_click(); show_topic()",
+        onclick: "hide_all_windows(); play_click(); show_topic()",
     }))
 
     if (get_cookie("username") === null) {
@@ -5947,13 +6104,13 @@ function init_page() {
             title: "Log in",
             description: "Log in to your account.",
             id: "login-button",
-            onclick: "play_click(); show_login()"
+            onclick: "hide_all_windows(); play_click(); show_login()"
         }));
         list.push(get_link_box({
             title: "Register",
             description: "Register a new account.",
             id: "register-button",
-            onclick: "play_click(); show_register()"
+            onclick: "hide_all_windows(); play_click(); show_register()"
         }));
     } else {
         if (get_cookie("user_type") === "1") {
@@ -5961,20 +6118,20 @@ function init_page() {
                 title: "Admin",
                 description: "Access the admin panel.",
                 id: "admin-button",
-                onclick: "play_click(); show_admin()"
+                onclick: "hide_all_windows(); play_click(); show_admin()"
             }));
         }
         list.push(get_link_box({
             title: "Upload",
             description: "Upload a forwarder or channel.",
             id: "upload-button",
-            onclick: "play_click(); show_upload()"
+            onclick: "hide_all_windows(); play_click(); show_upload()"
         }));
         list.push(get_link_box({
             title: "Log out",
             description: "Log out of your account.",
             id: "logout-button",
-            onclick: "play_click(); show_logout()"
+            onclick: "hide_all_windows(); play_click(); show_logout()"
         }));
     }
 
@@ -5982,21 +6139,19 @@ function init_page() {
        title: "Discord",
        description: "Join our awesome Discord server.",
        id: "discord-button",
-       onclick: "play_click(); show_discord()",
-       img: "/img/discord.svg"
+       onclick: "hide_all_windows(); play_click(); show_discord()",
     }));
     list.push(get_link_box({
         title: "Announcements",
         description: "View the latest announcements.",
         id: "announcements-button",
-        onclick: "play_click(); get_announcements()",
-        img: "/img/announcements.svg"
+        onclick: "hide_all_windows(); play_click(); get_announcements()",
     }));
     list.push(get_link_box({
         title: "Credits",
         description: "View the credits for Forwarder Factory.",
         id: "credits-button",
-        onclick: "play_click(); show_credits()"
+        onclick: "hide_all_windows(); play_click(); show_credits()"
     }));
 
     const grid = get_grid(list, 'initial-link-grid');
@@ -6006,8 +6161,73 @@ function init_page() {
     // just copy from the credits window
     const credits_button = document.getElementById('credits-button');
     if (credits_button) {
-        console.log('Generating stars for credits button');
         generate_stars(50, credits_button);
+    }
+
+    // special case: discord-button should have a grid of sprites
+    const discord_button = document.getElementById('discord-button');
+    if (discord_button) {
+        generate_sprites(discord_button, '/img/discord.svg');
+    }
+
+    const announcements_button = document.getElementById('announcements-button');
+    if (announcements_button) {
+        generate_sprites(announcements_button, '/img/announcements.svg', { invert: true, opacity: 0.5 });
+    }
+
+    const browse_button = document.getElementById('browse-button');
+    if (browse_button) {
+        const deg = 1000;
+        generate_sprites(browse_button, '/img/background-logo-1.png', { opacity: 0.2, hue: deg });
+        // on hover, random colors
+        browse_button.onmouseover = () => {
+            const sprites = browse_button.querySelectorAll('.sprite');
+            sprites.forEach(sprite => {
+                sprite.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
+            });
+        };
+        browse_button.onmouseleave = () => {
+            // revert
+            const sprites = browse_button.querySelectorAll('.sprite');
+            sprites.forEach(sprite => {
+                sprite.style.filter = 'hue-rotate(' + deg + 'deg)';
+            });
+        }
+    }
+
+    const sandbox_button = document.getElementById('sandbox-button');
+    if (sandbox_button) {
+        generate_sprites(sandbox_button, '/img/shovel.svg', { opacity: 0.1 });
+    }
+
+    const forum_button = document.getElementById('forum-button');
+    if (forum_button) {
+        generate_sprites(forum_button, '/img/messages.svg', { opacity: 0.1 });
+    }
+
+    const login_button = document.getElementById('login-button');
+    if (login_button) {
+        generate_sprites(login_button, '/img/question-mark-block.svg', { opacity: 0.1 });
+    }
+
+    const register_button = document.getElementById('register-button');
+    if (register_button) {
+        generate_sprites(register_button, '/img/coin.svg', { opacity: 0.1 });
+    }
+
+    const admin_button = document.getElementById('admin-button');
+    if (admin_button) {
+        generate_sprites(admin_button, '/img/hammer.svg', { opacity: 0.1 });
+    }
+
+    const upload_button = document.getElementById('upload-button');
+    if (upload_button) {
+        generate_sprites(upload_button, '/img/retro-star.svg', { opacity: 0.1 });
+    }
+
+    const logout_button = document.getElementById('logout-button');
+    if (logout_button) {
+        generate_sprites(logout_button, '/img/wave.svg', { opacity: 0.1 });
     }
 }
 
@@ -6030,7 +6250,7 @@ async function get_profile_for_user(username) {
 
         const data = await response.json();
 
-        // Make sure the structure is what you expect
+        // make sure the structure is what you expect
         if (data.users && data.users[username]) {
             return data.users[username];
         } else {

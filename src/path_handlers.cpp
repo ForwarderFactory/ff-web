@@ -3499,6 +3499,8 @@ limhamn::http::server::response ff::handle_api_create_topic(const limhamn::http:
 	bool open = true;
 	if (json.contains("open") && json.at("open").is_boolean()) {
 		open = json.at("open").get<bool>();
+	} else if (json.contains("closed") && json.at("closed").is_boolean()) {
+	    open = !json.at("closed").get<bool>();
 	}
 
     nlohmann::json db_json;
