@@ -4799,16 +4799,18 @@ limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn
 
 		if (db_json.find("comments") != db_json.end() && db_json.at("comments").is_array()) {
             auto& comments = db_json["comments"];
-            auto it = std::remove_if(comments.begin(), comments.end(),
-                [&username, &db, comment_id](const nlohmann::json& comment) {
-                	// must be our comment, or we must be an admin
-                    return comment.contains("id") && comment.at("id").get<int>() == comment_id &&
-                           (comment.contains("created_by") && comment.at("created_by").get<std::string>() != username &&
-                            get_user_type(db, username) != ff::UserType::Administrator);
-                });
-            if (it != comments.end()) {
-                comments.erase(it, comments.end());
-            } else {
+			bool found = false;
+			for (size_t i = 0; i < comments.size(); ++i) {
+				if (i == comment_id &&
+					((comments[i].contains("created_by") && comments[i].at("created_by").get<std::string>() == username)
+					|| get_user_type(db, username) == ff::UserType::Administrator))  {
+					found = true;
+					comments.erase(i);
+
+					break;
+				}
+			}
+			if (!found) {
                 nlohmann::json ret;
                 ret["error_str"] = "Comment not found";
                 ret["error"] = "FF_COMMENT_NOT_FOUND";
@@ -4824,6 +4826,9 @@ limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn
             response.body = ret.dump();
             return response;
         }
+
+		// reinsert
+		ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
 
 		nlohmann::json ret;
 		response.http_status = 204;

@@ -5360,6 +5360,7 @@ function get_topics(start_index = 0, end_index = -1) {
 }
 
 function show_post(post_id, topic_id = '') {
+    hide_all_windows();
     set_path('/post');
 
     if (post_id === null || post_id === '') {
@@ -5400,7 +5401,7 @@ function show_post(post_id, topic_id = '') {
 
         set_path('/post/' + post_id);
 
-        const post_window = create_window('post-window-' + (topic_id || "root") + ("-" + post_id || "root"), { classes: ["forum_window"], close_button: true, back_button: null, function_on_close: () => {
+        const post_window = create_window('post-window-' + (topic_id || "root") + ("-" + post_id || "root"), { classes: ["forum_window"], close_button: true, back_button: null, close_on_escape: true, function_on_close: () => {
             hide_all_windows();
             show_topic(topic_id || post.topic_id);
         }
@@ -5448,6 +5449,379 @@ function show_post(post_id, topic_id = '') {
 
             post_window.appendChild(files_grid);
         }
+
+        const reply_h2 = document.createElement('h2');
+        reply_h2.innerHTML = 'Reply to this post';
+        reply_h2.className = 'post-reply-button';
+
+        const reply_textarea = document.createElement('textarea');
+        reply_textarea.className = 'post-reply-textarea';
+        reply_textarea.placeholder = 'Write your reply here...';
+        reply_textarea.rows = 5;
+        reply_textarea.cols = 50;
+
+        const file_uploads = document.createElement('input');
+        file_uploads.type = 'file';
+        file_uploads.multiple = true;
+        file_uploads.className = 'post-file-upload';
+        file_uploads.accept = '*/*';
+        file_uploads.style.marginRight = '10px';
+
+        const reply_button = document.createElement('button');
+        reply_button.innerHTML = 'Reply';
+        reply_button.className = 'post-reply-button';
+        reply_button.onclick = () => {
+            play_click();
+
+            // 1. must be sent to /api/comment_post
+            // 2. must be as a multipart, with the json being name="json"
+            // 3. the json must contain the post_id, topic_id, text
+            const formData = new FormData();
+            formData.append('json', JSON.stringify({
+                "post_id": post_id,
+                "topic_id": topic_id,
+                "comment": reply_textarea.value,
+            }));
+
+            if (file_uploads.files.length > 0) {
+                for (let i = 0; i < file_uploads.files.length; i++) {
+                    formData.append('file-' + i, file_uploads.files[i]);
+                }
+            }
+
+            fetch('/api/comment_post', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.text())
+            .then(text => {
+                show_post(post_id, topic_id);
+            });
+        }
+
+        // must not be closed, or admin, to reply
+        if (get_cookie('user_type') === "1" || post.open) {
+            post_window.appendChild(reply_h2);
+            post_window.appendChild(reply_textarea);
+            post_window.appendChild(file_uploads);
+            post_window.appendChild(reply_button);
+        }
+
+        const replies_h2 = document.createElement('h2');
+        replies_h2.innerHTML = 'Replies';
+        replies_h2.className = 'post-replies-title';
+
+        post_window.appendChild(replies_h2);
+
+        // now print all comments for this post
+        // they're in the comments array
+        if (post.comments && post.comments.length > 0) {
+            const search_input = document.createElement('input');
+
+            search_input.type = 'text';
+            search_input.id = 'comment_search_input';
+            search_input.placeholder = 'Search comments...';
+            search_input.className = 'post-comment-search';
+            search_input.style.margin = '5px';
+
+            post_window.appendChild(search_input);
+
+            search_input.addEventListener('input', (event) => {
+                const raw_query = event.target.value.trim().toLowerCase();
+                search_query = raw_query;
+
+                if (!raw_query) {
+                    filtered_comments = [];
+                    load_comments(1);
+                    return;
+                }
+
+                const filters = {
+                    author: null,
+                    content: null,
+                    file: null,
+                    date: null,
+                    any: []
+                };
+
+                raw_query.split(/\s+/).forEach(term => {
+                    if (term.startsWith('author:')) {
+                        filters.author = term.slice(7);
+                    } else if (term.startsWith('content:')) {
+                        filters.content = term.slice(8);
+                    } else if (term.startsWith('file:')) {
+                        filters.file = term.slice(5);
+                    } else if (term.startsWith('date:')) {
+                        filters.date = term.slice(5);
+                    } else {
+                        filters.any.push(term);
+                    }
+                });
+
+                filtered_comments = post.comments.filter(comment => {
+                    const comment_text = (comment.comment || '').toLowerCase();
+                    const author = (comment.created_by || '').toLowerCase();
+                    const date_str = new Date(comment.created_at).toLocaleDateString().toLowerCase();
+                    const file_names = (comment.data || []).map(f => f.filename?.toLowerCase() || '').join(' ');
+
+                    const match_author = !filters.author || author.includes(filters.author);
+                    const match_content = !filters.content || comment_text.includes(filters.content);
+                    const match_file = !filters.file || file_names.includes(filters.file);
+                    const match_date = !filters.date || date_str.includes(filters.date);
+
+                    const match_any = filters.any.length === 0 || filters.any.some(term =>
+                        comment_text.includes(term) ||
+                        author.includes(term) ||
+                        date_str.includes(term) ||
+                        file_names.includes(term)
+                    );
+
+                    return match_author && match_content && match_file && match_date && match_any;
+                });
+
+                load_comments(1);
+            });
+
+            // print them all out
+            // we have comment, created_by and created_at, as well as data/x/...
+            const comments_div = document.createElement('div');
+            comments_div.className = 'post-comments-list';
+            comments_div.id = 'post-comments-list';
+            const comments_per_page = 10;
+            let current_page = 1;
+
+            function clear_comments() {
+                while (comments_div.firstChild) {
+                    comments_div.removeChild(comments_div.firstChild);
+                }
+            }
+
+            let filtered_comments = [];
+            let search_query = '';
+
+            async function load_comments(page) {
+                clear_comments();
+
+                const comments_source = search_query ? filtered_comments : post.comments;
+                const start_index = (page - 1) * comments_per_page;
+                const comments_to_load = comments_source.slice(start_index, start_index + comments_per_page);
+
+                for (const [index, comment] of comments_to_load.entries()) {
+                    const comment_div = document.createElement('div');
+                    comment_div.className = 'post-comment';
+
+                    const comment_header = document.createElement('div');
+                    comment_header.style.display = 'flex';
+                    comment_header.style.alignItems = 'center';
+                    comment_header.style.gap = '5px';
+                    comment_header.className = 'post-comment-header';
+
+                    const profile = await get_profile_for_user(comment.created_by);
+                    if (!profile || !profile.profile_key) {
+                        const icon = document.createElement('i');
+                        icon.className = "fa-solid fa-circle-user";
+                        icon.style.marginRight = '5px';
+                        comment_header.appendChild(icon);
+                    } else {
+                        const profile_img = document.createElement('img');
+                        profile_img.src = `/download/${profile.profile_key}`;
+                        profile_img.className = 'post-comment-profile';
+                        profile_img.style.marginRight = '5px';
+                        profile_img.style.maxWidth = '15px';
+                        profile_img.style.maxHeight = '15px';
+                        profile_img.style.borderRadius = '50%';
+                        comment_header.appendChild(profile_img);
+                    }
+
+                    const comment_author = document.createElement('p');
+                    comment_author.style.margin = '0';
+                    comment_author.style.fontWeight = 'bold';
+                    comment_author.onclick = () => {
+                        view_profile(comment.created_by);
+                    };
+
+                    const formatted_date = new Date(comment.created_at).toLocaleDateString();
+                    comment_author.innerHTML = `${profile?.display_name || comment.created_by} on ${formatted_date}`;
+                    comment_header.appendChild(comment_author);
+
+                    const comment_content = document.createElement('div');
+                    comment_content.innerHTML = comment.comment || 'No content';
+                    comment_content.className = 'post-comment-content';
+
+                    comment_div.appendChild(comment_header);
+                    comment_div.appendChild(comment_content);
+
+                    if (comment.data && comment.data.length > 0) {
+                        const files_grid = document.createElement('div');
+                        files_grid.className = 'post-comment-files-grid';
+
+                        comment.data.forEach(file => {
+                            const file_div = document.createElement('div');
+                            file_div.className = 'post-comment-file';
+                            file_div.id = file.download_key;
+
+                            const file_name = document.createElement('p');
+                            file_name.innerHTML = file.filename || 'No filename';
+                            file_name.className = 'post-comment-file-name';
+
+                            const download_link = document.createElement('a');
+                            download_link.href = `/download/${file.download_key}`;
+                            download_link.innerHTML = 'Download';
+                            download_link.className = 'post-comment-file-download';
+
+                            file_div.appendChild(file_name);
+                            file_div.appendChild(download_link);
+                            files_grid.appendChild(file_div);
+                        });
+
+                        comment_div.appendChild(files_grid);
+                    }
+
+                    // add delete button
+                    if ((post.open && post.created_by === get_cookie('username')) || get_cookie('user_type') === "1") {
+                        const delete_button = document.createElement('button');
+                        delete_button.innerHTML = 'Delete';
+                        delete_button.className = 'post-comment-delete-button';
+                        delete_button.onclick = () => {
+                            play_click();
+                            fetch('/api/delete_comment_post', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ post_id: post_id, comment_id: index })
+                            }).then(response => {
+                                if (response.status === 204) {
+                                    show_post(post_id, topic_id);
+                                } else {
+                                    console.error('Failed to delete comment');
+                                }
+                            });
+                        };
+                        comment_div.appendChild(delete_button);
+                    }
+
+                    comments_div.appendChild(comment_div);
+                }
+
+                current_page = page;
+                render_pagination_controls();
+            }
+
+            function render_pagination_controls() {
+                const old_pagination = document.getElementById('pagination_controls');
+                if (old_pagination) old_pagination.remove();
+
+                const pagination_div = document.createElement('div');
+                pagination_div.id = 'pagination_controls';
+                pagination_div.style.marginTop = '10px';
+
+                const comments_source = search_query ? filtered_comments : post.comments;
+                const total_pages = Math.ceil(comments_source.length / comments_per_page);
+
+                const prev_btn = document.createElement('button');
+                prev_btn.innerText = 'Prev';
+                prev_btn.disabled = (current_page === 1);
+                prev_btn.onclick = () => {
+                    play_click();
+                    load_comments(current_page - 1);
+                }
+                pagination_div.appendChild(prev_btn);
+
+                for (let i = 1; i <= total_pages; i++) {
+                    const page_btn = document.createElement('button');
+                    page_btn.innerText = i;
+                    page_btn.style.margin = '0 5px';
+                    page_btn.disabled = (i === current_page);
+                    page_btn.onclick = () => {
+                        play_click();
+                        load_comments(i);
+                    }
+                    pagination_div.appendChild(page_btn);
+                }
+
+                const next_btn = document.createElement('button');
+                next_btn.innerText = 'Next';
+                next_btn.disabled = (current_page === total_pages);
+                next_btn.onclick = () => {
+                    play_click();
+                    load_comments(current_page + 1);
+                }
+                pagination_div.appendChild(next_btn);
+
+                comments_div.after(pagination_div);
+            }
+
+
+            load_comments(1);
+
+            post_window.appendChild(comments_div);
+        } else {
+            const no_comments = document.createElement('p');
+            no_comments.innerHTML = 'No replies yet. Be the first to reply!';
+            no_comments.className = 'post-no-comments';
+
+            post_window.appendChild(no_comments);
+        }
+
+        if (post.open && (post.created_by === get_cookie('username') || get_cookie('user_type') === "1")) {
+            const close_button = document.createElement('button');
+            close_button.innerHTML = 'Close Post';
+            close_button.className = 'post-close-button';
+            close_button.onclick = () => {
+                play_click();
+                fetch('/api/close_post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id: post_id, open: false })
+                }).then(response => {
+                      if (response.httpRequestStatusCode !== 204) {
+                          const json = JSON.parse(text);
+                          if (json.error) {
+                              console.error(json.error);
+                          } else {
+                              show_post(post_id, topic_id);
+                          }
+                      }
+                      show_post(post_id, topic_id);
+                  });
+            }
+
+            post_window.appendChild(document.createElement('br'));
+            post_window.appendChild(close_button);
+        } else if (!post.open && (post.created_by === get_cookie('username') || get_cookie('user_type') === "1")) {
+            const reopen_button = document.createElement('button');
+            reopen_button.innerHTML = 'Reopen Post';
+            reopen_button.className = 'post-reopen-button';
+            reopen_button.onclick = () => {
+                play_click();
+                fetch('/api/close_post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id: post_id, open: true })
+                }).then(response => {
+                      if (response.httpRequestStatusCode !== 204) {
+                          const json = JSON.parse(text);
+                          if (json.error) {
+                              console.error(json.error);
+                          } else {
+                              show_post(post_id, topic_id);
+                          }
+                      }
+                      show_post(post_id, topic_id);
+                  });
+            }
+
+            post_window.appendChild(document.createElement('br'));
+            post_window.appendChild(reopen_button);
+        }
     })
 }
 
@@ -5459,7 +5833,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
         set_path('/topic/' + topic_id);
     }
 
-    const forum = create_window('forum-window-' + (topic_id || 'root') + '-' + (parent_topic_id || 'root'), { close_button: true, classes: ["forum_window"], function_on_close: () => {
+    const forum = create_window('forum-window-' + (topic_id || 'root') + '-' + (parent_topic_id || 'root'), { close_button: true, classes: ["forum_window"], close_on_escape: true, function_on_close: () => {
         hide_all_windows();
         if (parent_topic_id !== '') {
             show_topic(parent_topic_id);
@@ -5491,7 +5865,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
 
     // iterate over topics and create elements
     topics.then(topics => {
-        topics.forEach(topic => {
+        topics.forEach(async topic => {
             let is_ours = false;
             let current_is_subtopic = false;
 
@@ -5528,6 +5902,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             const topic_div = document.createElement('div');
             topic_div.className = 'forum-topic';
             topic_div.id = topic.identifier;
+            topic_div.style.textAlign = 'left';
 
             const title = document.createElement('strong');
             title.innerHTML = topic.title;
@@ -5540,12 +5915,42 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                 description.innerHTML = description.innerHTML.substring(0, 100) + '...';
             }
 
-            const author = document.createElement('p');
-            author.innerHTML = `Posted by ${topic.created_by} on ${new Date(topic.created_at).toLocaleDateString()}`;
-            author.className = 'forum-topic-author';
+            const topic_header = document.createElement('div');
+            topic_header.style.display = 'flex';
+            topic_header.style.alignItems = 'center';
+            topic_header.style.gap = '5px';
+            topic_header.className = 'post-topic-header';
+
+            const profile = await get_profile_for_user(topic.created_by);
+            if (!profile || !profile.profile_key) {
+                const icon = document.createElement('i');
+                icon.className = "fa-solid fa-circle-user";
+                icon.style.marginRight = '5px';
+                comment_header.appendChild(icon);
+            } else {
+                const profile_img = document.createElement('img');
+                profile_img.src = `/download/${profile.profile_key}`;
+                profile_img.className = 'post-comment-profile';
+                profile_img.style.marginRight = '5px';
+                profile_img.style.maxWidth = '15px';
+                profile_img.style.maxHeight = '15px';
+                profile_img.style.borderRadius = '50%';
+                topic_header.appendChild(profile_img);
+            }
+
+            const topic_author = document.createElement('p');
+            topic_author.style.margin = '0';
+            topic_author.style.fontWeight = 'bold';
+            topic_author.onclick = () => {
+                view_profile(topic.created_by);
+            };
+
+            const formatted_date = new Date(topic.created_at).toLocaleDateString();
+            topic_author.innerHTML = `${profile?.display_name || topic.created_by} on ${formatted_date}`;
+            topic_header.appendChild(topic_author);
 
             topic_div.appendChild(title);
-            topic_div.appendChild(author);
+            topic_div.appendChild(topic_header);
             topic_div.appendChild(description);
 
             topic_div.onclick = () => {
@@ -5563,7 +5968,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
 
     const posts = get_posts(topic_id);
     posts.then(posts => {
-        posts.forEach(post => {
+        posts.forEach(async post => {
             if (topic_id === '') {
                 return;
             }
@@ -5575,6 +5980,8 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             const post_div = document.createElement('div');
             post_div.className = 'forum-post';
             post_div.id = post.identifier;
+            post_div.style.textAlign = 'left';
+            post_div.style.margin = '10px auto';
             post_div.onclick = () => {
                 play_click();
 
@@ -5585,18 +5992,43 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             post_span.className = 'forum-post';
             post_span.id = post.identifier + "_div";
 
-            const title = document.createElement('strong');
+            const title = document.createElement('h2');
             title.innerHTML = post.title || 'No title';
             title.className = 'forum-post-title';
 
-            const author = document.createElement('em');
-            author.innerHTML = " — by " + post.created_by || ' — by Anonymous';
-            author.className = 'forum-post-author';
+            const post_header = document.createElement('div');
+            post_header.style.display = 'flex';
+            post_header.style.alignItems = 'center';
+            post_header.style.gap = '5px';
+            post_header.className = 'post-post-header';
 
-            const date = document.createElement('span');
-            date.innerHTML = new Date(post.created_at || '').toLocaleDateString();
-            date.innerHTML = ' — ' + date.innerHTML;
-            date.className = 'forum-post-date';
+            const profile = await get_profile_for_user(post.created_by);
+            if (!profile || !profile.profile_key) {
+                const icon = document.createElement('i');
+                icon.className = "fa-solid fa-circle-user";
+                icon.style.marginRight = '5px';
+                comment_header.appendChild(icon);
+            } else {
+                const profile_img = document.createElement('img');
+                profile_img.src = `/download/${profile.profile_key}`;
+                profile_img.className = 'post-comment-profile';
+                profile_img.style.marginRight = '5px';
+                profile_img.style.maxWidth = '15px';
+                profile_img.style.maxHeight = '15px';
+                profile_img.style.borderRadius = '50%';
+                post_header.appendChild(profile_img);
+            }
+
+            const post_author = document.createElement('p');
+            post_author.style.margin = '0';
+            post_author.style.fontWeight = 'bold';
+            post_author.onclick = () => {
+                view_profile(post.created_by);
+            };
+
+            const formatted_date = new Date(post.created_at).toLocaleDateString();
+            post_author.innerHTML = `${profile?.display_name || post.created_by} on ${formatted_date}`;
+            post_header.appendChild(post_author);
 
             const content = document.createElement('p');
             content.className = 'forum-post-content';
@@ -5609,8 +6041,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             }
 
             post_span.appendChild(title);
-            post_span.appendChild(author);
-            post_span.appendChild(date);
+            post_span.appendChild(post_header);
             post_span.appendChild(content);
 
             post_div.appendChild(post_span);
@@ -5795,7 +6226,17 @@ function show_topic(topic_id = '', parent_topic_id = '') {
         forum.appendChild(create_post_button);
     }
 
+    const topics_title = document.createElement('h2');
+    topics_title.innerHTML = 'Topics';
+    topics_title.className = 'forum-topics-title';
+
+    const posts_title = document.createElement('h2');
+    posts_title.innerHTML = 'Posts';
+    posts_title.className = 'forum-posts-title';
+
+    forum.appendChild(topics_title);
     forum.appendChild(topics_list);
+    forum.appendChild(posts_title);
     forum.appendChild(posts_div);
 }
 
@@ -5807,6 +6248,9 @@ function show_credits() {
     credits.style.overflow = "hidden";
     credits.style.minWidth = "80%";
     credits.style.minHeight = "80%";
+    credits.onclick = () => {
+        hide_all_windows();
+    }
 
     const roll_credits = (list, interval, restart_index = 1) => {
         let index = 0;
