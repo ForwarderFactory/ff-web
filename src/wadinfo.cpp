@@ -11,7 +11,9 @@ ff::WADInfo ff::get_info_from_wad(const std::string& wad_path) {
 			throw std::runtime_error{"popen() failed"};
 		}
 
-		std::unique_ptr<FILE, decltype(&pclose)> pipe(raw_pipe, pclose);
+		auto deleter = [](FILE* f) { if (f) pclose(f); };
+
+		std::unique_ptr<FILE, decltype(deleter)> pipe(raw_pipe, deleter);
 
 		while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
 			result.append(buffer.data());
@@ -19,6 +21,7 @@ ff::WADInfo ff::get_info_from_wad(const std::string& wad_path) {
 
 		return result;
 	};
+
 
     const auto extract_value = [](const std::string& output, const std::string& name) -> std::string {
         std::stringstream ss{output};
