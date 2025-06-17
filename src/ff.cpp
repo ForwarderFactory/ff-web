@@ -216,6 +216,10 @@ void ff::start_server() {
                 settings.psql_password,
                 settings.psql_database,
                 settings.psql_port);
+
+#ifdef FF_DEBUG
+        	ff::logger.write_to_log(limhamn::logger::type::notice, "PostgreSQL database opened with host: " + settings.psql_host + ", username: " + settings.psql_username + ", password: " + settings.psql_password + ", database: " + settings.psql_database + "\n");
+#endif
 #endif
         } else {
 #ifdef FF_ENABLE_SQLITE
@@ -450,6 +454,10 @@ void ff::start_server() {
 
         // a little bit ugly but whatever
         if (std::string(e.what()).find("Address already in use") != std::string::npos) {
+            ff::fatal = true;
+        }
+
+    	if (std::string(e.what()).find("Error creating the ") != std::string::npos) {
             ff::fatal = true;
         }
 

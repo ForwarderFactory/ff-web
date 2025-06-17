@@ -73,7 +73,7 @@ void ff::setup_database(database& database) {
     // id: the post id
     // identifier: the post identifier
     // json: the json of the post (including content, author, etc.)
-    if (!database.exec("CREATE TABLE IF NOT EXISTS posts (" + primary + ", identifier INTEGER NOT NULL, json TEXT NOT NULL);")) {
+    if (!database.exec("CREATE TABLE IF NOT EXISTS posts (" + primary + ", identifier TEXT NOT NULL, json TEXT NOT NULL);")) {
         throw std::runtime_error{"Error creating the posts table."};
     }
 
