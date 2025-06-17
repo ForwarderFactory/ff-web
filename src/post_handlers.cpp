@@ -237,7 +237,7 @@ limhamn::http::server::response ff::try_upload_post(const limhamn::http::server:
 			response.body = ret.dump();
 			return response;
 		}
-		if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
+		if ((topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) && get_user_type(db, username) != UserType::Administrator) {
 			nlohmann::json ret;
 			ret["error_str"] = "Topic is closed";
 			ret["error"] = "FF_TOPIC_CLOSED";
@@ -430,7 +430,7 @@ limhamn::http::server::response ff::try_upload_post_comment(const limhamn::http:
 			return response;
 		}
 
-		if (db_json.find("open") != db_json.end() && !db_json.at("open").get<bool>()) {
+		if ((db_json.find("open") != db_json.end() && !db_json.at("open").get<bool>()) && get_user_type(db, username) != UserType::Administrator) {
 			nlohmann::json ret;
 			ret["error_str"] = "Post is closed";
 			ret["error"] = "FF_POST_CLOSED";

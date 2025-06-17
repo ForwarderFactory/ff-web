@@ -4696,11 +4696,10 @@ function show_browse(uploader = '') {
                             icon.className = 'preview-icon scaling-in hidden'; // hidden initially
                             icon.style.cursor = 'pointer';
 
-                            // Create spinner element
                             const spinner = document.createElement('div');
                             spinner.className = 'loading-spinner';
 
-                            iconWrapper.innerHTML = ''; // Clear previous content
+                            iconWrapper.innerHTML = '';
                             iconWrapper.appendChild(icon);
                             iconWrapper.appendChild(spinner);
 
@@ -5436,14 +5435,13 @@ function show_post(post_id, topic_id = '') {
                 const file_name = document.createElement('p');
                 file_name.innerHTML = file.filename || 'No filename';
                 file_name.className = 'post-file-name';
-
-                const download_link = document.createElement('a');
-                download_link.href = `/download/${file.download_key}`;
-                download_link.innerHTML = 'Download';
-                download_link.className = 'post-file-download';
+                file_name.onclick = () => {
+                    play_click();
+                    window.location.href = `/download/${file.download_key}`;
+                }
+                file_name.style.color = 'blue';
 
                 file_div.appendChild(file_name);
-                file_div.appendChild(download_link);
                 files_grid.appendChild(file_div);
             });
 
@@ -5506,6 +5504,7 @@ function show_post(post_id, topic_id = '') {
         if (get_cookie('user_type') === "1" || post.open) {
             post_window.appendChild(reply_h2);
             post_window.appendChild(reply_textarea);
+            post_window.appendChild(document.createElement('br'));
             post_window.appendChild(file_uploads);
             post_window.appendChild(reply_button);
         }
@@ -5612,6 +5611,7 @@ function show_post(post_id, topic_id = '') {
                 for (const [index, comment] of comments_to_load.entries()) {
                     const comment_div = document.createElement('div');
                     comment_div.className = 'post-comment';
+                    comment_div.style.textAlign = "left";
 
                     const comment_header = document.createElement('div');
                     comment_header.style.display = 'flex';
@@ -5666,17 +5666,16 @@ function show_post(post_id, topic_id = '') {
                             const file_name = document.createElement('p');
                             file_name.innerHTML = file.filename || 'No filename';
                             file_name.className = 'post-comment-file-name';
-
-                            const download_link = document.createElement('a');
-                            download_link.href = `/download/${file.download_key}`;
-                            download_link.innerHTML = 'Download';
-                            download_link.className = 'post-comment-file-download';
+                            file_name.onclick = () => {
+                                play_click();
+                                document.location.href = `/download/${file.download_key}`;
+                            }
 
                             file_div.appendChild(file_name);
-                            file_div.appendChild(download_link);
                             files_grid.appendChild(file_div);
                         });
 
+                        comment_div.appendChild(document.createElement('br'));
                         comment_div.appendChild(files_grid);
                     }
 
@@ -5701,6 +5700,7 @@ function show_post(post_id, topic_id = '') {
                                 }
                             });
                         };
+                        comment_div.appendChild(document.createElement('br'));
                         comment_div.appendChild(delete_button);
                     }
 
@@ -5822,6 +5822,32 @@ function show_post(post_id, topic_id = '') {
             post_window.appendChild(document.createElement('br'));
             post_window.appendChild(reopen_button);
         }
+
+        // delete post
+        if (get_cookie('user_type') === "1" || (post.open && post.created_by === get_cookie('username'))) {
+            const delete_button = document.createElement('button');
+            delete_button.innerHTML = 'Delete Post';
+            delete_button.className = 'post-delete-button';
+            delete_button.style.marginLeft = "10px";
+            delete_button.onclick = () => {
+                play_click();
+                fetch('/api/delete_post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id: post_id })
+                }).then(response => {
+                    if (response.status === 204) {
+                        show_topic(topic_id);
+                    } else {
+                        console.error('Failed to delete post');
+                    }
+                });
+            }
+
+            post_window.appendChild(delete_button);
+        }
     })
 }
 
@@ -5861,6 +5887,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
     topics_list.className = 'forum-topics-list';
     topics_list.id = 'forum-topics-list';
 
+    let current_topic;
     const topics = get_topics();
 
     // iterate over topics and create elements
@@ -5868,6 +5895,10 @@ function show_topic(topic_id = '', parent_topic_id = '') {
         topics.forEach(async topic => {
             let is_ours = false;
             let current_is_subtopic = false;
+
+            if (topic.identifier == topic_id && topic_id !== null && topic_id !== '') {
+                current_topic = topic;
+            }
 
             // check if this topic is part of any other topics' topics list
             topics.forEach(t => {
@@ -5902,6 +5933,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             const topic_div = document.createElement('div');
             topic_div.className = 'forum-topic';
             topic_div.id = topic.identifier;
+            topic_div.style.padding = "10px";
             topic_div.style.textAlign = 'left';
 
             const title = document.createElement('strong');
@@ -5958,6 +5990,55 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                 show_topic(topic.identifier, topic_id);
             };
 
+            // add delete button
+            if (get_cookie('user_type') === "1" || (topic.open && topic.created_by === get_cookie('username'))) {
+                const delete_button = document.createElement('button');
+                delete_button.innerHTML = 'Delete Topic';
+                delete_button.className = 'forum-topic-delete-button';
+                delete_button.onclick = () => {
+                    play_click();
+                    fetch('/api/delete_topic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ topic_id: topic.identifier })
+                    }).then(response => {
+                        if (response.status === 204) {
+                            show_topic(parent_topic_id);
+                        } else {
+                            console.error('Failed to delete topic');
+                        }
+                    });
+                }
+
+                topic_div.appendChild(delete_button);
+            }
+            // add close/reopen button
+            if (get_cookie('user_type') === "1" || (topic.open && topic.created_by === get_cookie('username'))) {
+                const close_button = document.createElement('button');
+                close_button.innerHTML = topic.open ? 'Close Topic' : 'Reopen Topic';
+                close_button.className = 'forum-topic-close-button';
+                close_button.onclick = () => {
+                    play_click();
+                    fetch('/api/close_topic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ topic_id: topic.identifier, open: !topic.open })
+                    }).then(response => {
+                        if (response.status === 204) {
+                            show_topic(topic_id);
+                        } else {
+                            console.error('Failed to close/reopen topic');
+                        }
+                    });
+                }
+
+                topic_div.appendChild(close_button);
+            }
+
             topics_list.appendChild(topic_div);
         });
     });
@@ -5981,7 +6062,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             post_div.className = 'forum-post';
             post_div.id = post.identifier;
             post_div.style.textAlign = 'left';
-            post_div.style.margin = '10px auto';
+            post_div.style.padding = "10px";
             post_div.onclick = () => {
                 play_click();
 
@@ -5992,7 +6073,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             post_span.className = 'forum-post';
             post_span.id = post.identifier + "_div";
 
-            const title = document.createElement('h2');
+            const title = document.createElement('p');
             title.innerHTML = post.title || 'No title';
             title.className = 'forum-post-title';
 
@@ -6048,6 +6129,12 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             posts_div.appendChild(post_div);
         });
     });
+
+    const topics_title = document.createElement('h2');
+    topics_title.innerHTML = 'Topics';
+    topics_title.className = 'forum-topics-title';
+
+    forum.appendChild(topics_title);
 
     if (is_logged_in() && get_cookie('user_type') === '1') {
         const create_topic_button = document.createElement('button');
@@ -6112,12 +6199,13 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                         },
                         body: JSON.stringify(json)
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
+                        .then(response => {
+                            hide_all_windows();
+
+                            if (response.status === 204 || response.status === 200) {
                                 show_topic(parent_topic_id);
                             } else {
-                                alert('Error creating topic: ' + data.error);
+                                console.log("failed to create topic");
                             }
                         });
                 }
@@ -6139,7 +6227,15 @@ function show_topic(topic_id = '', parent_topic_id = '') {
         };
         forum.appendChild(create_topic_button);
     }
-    if (is_logged_in() && topic_id !== '' && topic_id !== null) {
+
+    const posts_title = document.createElement('h2');
+    posts_title.innerHTML = 'Posts';
+    posts_title.className = 'forum-posts-title';
+
+    forum.appendChild(topics_list);
+    forum.appendChild(posts_title);
+
+    if (is_logged_in() && topic_id !== '' && topic_id !== null && (get_cookie("user_type") === '1' || current_topic.open)) {
         const create_post_button = document.createElement('button');
         create_post_button.innerHTML = 'Create Post';
         create_post_button.className = 'forum-create-post-button';
@@ -6151,6 +6247,10 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             const title = document.createElement('h2');
             title.innerHTML = 'Create Post';
             title.className = 'forum-create-post-title';
+
+            const paragraph = document.createElement('p');
+            paragraph.innerHTML = 'Enter a title and content for your post. You can also upload files.';
+            paragraph.className = 'forum-create-post-paragraph';
 
             const title_input = document.createElement('input');
             title_input.type = 'text';
@@ -6172,6 +6272,16 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             file_upload.className = 'forum-create-topic-file-upload';
             file_upload.multiple = true;
 
+            const closed = document.createElement('input');
+            closed.type = 'checkbox';
+            closed.name = 'closed';
+            closed.id = 'forum-create-post-closed';
+
+            const closed_label = document.createElement('label');
+            closed_label.for = 'closed';
+            closed_label.innerHTML = 'Closed';
+            closed_label.className = 'forum-create-post-closed-label';
+
             const button = document.createElement('button');
             button.innerHTML = 'Create Post';
             button.className = 'forum-create-post-submit-button';
@@ -6184,6 +6294,10 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                         title: title_input.value,
                         text: content_input.value,
                     };
+
+                    if (closed && closed.checked) {
+                        json.open = !closed;
+                    }
 
                     form_data.append('json', new Blob([JSON.stringify(json)], { type: 'application/json' }));
 
@@ -6201,10 +6315,11 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                         method: 'POST',
                         body: form_data
                     })
-                        .then(response => response.json())
                         .then(data => {
-                            if (data.success) {
-                                show_post(data.post_id, topic_id);
+                            hide_all_windows();
+
+                            if (data.status === 204 || data.status === 200) {
+                                show_topic(topic_id);
                             } else {
                                 alert('Error creating post: ' + data.error);
                             }
@@ -6217,26 +6332,26 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             }
 
             window.appendChild(title);
+            window.appendChild(paragraph);
             window.appendChild(title_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(content_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
+            window.appendChild(closed);
+            window.appendChild(closed_label);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(file_upload);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(button);
         };
 
         forum.appendChild(create_post_button);
     }
 
-    const topics_title = document.createElement('h2');
-    topics_title.innerHTML = 'Topics';
-    topics_title.className = 'forum-topics-title';
-
-    const posts_title = document.createElement('h2');
-    posts_title.innerHTML = 'Posts';
-    posts_title.className = 'forum-posts-title';
-
-    forum.appendChild(topics_title);
-    forum.appendChild(topics_list);
-    forum.appendChild(posts_title);
     forum.appendChild(posts_div);
 }
 
