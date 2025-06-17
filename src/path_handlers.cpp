@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <maddy/parser.h>
 
-limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request&, database&) {
     limhamn::http::server::response response{};
 
     const auto prepare_file = [](const std::string& path) -> std::string {
@@ -273,7 +273,7 @@ limhamn::http::server::response ff::handle_try_setup_endpoint(const limhamn::htt
     }
 }
 
-limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limhamn::http::server::request&, database&) {
     limhamn::http::server::response response{};
 
     response.content_type = "image/svg+xml";
@@ -290,7 +290,7 @@ limhamn::http::server::response ff::handle_virtual_favicon_endpoint(const limham
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const limhamn::http::server::request&, database&) {
     limhamn::http::server::response response{};
 
     response.content_type = "text/css";
@@ -307,7 +307,7 @@ limhamn::http::server::response ff::handle_virtual_stylesheet_endpoint(const lim
     return response;
 }
 
-limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn::http::server::request&, database&) {
     limhamn::http::server::response response;
 
     response.content_type = "text/javascript";
@@ -1745,7 +1745,7 @@ limhamn::http::server::response ff::handle_api_create_announcement(const limhamn
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_announcements(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_get_announcements(const limhamn::http::server::request&, database& db) {
     limhamn::http::server::response response{};
 
     const auto query = db.query("SELECT * FROM general WHERE id=1;");
@@ -3315,7 +3315,7 @@ limhamn::http::server::response ff::handle_api_delete_forwarder_endpoint(const l
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::http::server::request& request, database&) {
     limhamn::http::server::response response{};
 
     if (request.session_id.empty()) {
@@ -3366,7 +3366,7 @@ limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::htt
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_try_logout_endpoint(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_try_logout_endpoint(const limhamn::http::server::request&, database&) {
     limhamn::http::server::response response{};
 
     response.content_type = "application/json";
@@ -4801,7 +4801,7 @@ limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn
             auto& comments = db_json["comments"];
 			bool found = false;
 			for (size_t i = 0; i < comments.size(); ++i) {
-				if (i == comment_id &&
+				if (i == static_cast<size_t>(comment_id) &&
 					((comments[i].contains("created_by") && comments[i].at("created_by").get<std::string>() == username)
 					|| get_user_type(db, username) == ff::UserType::Administrator))  {
 					found = true;

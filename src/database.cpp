@@ -3,7 +3,7 @@
 #include <nlohmann/json.hpp>
 
 // implement changes made to the database schema
-void ff::update_to_latest(database& database) {
+void ff::update_to_latest(database&) {
     // none as of now
 }
 
@@ -157,7 +157,7 @@ std::string ff::upload_file(database& db, const ff::FileConstruct& c) {
     json["path"] = dir;
     json["size"] = std::filesystem::file_size(dir);
 
-    if (std::filesystem::file_size(dir) <= ff::settings.max_file_size_hash) {
+    if (file_size(dir) <= static_cast<uintmax_t>(settings.max_file_size_hash)) {
         json["sha256"] = scrypto::sha256hash_file(dir);
     }
 

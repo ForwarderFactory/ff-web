@@ -12,7 +12,7 @@ ff::WADInfo ff::get_info_from_wad(const std::string& wad_path) {
         while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
             result += buffer.data();
         }
-        return std::move(result);
+        return result;
     };
 
     const auto extract_value = [](const std::string& output, const std::string& name) -> std::string {

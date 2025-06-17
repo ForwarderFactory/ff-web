@@ -9,8 +9,8 @@ int main(int argc, char** argv) {
 
     limhamn::argument_manager::argument_manager arg{argc, argv};
 
-    arg.push_back("-h|--help|/h|/help|help", [](const limhamn::argument_manager::collection& c) {ff::print_help(); std::exit(EXIT_SUCCESS);});
-    arg.push_back("-v|--version|/v|/version|version", [](const limhamn::argument_manager::collection& c) {ff::print_version(); std::exit(EXIT_SUCCESS);});
+    arg.push_back("-h|--help|/h|/help|help", [](const limhamn::argument_manager::collection&) {ff::print_help(); std::exit(EXIT_SUCCESS);});
+    arg.push_back("-v|--version|/v|/version|version", [](const limhamn::argument_manager::collection&) {ff::print_version(); std::exit(EXIT_SUCCESS);});
     arg.push_back("-c|--config-file|/c|/config-file", [&](limhamn::argument_manager::collection& c) {
         if (c.arguments.size() <= 1) {
             std::cerr << "The -c/--config flag requires a file to be specified.\n";
@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
 
         config_file = c.arguments.at(++c.index);
     });
-    arg.push_back("-gc|--generate-config|/gc|/generate-config", [&](const limhamn::argument_manager::collection& c) {std::cout << ff::generate_default_config(); std::exit(EXIT_SUCCESS);});
+    arg.push_back("-gc|--generate-config|/gc|/generate-config", [&](const limhamn::argument_manager::collection&) {std::cout << ff::generate_default_config(); std::exit(EXIT_SUCCESS);});
     arg.execute([](const std::string&) {});
 
     ff::settings = ff::load_settings(config_file);
@@ -34,8 +34,8 @@ int main(int argc, char** argv) {
 
         ff::settings.port = std::stoi(c.arguments.at(++c.index));
     });
-    arg.push_back("-he|--halt-on-error|/he|/halt-on-error", [&](const limhamn::argument_manager::collection& c) {ff::settings.halt_on_error = true;});
-    arg.push_back("-nhe|--no-halt-on-error|/nhe|/no-halt-on-error", [&](const limhamn::argument_manager::collection& c) {ff::settings.halt_on_error = false;});
+    arg.push_back("-he|--halt-on-error|/he|/halt-on-error", [&](const limhamn::argument_manager::collection&) {ff::settings.halt_on_error = true;});
+    arg.push_back("-nhe|--no-halt-on-error|/nhe|/no-halt-on-error", [&](const limhamn::argument_manager::collection&) {ff::settings.halt_on_error = false;});
     arg.push_back("-c|--config-file|/c|/config-file", [&](limhamn::argument_manager::collection& c) {
         ++c.index;
     });

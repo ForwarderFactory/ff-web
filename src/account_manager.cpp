@@ -10,7 +10,8 @@ bool ff::username_is_stored(const limhamn::http::server::request& request) {
 }
 
 bool ff::ensure_admin_account_exists(database& database) {
-    for (auto& it : database.query("SELECT * FROM users WHERE user_type = ?;", static_cast<int>(UserType::Administrator))) {
+    for (auto& it: database.query("SELECT * FROM users WHERE user_type = ?;", static_cast<int>(UserType::Administrator))) {
+    	static_cast<void>(it);
         return true;
     }
 
@@ -203,10 +204,11 @@ std::pair<ff::LoginStatus, std::string> ff::try_login(database& database, const 
         response.session["key"] = key;
 
         response.cookies.push_back({"username", base_username, .path = "/",
+        	.http_only = true,
 #ifndef FF_DEBUG
                 .secure = true,
 #endif
-        	.http_only = true, .same_site = "Strict"});
+        	.same_site = "Strict"});
 
         limhamn::http::server::cookie c;
 
@@ -219,10 +221,11 @@ std::pair<ff::LoginStatus, std::string> ff::try_login(database& database, const 
 
         response.cookies.push_back({"user_type", std::to_string(user_type),
         	.path = "/",
+        	.http_only = true,
 #ifndef FF_DEBUG
                 .secure = true,
 #endif
-        	.http_only = true, .same_site = "Strict"
+        	.same_site = "Strict"
         });
 
         return {ff::LoginStatus::Success, key};
