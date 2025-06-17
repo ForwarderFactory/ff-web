@@ -2,18 +2,23 @@
 #include <scrypto.hpp>
 
 ff::WADInfo ff::get_info_from_wad(const std::string& wad_path) {
-    const auto recv = [](const std::string&& cmd) -> std::string {
-        std::array<char, 128> buffer{};
-        std::string result{};
-        std::unique_ptr<FILE, decltype(&pclose)> pipe{popen(cmd.c_str(), "r"), pclose};
-        if (!pipe) {
-            throw std::runtime_error{"popen() failed!"};
-        }
-        while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
-            result += buffer.data();
-        }
-        return result;
-    };
+	const auto recv = [](const std::string& cmd) -> std::string {
+		std::array<char, 256> buffer{};
+		std::string result;
+
+		FILE* raw_pipe = popen(cmd.c_str(), "r");
+		if (!raw_pipe) {
+			throw std::runtime_error{"popen() failed"};
+		}
+
+		std::unique_ptr<FILE, decltype(&pclose)> pipe(raw_pipe, pclose);
+
+		while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
+			result.append(buffer.data());
+		}
+
+		return result;
+	};
 
     const auto extract_value = [](const std::string& output, const std::string& name) -> std::string {
         std::stringstream ss{output};
