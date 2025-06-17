@@ -331,7 +331,7 @@ limhamn::http::server::response ff::handle_virtual_script_endpoint(const limhamn
 
         // run uglifyjs on the file
         std::string command = "uglifyjs " + temp_file + " -o " + temp_file;
-        std::system(command.c_str());
+        static_cast<void>(std::system(command.c_str()));
 
         return temp_file;
     };
