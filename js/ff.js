@@ -5958,7 +5958,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                 const icon = document.createElement('i');
                 icon.className = "fa-solid fa-circle-user";
                 icon.style.marginRight = '5px';
-                comment_header.appendChild(icon);
+                topic_header.appendChild(icon);
             } else {
                 const profile_img = document.createElement('img');
                 profile_img.src = `/download/${profile.profile_key}`;
@@ -6088,7 +6088,7 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                 const icon = document.createElement('i');
                 icon.className = "fa-solid fa-circle-user";
                 icon.style.marginRight = '5px';
-                comment_header.appendChild(icon);
+                post_header.appendChild(icon);
             } else {
                 const profile_img = document.createElement('img');
                 profile_img.src = `/download/${profile.profile_key}`;
