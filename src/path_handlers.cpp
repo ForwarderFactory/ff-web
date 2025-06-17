@@ -3339,6 +3339,9 @@ limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::htt
         .path = "/",
         .same_site = "Strict",
         .http_only = true,
+#ifdef FF_DEBUG
+        .secure = false,
+#endif
     });
     for (const auto& it : request.cookies) {
         if (it.name == "username" || it.name == "user_type") {
@@ -3349,6 +3352,9 @@ limhamn::http::server::response ff::handle_api_stay_logged_in(const limhamn::htt
                 .path = "/",
                 .same_site = "Strict",
                 .http_only = false,
+#ifndef FF_DEBUG
+                .secure = true,
+#endif
             });
         }
     }
@@ -3493,6 +3499,8 @@ limhamn::http::server::response ff::handle_api_create_topic(const limhamn::http:
 	bool open = true;
 	if (json.contains("open") && json.at("open").is_boolean()) {
 		open = json.at("open").get<bool>();
+	} else if (json.contains("closed") && json.at("closed").is_boolean()) {
+	    open = !json.at("closed").get<bool>();
 	}
 
     nlohmann::json db_json;
@@ -4064,214 +4072,7 @@ limhamn::http::server::response ff::handle_api_edit_topic(const limhamn::http::s
 }
 
 limhamn::http::server::response ff::handle_api_create_post(const limhamn::http::server::request& request, database& db) {
-    limhamn::http::server::response response{};
-    response.content_type = "application/json";
-
-    const auto get_username = [&request]() -> std::string {
-        if (request.session.find("username") != request.session.end()) {
-            return request.session.at("username");
-        }
-
-        try {
-            const auto json = nlohmann::json::parse(request.body);
-            if (json.find("username") != json.end() && json.at("username").is_string()) {
-                return json.at("username").get<std::string>();
-            }
-        } catch (const std::exception&) {
-            // ignore
-        }
-
-        return "";
-    };
-
-    const auto get_key = [&request]() -> std::string {
-        if (request.session.find("key") != request.session.end()) {
-            return request.session.at("key");
-        }
-
-        try {
-            const auto json = nlohmann::json::parse(request.body);
-            if (json.find("key") != json.end() && json.at("key").is_string()) {
-                return json.at("key").get<std::string>();
-            }
-        } catch (const std::exception&) {
-            // ignore
-        }
-
-        return "";
-    };
-
-    const std::string username{get_username()};
-    const std::string key{get_key()};
-
-    if (username.empty() || key.empty()) {
-#ifdef FF_DEBUG
-        logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
-#endif
-        nlohmann::json json;
-        json["error_str"] = "Username or key is empty.";
-        json["error"] = "FF_INVALID_CREDENTIALS";
-        response.http_status = 400;
-        response.body = json.dump();
-        return response;
-    }
-
-    if (!ff::verify_key(db, username, key)) {
-#ifdef FF_DEBUG
-        logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
-#endif
-        nlohmann::json json;
-        json["error_str"] = "Invalid credentials.";
-        json["error"] = "FF_INVALID_CREDENTIALS";
-        response.http_status = 400;
-        response.body = json.dump();
-        return response;
-    }
-
-    nlohmann::json json;
-    try {
-        json = nlohmann::json::parse(request.body);
-    } catch (const std::exception&) {
-        nlohmann::json ret;
-        ret["error_str"] = "Invalid JSON";
-        ret["error"] = "FF_INVALID_JSON";
-        response.http_status = 400;
-        response.body = ret.dump();
-        return response;
-    }
-
-	if (get_user_type(db, username) != ff::UserType::Administrator && settings.topics_require_admin) {
-		nlohmann::json ret;
-		ret["error_str"] = "You are not allowed to create topics";
-		ret["error"] = "FF_NOT_AUTHORIZED";
-		response.http_status = 403;
-		response.body = ret.dump();
-		return response;
-	}
-
-    std::string title{};
-    std::string text{};
-    std::string post_id = scrypto::generate_random_string(4);
-	std::string topic_id{};
-
-    if (json.contains("title") && json.at("title").is_string()) {
-        title = json.at("title").get<std::string>();
-    }
-
-    if (json.contains("text") && json.at("text").is_string()) {
-        text = json.at("text").get<std::string>();
-    }
-
-    if (json.contains("post_id") && json.at("post_id").is_string()) {
-        post_id = json.at("post_id").get<std::string>();
-    }
-
-	if (json.contains("topic_id") && json.at("topic_id").is_string()) {
-		topic_id = json.at("topic_id").get<std::string>();
-	} else {
-		nlohmann::json ret;
-		ret["error_str"] = "topic_id is required";
-		ret["error"] = "FF_INVALID_JSON";
-		response.http_status = 400;
-		response.body = ret.dump();
-		return response;
-	}
-
-    const auto check_if_topic_exists = [&db, &topic_id]() -> bool {
-        try {
-            nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
-            return !db_json.empty();
-        } catch (const std::exception&) {
-            return false;
-        }
-    };
-
-	if (!check_if_topic_exists()) {
-		nlohmann::json ret;
-		ret["error_str"] = "Topic not found";
-		ret["error"] = "FF_TOPIC_NOT_FOUND";
-		response.http_status = 404;
-		response.body = ret.dump();
-		return response;
-	}
-
-	const auto check_if_post_exists = [&db, &post_id]() -> bool {
-        try {
-            nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
-            return !db_json.empty();
-        } catch (const std::exception&) {
-            return false;
-        }
-    };
-
-    int i = 4;
-    while (check_if_post_exists()) {
-        post_id = scrypto::generate_random_string(i);
-        ++i;
-    }
-
-	bool open = true;
-	if (json.contains("open") && json.at("open").is_boolean()) {
-		open = json.at("open").get<bool>();
-	}
-
-    nlohmann::json db_json;
-
-    db_json["title"] = limhamn::http::utils::htmlspecialchars(title);
-    db_json["text"] = limhamn::http::utils::htmlspecialchars(text);
-    db_json["created_by"] = username;
-    db_json["created_at"] = scrypto::return_unix_millis();
-    db_json["identifier"] = post_id;
-    db_json["open"] = open;
-	db_json["comments"] = nlohmann::json::array();
-    db_json["topic_id"] = topic_id;
-
-    try {
-    	nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", topic_id));
-
-    	if (topic_json.empty()) {
-            nlohmann::json ret;
-            ret["error_str"] = "Topic not found";
-            ret["error"] = "FF_TOPIC_NOT_FOUND";
-            response.http_status = 404;
-            response.body = ret.dump();
-            return response;
-        }
-    	if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
-            nlohmann::json ret;
-            ret["error_str"] = "Topic is closed";
-            ret["error"] = "FF_TOPIC_CLOSED";
-            response.http_status = 403;
-            response.body = ret.dump();
-            return response;
-        }
-
-        if (topic_json.find("posts") == topic_json.end() || !topic_json.at("posts").is_array()) {
-            topic_json["posts"] = nlohmann::json::array();
-        }
-        topic_json["posts"].push_back(post_id);
-
-    	db.exec("INSERT INTO posts (identifier, json) VALUES (?, ?)", post_id, db_json.dump());
-
-        ff::set_json_in_table(db, "topics", "identifier", topic_id, topic_json.dump());
-    } catch (const std::exception& e) {
-        nlohmann::json ret;
-        ret["error_str"] = "Failed to create post: " + std::string(e.what());
-        ret["error"] = "FF_DATABASE_ERROR";
-        response.http_status = 500;
-        response.body = ret.dump();
-        return response;
-    }
-
-    nlohmann::json ret;
-	ret["post_id"] = post_id;
-    ret["topic_id"] = topic_id;
-
-    response.http_status = 200;
-    response.content_type = "application/json";
-    response.body = ret.dump();
-
-    return response;
+	return ff::try_upload_post(request, db);
 }
 
 limhamn::http::server::response ff::handle_api_delete_post(const limhamn::http::server::request& request, database& db) {
@@ -4851,174 +4652,7 @@ limhamn::http::server::response ff::handle_api_edit_post(const limhamn::http::se
 }
 
 limhamn::http::server::response ff::handle_api_comment_post(const limhamn::http::server::request& request, database& db) {
-	limhamn::http::server::response response{};
-	response.content_type = "application/json";
-
-	const auto get_username = [&request]() -> std::string {
-		if (request.session.find("username") != request.session.end()) {
-			return request.session.at("username");
-		}
-
-		try {
-			const auto json = nlohmann::json::parse(request.body);
-			if (json.find("username") != json.end() && json.at("username").is_string()) {
-				return json.at("username").get<std::string>();
-			}
-		} catch (const std::exception&) {
-			// ignore
-		}
-
-		return "";
-	};
-
-	const auto get_key = [&request]() -> std::string {
-		if (request.session.find("key") != request.session.end()) {
-			return request.session.at("key");
-		}
-
-		try {
-			const auto json = nlohmann::json::parse(request.body);
-			if (json.find("key") != json.end() && json.at("key").is_string()) {
-				return json.at("key").get<std::string>();
-			}
-		} catch (const std::exception&) {
-			// ignore
-		}
-
-		return "";
-	};
-
-	const std::string username{get_username()};
-	const std::string key{get_key()};
-
-	if (username.empty() || key.empty()) {
-#ifdef FF_DEBUG
-		logger.write_to_log(limhamn::logger::type::notice, "Username or key is empty.\n");
-#endif
-		nlohmann::json json;
-		json["error_str"] = "Username or key is empty.";
-		json["error"] = "FF_INVALID_CREDENTIALS";
-		response.http_status = 400;
-		response.body = json.dump();
-		return response;
-	}
-
-	if (!ff::verify_key(db, username, key)) {
-#ifdef FF_DEBUG
-		logger.write_to_log(limhamn::logger::type::notice, "Invalid credentials.\n");
-#endif
-		nlohmann::json json;
-		json["error_str"] = "Invalid credentials.";
-		json["error"] = "FF_INVALID_CREDENTIALS";
-		response.http_status = 400;
-		response.body = json.dump();
-		return response;
-	}
-
-	nlohmann::json json;
-	try {
-		json = nlohmann::json::parse(request.body);
-	} catch (const std::exception&) {
-		nlohmann::json ret;
-		ret["error_str"] = "Invalid JSON";
-		ret["error"] = "FF_INVALID_JSON";
-		response.http_status = 400;
-		response.body = ret.dump();
-		return response;
-	}
-
-	std::string post_id{};
-	if (json.contains("post_id") && json.at("post_id").is_string()) {
-		post_id = json.at("post_id").get<std::string>();
-	} else {
-		nlohmann::json ret;
-		ret["error_str"] = "post_id is required";
-		ret["error"] = "FF_INVALID_JSON";
-		response.http_status = 400;
-		response.body = ret.dump();
-		return response;
-	}
-
-	std::string comment{};
-	if (json.contains("comment") && json.at("comment").is_string()) {
-        comment = json.at("comment").get<std::string>();
-    } else {
-        nlohmann::json ret;
-        ret["error_str"] = "comment is required";
-        ret["error"] = "FF_INVALID_JSON";
-        response.http_status = 400;
-        response.body = ret.dump();
-        return response;
-    }
-
-	try {
-		nlohmann::json db_json = nlohmann::json::parse(ff::get_json_from_table(db, "posts", "identifier", post_id));
-		if (db_json.empty()) {
-			nlohmann::json ret;
-			ret["error_str"] = "Post not found";
-			ret["error"] = "FF_POST_NOT_FOUND";
-			response.http_status = 404;
-			response.body = ret.dump();
-			return response;
-		}
-
-		if (db_json.find("open") != db_json.end() && !db_json.at("open").get<bool>()) {
-			nlohmann::json ret;
-			ret["error_str"] = "Post is closed";
-			ret["error"] = "FF_POST_CLOSED";
-			response.http_status = 403;
-			response.body = ret.dump();
-			return response;
-		}
-
-		if (db_json.find("topic_id") != db_json.end() && db_json.at("topic_id").is_string()) {
-			nlohmann::json topic_json = nlohmann::json::parse(ff::get_json_from_table(db, "topics", "identifier", db_json.at("topic_id").get<std::string>()));
-			if (topic_json.empty()) {
-				nlohmann::json ret;
-				ret["error_str"] = "Topic not found";
-				ret["error"] = "FF_TOPIC_NOT_FOUND";
-				response.http_status = 404;
-				response.body = ret.dump();
-				return response;
-			}
-
-			if (topic_json.find("open") != topic_json.end() && !topic_json.at("open").get<bool>()) {
-				nlohmann::json ret;
-				ret["error_str"] = "Topic is closed";
-				ret["error"] = "FF_TOPIC_CLOSED";
-				response.http_status = 403;
-				response.body = ret.dump();
-				return response;
-			}
-		}
-
-		if (db_json.find("comments") == db_json.end() || !db_json.at("comments").is_array()) {
-            db_json["comments"] = nlohmann::json::array();
-        }
-
-		nlohmann::json comment_json;
-		comment_json["comment"] = limhamn::http::utils::htmlspecialchars(comment);
-		comment_json["created_by"] = username;
-		comment_json["created_at"] = scrypto::return_unix_millis();
-
-		db_json["comments"].push_back(comment_json);
-
-		ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
-
-		nlohmann::json ret;
-		ret["post_id"] = post_id;
-		ret["topic_id"] = db_json.at("topic_id").get<std::string>();
-		response.http_status = 200;
-		response.body = ret.dump();
-		return response;
-	} catch (const std::exception&) {
-		nlohmann::json ret;
-		ret["error_str"] = "Post not found";
-		ret["error"] = "FF_POST_NOT_FOUND";
-		response.http_status = 404;
-		response.body = ret.dump();
-		return response;
-	}
+	return ff::try_upload_post_comment(request, db);
 }
 
 limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn::http::server::request& request, database& db) {
@@ -5165,16 +4799,18 @@ limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn
 
 		if (db_json.find("comments") != db_json.end() && db_json.at("comments").is_array()) {
             auto& comments = db_json["comments"];
-            auto it = std::remove_if(comments.begin(), comments.end(),
-                [&username, &db, comment_id](const nlohmann::json& comment) {
-                	// must be our comment, or we must be an admin
-                    return comment.contains("id") && comment.at("id").get<int>() == comment_id &&
-                           (comment.contains("created_by") && comment.at("created_by").get<std::string>() != username &&
-                            get_user_type(db, username) != ff::UserType::Administrator);
-                });
-            if (it != comments.end()) {
-                comments.erase(it, comments.end());
-            } else {
+			bool found = false;
+			for (size_t i = 0; i < comments.size(); ++i) {
+				if (i == comment_id &&
+					((comments[i].contains("created_by") && comments[i].at("created_by").get<std::string>() == username)
+					|| get_user_type(db, username) == ff::UserType::Administrator))  {
+					found = true;
+					comments.erase(i);
+
+					break;
+				}
+			}
+			if (!found) {
                 nlohmann::json ret;
                 ret["error_str"] = "Comment not found";
                 ret["error"] = "FF_COMMENT_NOT_FOUND";
@@ -5190,6 +4826,9 @@ limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn
             response.body = ret.dump();
             return response;
         }
+
+		// reinsert
+		ff::set_json_in_table(db, "posts", "identifier", post_id, db_json.dump());
 
 		nlohmann::json ret;
 		response.http_status = 204;

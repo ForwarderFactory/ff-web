@@ -35,7 +35,14 @@ namespace ff {
             {"/img/grab-moving.png", "/etc/ff/img/grab-moving.png"},
             {"/img/background-logo-1.png", "/etc/ff/img/background-logo-1.png"},
             {"/img/discord.svg", "/etc/ff/img/discord.svg"},
+            {"/img/messages.svg", "/etc/ff/img/messages.svg"},
+            {"/img/shovel.svg", "/etc/ff/img/shovel.svg"},
+            {"/img/question-mark-block.svg", "/etc/ff/img/question-mark-block.svg"},
+            {"/img/coin.svg", "/etc/ff/img/coin.svg"},
+            {"/img/hammer.svg", "/etc/ff/img/hammer.svg"},
             {"/img/star.svg", "/etc/ff/img/star.svg"},
+            {"/img/retro-star.svg", "/etc/ff/img/retro-star.svg"},
+            {"/img/wave.svg", "/etc/ff/img/wave.svg"},
             {"/img/pen.svg", "/etc/ff/img/pen.svg"},
             {"/img/logo.svg", "/etc/ff/img/logo.svg"},
             {"/img/announcements.svg", "/etc/ff/img/announcements.svg"},
@@ -69,7 +76,14 @@ namespace ff {
             {"/img/grab-moving.png", "./img/grab-moving.png"},
             {"/img/background-logo-1.png", "./img/background-logo-1.png"},
             {"/img/discord.svg", "./img/discord.svg"},
+            {"/img/messages.svg", "./img/messages.svg"},
+            {"/img/shovel.svg", "./img/shovel.svg"},
+            {"/img/question-mark-block.svg", "./img/question-mark-block.svg"},
+            {"/img/hammer.svg", "./img/hammer.svg"},
+            {"/img/coin.svg", "./img/coin.svg"},
             {"/img/star.svg", "./img/star.svg"},
+            {"/img/wave.svg", "./img/wave.svg"},
+            {"/img/retro-star.svg", "./img/retro-star.svg"},
             {"/img/pen.svg", "./img/pen.svg"},
             {"/img/logo.svg", "./img/logo.svg"},
             {"/img/announcements.svg", "./img/announcements.svg"},
@@ -389,6 +403,9 @@ namespace ff {
     void create_patched_dol(const std::string& path, const std::string& output_path);
 
     bool is_file(database& db, const std::string& file_key);
+
+    limhamn::http::server::response try_upload_post(const limhamn::http::server::request& request, database& db);
+    limhamn::http::server::response try_upload_post_comment(const limhamn::http::server::request& request, database& db);
 
     limhamn::http::server::response handle_root_endpoint(const limhamn::http::server::request& request, database& db);
     limhamn::http::server::response handle_try_setup_endpoint(const limhamn::http::server::request& request, database& db);

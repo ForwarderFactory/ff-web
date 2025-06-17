@@ -202,7 +202,11 @@ std::pair<ff::LoginStatus, std::string> ff::try_login(database& database, const 
         response.session["username"] = base_username;
         response.session["key"] = key;
 
-        response.cookies.push_back({"username", base_username, .path = "/"});
+        response.cookies.push_back({"username", base_username, .path = "/",
+#ifndef FF_DEBUG
+                .secure = true,
+#endif
+        	.http_only = true, .same_site = "Strict"});
 
         limhamn::http::server::cookie c;
 
@@ -213,7 +217,13 @@ std::pair<ff::LoginStatus, std::string> ff::try_login(database& database, const 
             user_type = 1;
         }
 
-        response.cookies.push_back({"user_type", std::to_string(user_type)});
+        response.cookies.push_back({"user_type", std::to_string(user_type),
+        	.path = "/",
+#ifndef FF_DEBUG
+                .secure = true,
+#endif
+        	.http_only = true, .same_site = "Strict"
+        });
 
         return {ff::LoginStatus::Success, key};
     }

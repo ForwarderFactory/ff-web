@@ -3,8 +3,31 @@
     src: url('../fonts/font.woff2') format('woff2');
 }
 
+.floating_window {
+    position: fixed;
+    min-width: 300px;
+    min-height: 100px;
+    max-width: 90vw;
+    max-height: 90vh;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    border-radius: 10px;
+    padding: 10px;
+    z-index: 9999;
+    text-align: center;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    box-sizing: border-box;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* buttons */
-#login-button, #login-window {
+#login-button, #login-window, #tos-window {
     background-color: #a9def9;
     color: #000;
 }
@@ -12,7 +35,7 @@
     background-color: #ff99c8;
     color: #000;
 }
-#logout-button {
+#logout-button, #logout-window {
     background-color: #f08080;
     color: #000;
 }
@@ -36,7 +59,11 @@
     background-color: #000000;
     color: #fff;
 }
-#forum-button, #forum-window {
+#forum-button {
+    background-color: #f0f0f0;
+    color: #000;
+}
+.forum_window {
     background-color: #f0f0f0;
     color: #000;
 }
@@ -55,6 +82,25 @@
 #announcements-button, #announcements-window, #announcement-window, #create-announcement-window {
     background-color: #fcf6bd;
     color: #000;
+}
+#browse-window, #sandbox-window {
+    min-width: 90%;
+    min-height: 90%;
+}
+
+#announcements-window, #announcement-window, #create-announcement-window {
+    min-width: 60%;
+    min-height: 60%;
+}
+
+#view-window, #file-window, .forum_window {
+    min-width: 70%;
+    min-height: 70%;
+}
+
+#profile-window, #edit-profile-window, #terms-window {
+    min-width: 50%;
+    min-height: 50%;
 }
 .announcement_div {
     background-color: #fff;
@@ -110,16 +156,6 @@ body {
     overflow: auto;
 }
 
-.link_box {
-    background-color: #f0f0f0; /* default, if you don't override through classes or IDs */
-    color: #000000; /* default, if you don't override through classes or IDs */
-    border-radius: 10px;
-    padding: 10px;
-    margin-top: 10px;
-    min-width: 300px;
-    text-align: center;
-}
-
 .link_box_container {
     display: flex;
     flex-direction: column;
@@ -136,7 +172,13 @@ body {
 }
 
 .link_box {
+    background-color: #f0f0f0; /* default, if you don't override through classes or IDs */
+    color: #000000; /* default, if you don't override through classes or IDs */
+    margin-top: 10px;
+    min-width: 300px;
+    text-align: center;
     flex: 1 1 calc(50% - 1rem);
+
     box-sizing: border-box;
     padding: 1rem;
     border: 1px solid #ccc;
@@ -144,6 +186,15 @@ body {
     cursor: pointer;
     transition: background 0.3s;
     max-width: 100%;
+
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    position: relative;
+
+    width: 250px;
+    height: 100px;
+
+    overflow: hidden;
 }
 
 @media (max-width: 768px) {
@@ -162,32 +213,6 @@ body {
     font-size: 1rem;
 }
 
-
-.floating_window {
-    position: fixed;
-    min-width: 300px;
-    min-height: 100px;
-    max-width: 90vw;
-    max-height: 90vh;
-
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-
-    border-radius: 10px;
-    padding: 10px;
-    z-index: 9999;
-    text-align: center;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    background-color: #70d6ff;
-    color: #000000;
-
-    box-sizing: border-box;
-}
-
 .file_div {
     background-color: #fafafa;
     color: #000000;
@@ -195,26 +220,6 @@ body {
     padding: 10px;
     width: 40%;
     margin: 10px auto;
-}
-
-#browse-window, #sandbox-window {
-    min-width: 90%;
-    min-height: 90%;
-}
-
-#announcements-window, #announcement-window, #create-announcement-window {
-    min-width: 60%;
-    min-height: 60%;
-}
-
-#view-window, #file-window, #forum-window {
-    min-width: 70%;
-    min-height: 70%;
-}
-
-#profile-window, #edit-profile-window, #terms-window {
-    min-width: 50%;
-    min-height: 50%;
 }
 
 .view_floating_window_comment_meta {
@@ -234,7 +239,6 @@ body {
         font-size: 0.9rem;
     }
 }
-
 
 .view_floating_window_comment_logo {
     width: 24px;
@@ -315,6 +319,60 @@ body {
 #sandbox-filter-div {
     background-color: #ffffff;
     color: #000;
+}
+
+.post-file {
+    background-color: #fafafa;
+    color: #000000;
+    border-radius: 10px;
+    padding: 10px;
+    width: 80%;
+    margin: 10px auto;
+    overflow: hidden;
+}
+
+.forum-topic {
+    background-color: #fafafa;
+    color: #000000;
+    border-radius: 10px;
+    width: 80%;
+    margin: 10px auto;
+}
+
+.forum-post {
+    background-color: aliceblue;
+    color: #000000;
+    border-radius: 10px;
+    width: 80%;
+    margin: 10px auto;
+}
+
+.post-comment {
+    background-color: aliceblue;
+    border-radius: 5px;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+#comments_div {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.post-comment-file {
+    background-color: #fafafa;
+    color: #7289da;
+    padding: 5px;
+}
+
+.forum-topic:hover, .forum-post:hover, .post-file:hover {
+    transform: scale(1.025);
+    transition: transform 0.3s ease;
+}
+
+button:hover {
+    transform: scale(1.025);
+    transition: transform 0.3s ease;
 }
 
 input, button, select, textarea {

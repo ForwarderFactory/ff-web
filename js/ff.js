@@ -74,7 +74,8 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
 
     document.body.style.overflow = 'hidden';
 
-    const cachedImageSrc = '/img/background-logo-1.png';
+    const cachedImageSrc = '/img/logo.svg';
+    //const cachedImageSrc = '/img/background-logo-1.png';
 
     function createImage(initialX, initialY) {
         const img = document.createElement('img');
@@ -87,7 +88,7 @@ function WSCBackgroundRepeatingSpawner(speed = 0.5, creation_interval = 8000) {
         img.style.userSelect = 'none';
         img.draggable = false;
         img.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
-        img.style.width = '150px';
+        img.style.width = '75px';
         img.style.height = 'auto';
 
         container.appendChild(img);
@@ -174,6 +175,7 @@ function hide_all_windows() {
         while (windows[i].firstChild) {
             windows[i].removeChild(windows[i].firstChild);
         }
+        windows[i].remove();
     }
 
     const grids = document.getElementsByClassName('grid');
@@ -184,21 +186,21 @@ function hide_all_windows() {
     // hide #browse-search and #browse-filter-button if they exist
     const search = document.getElementById('sandbox-search');
     if (search) {
-        search.style.display = 'none';
+        search.remove();
     }
     const filter = document.getElementById('sandbox-filter-button');
     if (filter) {
-        filter.style.display = 'none';
+        filter.remove();
     }
 
     // hide #browse-search and #browse-filter-button if they exist
     const browse_search = document.getElementById('browse-search');
     if (browse_search) {
-        browse_search.style.display = 'none';
+        browse_search.remove();
     }
     const browse_filter = document.getElementById('browse-filter-button');
     if (browse_filter) {
-        browse_filter.style.display = 'none';
+        browse_filter.remove();
     }
 
     // show title if hidden
@@ -260,18 +262,16 @@ function hide_initial() {
 
 class WindowProperties {
     constructor({
-        back_button = null,
+        classes = [],
         close_button = true,
         moveable = false,
-        close_on_click_outside = false,
         close_on_escape = true,
         remove_existing = true,
         function_on_close = null
     } = {}) {
-        this.back_button = back_button;
+        this.classes = classes;
         this.close_button = close_button;
         this.moveable = moveable;
-        this.close_on_click_outside = close_on_click_outside;
         this.close_on_escape = close_on_escape;
         this.remove_existing = remove_existing;
         this.function_on_close = function_on_close;
@@ -298,7 +298,15 @@ function create_window(id, prop = new WindowProperties()){
     }
     const window = document.createElement('div');
     window.className = 'floating_window';
+
+    if (prop.classes && prop.classes.length > 0) {
+        for (const cls of prop.classes) {
+            window.classList.add(cls);
+        }
+    }
+
     window.id = id;
+    /*
     if (prop.close_on_click_outside) {
         window.onclick = (event) => {
             if (event.target === window) {
@@ -315,6 +323,8 @@ function create_window(id, prop = new WindowProperties()){
             }
         }
     }
+    */
+
     if (prop.close_on_escape) {
         document.onkeydown = (event) => {
             if (event.key === 'Escape') {
@@ -322,7 +332,7 @@ function create_window(id, prop = new WindowProperties()){
                     prop.function_on_close();
                     return;
                 }
-                //hide_all_windows();
+
                 window.remove();
                 const windows = document.getElementsByClassName('floating_window');
                 if (windows.length === 0) {
@@ -384,25 +394,6 @@ function create_window(id, prop = new WindowProperties()){
 
         window.appendChild(close);
     }
-    if (prop.back_button) {
-        const back = document.createElement('a');
-        back.innerHTML = '←';
-        back.id = 'window-back';
-        back.style.position = 'fixed';
-        back.style.padding = '10px';
-        back.style.top = '0';
-        back.style.left = '0';
-        back.style.textDecoration = 'none';
-        back.style.color = 'black';
-        back.onclick = () => {
-            play_click();
-            if (prop.function_on_close) {
-                prop.function_on_close();
-            }
-        }
-
-        window.appendChild(back);
-    }
 
     document.body.appendChild(window);
 
@@ -411,28 +402,31 @@ function create_window(id, prop = new WindowProperties()){
 
 function show_terms() {
     play_click();
-    const terms = create_window('terms-window');
+    const terms = create_window('tos-window');
 
     const title = document.createElement('h1');
     title.innerHTML = 'Terms of Service';
 
     const paragraph = document.createElement('p');
-    let terms_str = "By contributing, logging in and/or registering to this website (hereinafter referred to as 'Forwarder Factory'), you agree to the following terms of service:";
-    terms_str += "<br>1. Forwarder Factory, its contributors and its members shall not be held responsible for any damages caused by the use of files, software, information, or any other content found on this website.";
-    terms_str += "<br>2. Forwarder Factory reserves the right to remove any content at any time for any reason, including but not limited to, a DMCA takedown request.";
-    terms_str += "<br>3. Forwarder Factory reserves the right to ban users who upload harmful, malicious or otherwise dangerous content.";
-    terms_str += "<br>4. Forwarder Factory reserves the right to change these terms at any time without notice.";
-    terms_str += "<br>5. Forwarder Factory cannot guarantee it will keep your data safe, and it shall not be held responsible for any data breaches. We therefore highly urge our users not to use the same password on Forwarder Factory as they do on other websites. Data breaches are not expected, but they are possible, and we want to be transparent about it.";
-    terms_str += "<br>6. Any data you submit to Forwarder Factory may be stored indefinitely, until a request for deletion is received. Forwarder Factory will not sell your data to third parties.";
-    terms_str += " In the event of a data breach, we will attempt to notify all affected users as soon as possible, within reason.";
-    terms_str += "<br>European Union: By using this website, you agree to the use of cookies. We only use cookies for session management, not for tracking or advertising purposes. You have the right to request that your data be deleted at any time, and we will comply with any such requests. Send requests in the form of an email to contact@forwarderfactory.com.";
-    terms_str += "<br>Note: Forwarder Factory is not affiliated with Nintendo. All trademarks are property of their respective owners.";
-    terms_str += "<br>Forwarder Factory is hosted in Sweden, and is therefore subject to Swedish law. Uploads that do not comply with Swedish law will be removed on sight, as we are legally required to do so.";
-
-    paragraph.innerHTML = terms_str;
+    paragraph.innerHTML = 'Loading terms...';
 
     terms.appendChild(title);
     terms.appendChild(paragraph);
+
+    fetch('https://raw.githubusercontent.com/ForwarderFactory/documents/refs/heads/master/terms-of-service.txt')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('network response was not ok.');
+            }
+            return response.text();
+        })
+        .then(text => {
+            paragraph.innerHTML = text.replace(/\n/g, '<br>');
+        })
+        .catch(error => {
+            paragraph.innerHTML = 'failed to load terms of service.';
+            console.error('error fetching terms:', error);
+        });
 }
 
 function show_login(_error = "") {
@@ -4702,11 +4696,10 @@ function show_browse(uploader = '') {
                             icon.className = 'preview-icon scaling-in hidden'; // hidden initially
                             icon.style.cursor = 'pointer';
 
-                            // Create spinner element
                             const spinner = document.createElement('div');
                             spinner.className = 'loading-spinner';
 
-                            iconWrapper.innerHTML = ''; // Clear previous content
+                            iconWrapper.innerHTML = '';
                             iconWrapper.appendChild(icon);
                             iconWrapper.appendChild(spinner);
 
@@ -5204,25 +5197,109 @@ function show_admin() {
     unfinished.className = 'admin-unfinished';
     admin.appendChild(unfinished);
 }
-const generate_stars = (n, w) => {
+
+function generate_stars(n, w) {
+    const size = 4;
+    const win_box = w.getBoundingClientRect();
+
     for (let i = 0; i < n; i++) {
         const star = document.createElement('div');
 
         star.className = 'star';
         star.style.position = 'absolute';
-        star.style.width = '4px';
-        star.style.height = '4px';
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
         star.style.backgroundColor = 'white';
         star.style.borderRadius = '50%';
-        star.style.top = `${Math.random() * 100}%`;
-        star.style.left = `${Math.random() * 100}%`;
+
+        const max_top = w.clientHeight - size;
+        const max_left = w.clientWidth - size;
+
+        star.style.top = `${Math.random() * max_top}px`;
+        star.style.left = `${Math.random() * max_left}px`;
+
         star.style.setProperty('--random-x', Math.random() - 0.5);
         star.style.setProperty('--random-y', Math.random() - 0.5);
+
         star.style.animationDuration = `${Math.random() * 10 + 10}s`;
 
         w.appendChild(star);
     }
 }
+
+function generate_sprites(container, url, img_properties = {}, size = 24, distance = 48) {
+    const wrapper = document.createElement('div');
+    const random_string = Math.random().toString(36).substring(2, 15);
+    wrapper.id = 'tiled-wrapper-' + random_string;
+
+    Object.assign(wrapper.style, {
+        position: 'absolute',
+        top: `-${distance}px`,
+        left: `-${distance}px`,
+        width: `calc(100% + ${distance * 2}px)`,
+        height: `calc(100% + ${distance * 2}px)`,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        willChange: "transform",
+        zIndex: '-1'
+    });
+
+    const animate = (el) => {
+        let start = null;
+
+        const step = (timestamp) => {
+            if (!start) start = timestamp;
+
+            const progress = (timestamp - start) % 4000;
+            const fraction = progress / 4000;
+
+            const x = -distance * fraction;
+            const y = distance * fraction;
+
+            el.style.transform = `translate(${x}px, ${y}px)`;
+            requestAnimationFrame(step);
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    animate(wrapper);
+
+    const cols = Math.ceil((container.offsetWidth + distance * 2) / distance);
+    const rows = Math.ceil((container.offsetHeight + distance * 2) / distance);
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if ((x + y) % 2 === 0) {
+                const sprite = document.createElement('div');
+                sprite.className = 'sprite';
+                sprite.style.left = `${x * distance}px`;
+                sprite.style.top = `${y * distance}px`;
+                sprite.style.position = "absolute";
+                sprite.style.width = `${size}px`;
+                sprite.style.height = `${size}px`;
+                sprite.style.backgroundImage = `url(${url})`;
+                sprite.style.backgroundSize = "cover";
+
+                const filters = [];
+
+                if (img_properties.invert) filters.push('invert(1)');
+                if (img_properties.random_colors) filters.push(`hue-rotate(${Math.random() * 360}deg)`);
+                if (img_properties.hue !== undefined) filters.push(`hue-rotate(${img_properties.hue}deg)`);
+                if (img_properties.monochrome) filters.push('grayscale(1)');
+
+                if (filters.length > 0) sprite.style.filter = filters.join(' ');
+
+                sprite.style.opacity = img_properties.opacity !== undefined ? img_properties.opacity : 0.25;
+
+                wrapper.appendChild(sprite);
+            }
+        }
+    }
+
+    container.prepend(wrapper);
+}
+
 
 function get_posts(topic_id, start_index = 0, end_index = -1) {
     if (topic_id == null || topic_id === '') {
@@ -5281,51 +5358,583 @@ function get_topics(start_index = 0, end_index = -1) {
     });
 }
 
+function show_post(post_id, topic_id = '') {
+    hide_all_windows();
+    set_path('/post');
+
+    if (post_id === null || post_id === '') {
+        console.error('post_id is null');
+        return;
+    }
+
+    // get the post from the server
+    const url = '/api/get_posts';
+    const requestBody = JSON.stringify({ post_id: post_id, topic_id: topic_id });
+    fetch(url, {
+        method: 'POST',
+        body: requestBody,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.text())
+    .then(text => {
+        const json = JSON.parse(text);
+        if (json.error) {
+            console.error(json.error);
+            return;
+        }
+
+        const posts = json.posts;
+        let post;
+        posts.forEach(p => {
+            if (p.identifier === post_id) {
+                post = p;
+            }
+        });
+
+        if (post === undefined) {
+            console.error(`Post with ID ${post_id} not found`);
+            return;
+        }
+
+        set_path('/post/' + post_id);
+
+        const post_window = create_window('post-window-' + (topic_id || "root") + ("-" + post_id || "root"), { classes: ["forum_window"], close_button: true, back_button: null, close_on_escape: true, function_on_close: () => {
+            hide_all_windows();
+            show_topic(topic_id || post.topic_id);
+        }
+        });
+
+        const title = document.createElement('h1');
+        title.innerHTML = post.title || 'No title';
+        title.className = 'post-title';
+
+        const author = document.createElement('p');
+        author.innerHTML = `Posted by ${post.created_by} on ${new Date(post.created_at).toLocaleDateString()}`;
+        author.className = 'post-author';
+
+        const content = document.createElement('div');
+        content.innerHTML = post.text || 'No content';
+        content.className = 'post-content';
+
+        post_window.appendChild(title);
+        post_window.appendChild(author);
+        post_window.appendChild(content);
+
+        // in a grid, show files. they're in data/x/download_key. We can display data/x/filename
+        if (post.data && post.data.length > 0) {
+            const files_grid = document.createElement('div');
+            files_grid.className = 'post-files-grid';
+
+            post.data.forEach(file => {
+                const file_div = document.createElement('div');
+                file_div.className = 'post-file';
+                file_div.id = file.download_key;
+
+                const file_name = document.createElement('p');
+                file_name.innerHTML = file.filename || 'No filename';
+                file_name.className = 'post-file-name';
+                file_name.onclick = () => {
+                    play_click();
+                    window.location.href = `/download/${file.download_key}`;
+                }
+                file_name.style.color = 'blue';
+
+                file_div.appendChild(file_name);
+                files_grid.appendChild(file_div);
+            });
+
+            post_window.appendChild(files_grid);
+        }
+
+        const reply_h2 = document.createElement('h2');
+        reply_h2.innerHTML = 'Reply to this post';
+        reply_h2.className = 'post-reply-button';
+
+        const reply_textarea = document.createElement('textarea');
+        reply_textarea.className = 'post-reply-textarea';
+        reply_textarea.placeholder = 'Write your reply here...';
+        reply_textarea.rows = 5;
+        reply_textarea.cols = 50;
+
+        const file_uploads = document.createElement('input');
+        file_uploads.type = 'file';
+        file_uploads.multiple = true;
+        file_uploads.className = 'post-file-upload';
+        file_uploads.accept = '*/*';
+        file_uploads.style.marginRight = '10px';
+
+        const reply_button = document.createElement('button');
+        reply_button.innerHTML = 'Reply';
+        reply_button.className = 'post-reply-button';
+        reply_button.onclick = () => {
+            play_click();
+
+            // 1. must be sent to /api/comment_post
+            // 2. must be as a multipart, with the json being name="json"
+            // 3. the json must contain the post_id, topic_id, text
+            const formData = new FormData();
+            formData.append('json', JSON.stringify({
+                "post_id": post_id,
+                "topic_id": topic_id,
+                "comment": reply_textarea.value,
+            }));
+
+            if (file_uploads.files.length > 0) {
+                for (let i = 0; i < file_uploads.files.length; i++) {
+                    formData.append('file-' + i, file_uploads.files[i]);
+                }
+            }
+
+            fetch('/api/comment_post', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.text())
+            .then(text => {
+                show_post(post_id, topic_id);
+            });
+        }
+
+        // must not be closed, or admin, to reply
+        if (get_cookie('user_type') === "1" || post.open) {
+            post_window.appendChild(reply_h2);
+            post_window.appendChild(reply_textarea);
+            post_window.appendChild(document.createElement('br'));
+            post_window.appendChild(file_uploads);
+            post_window.appendChild(reply_button);
+        }
+
+        const replies_h2 = document.createElement('h2');
+        replies_h2.innerHTML = 'Replies';
+        replies_h2.className = 'post-replies-title';
+
+        post_window.appendChild(replies_h2);
+
+        // now print all comments for this post
+        // they're in the comments array
+        if (post.comments && post.comments.length > 0) {
+            const search_input = document.createElement('input');
+
+            search_input.type = 'text';
+            search_input.id = 'comment_search_input';
+            search_input.placeholder = 'Search comments...';
+            search_input.className = 'post-comment-search';
+            search_input.style.margin = '5px';
+
+            post_window.appendChild(search_input);
+
+            search_input.addEventListener('input', (event) => {
+                const raw_query = event.target.value.trim().toLowerCase();
+                search_query = raw_query;
+
+                if (!raw_query) {
+                    filtered_comments = [];
+                    load_comments(1);
+                    return;
+                }
+
+                const filters = {
+                    author: null,
+                    content: null,
+                    file: null,
+                    date: null,
+                    any: []
+                };
+
+                raw_query.split(/\s+/).forEach(term => {
+                    if (term.startsWith('author:')) {
+                        filters.author = term.slice(7);
+                    } else if (term.startsWith('content:')) {
+                        filters.content = term.slice(8);
+                    } else if (term.startsWith('file:')) {
+                        filters.file = term.slice(5);
+                    } else if (term.startsWith('date:')) {
+                        filters.date = term.slice(5);
+                    } else {
+                        filters.any.push(term);
+                    }
+                });
+
+                filtered_comments = post.comments.filter(comment => {
+                    const comment_text = (comment.comment || '').toLowerCase();
+                    const author = (comment.created_by || '').toLowerCase();
+                    const date_str = new Date(comment.created_at).toLocaleDateString().toLowerCase();
+                    const file_names = (comment.data || []).map(f => f.filename?.toLowerCase() || '').join(' ');
+
+                    const match_author = !filters.author || author.includes(filters.author);
+                    const match_content = !filters.content || comment_text.includes(filters.content);
+                    const match_file = !filters.file || file_names.includes(filters.file);
+                    const match_date = !filters.date || date_str.includes(filters.date);
+
+                    const match_any = filters.any.length === 0 || filters.any.some(term =>
+                        comment_text.includes(term) ||
+                        author.includes(term) ||
+                        date_str.includes(term) ||
+                        file_names.includes(term)
+                    );
+
+                    return match_author && match_content && match_file && match_date && match_any;
+                });
+
+                load_comments(1);
+            });
+
+            // print them all out
+            // we have comment, created_by and created_at, as well as data/x/...
+            const comments_div = document.createElement('div');
+            comments_div.className = 'post-comments-list';
+            comments_div.id = 'post-comments-list';
+            const comments_per_page = 10;
+            let current_page = 1;
+
+            function clear_comments() {
+                while (comments_div.firstChild) {
+                    comments_div.removeChild(comments_div.firstChild);
+                }
+            }
+
+            let filtered_comments = [];
+            let search_query = '';
+
+            async function load_comments(page) {
+                clear_comments();
+
+                const comments_source = search_query ? filtered_comments : post.comments;
+                const start_index = (page - 1) * comments_per_page;
+                const comments_to_load = comments_source.slice(start_index, start_index + comments_per_page);
+
+                for (const [index, comment] of comments_to_load.entries()) {
+                    const comment_div = document.createElement('div');
+                    comment_div.className = 'post-comment';
+                    comment_div.style.textAlign = "left";
+
+                    const comment_header = document.createElement('div');
+                    comment_header.style.display = 'flex';
+                    comment_header.style.alignItems = 'center';
+                    comment_header.style.gap = '5px';
+                    comment_header.className = 'post-comment-header';
+
+                    const profile = await get_profile_for_user(comment.created_by);
+                    if (!profile || !profile.profile_key) {
+                        const icon = document.createElement('i');
+                        icon.className = "fa-solid fa-circle-user";
+                        icon.style.marginRight = '5px';
+                        comment_header.appendChild(icon);
+                    } else {
+                        const profile_img = document.createElement('img');
+                        profile_img.src = `/download/${profile.profile_key}`;
+                        profile_img.className = 'post-comment-profile';
+                        profile_img.style.marginRight = '5px';
+                        profile_img.style.maxWidth = '15px';
+                        profile_img.style.maxHeight = '15px';
+                        profile_img.style.borderRadius = '50%';
+                        comment_header.appendChild(profile_img);
+                    }
+
+                    const comment_author = document.createElement('p');
+                    comment_author.style.margin = '0';
+                    comment_author.style.fontWeight = 'bold';
+                    comment_author.onclick = () => {
+                        view_profile(comment.created_by);
+                    };
+
+                    const formatted_date = new Date(comment.created_at).toLocaleDateString();
+                    comment_author.innerHTML = `${profile?.display_name || comment.created_by} on ${formatted_date}`;
+                    comment_header.appendChild(comment_author);
+
+                    const comment_content = document.createElement('div');
+                    comment_content.innerHTML = comment.comment || 'No content';
+                    comment_content.className = 'post-comment-content';
+
+                    comment_div.appendChild(comment_header);
+                    comment_div.appendChild(comment_content);
+
+                    if (comment.data && comment.data.length > 0) {
+                        const files_grid = document.createElement('div');
+                        files_grid.className = 'post-comment-files-grid';
+
+                        comment.data.forEach(file => {
+                            const file_div = document.createElement('div');
+                            file_div.className = 'post-comment-file';
+                            file_div.id = file.download_key;
+
+                            const file_name = document.createElement('p');
+                            file_name.innerHTML = file.filename || 'No filename';
+                            file_name.className = 'post-comment-file-name';
+                            file_name.onclick = () => {
+                                play_click();
+                                document.location.href = `/download/${file.download_key}`;
+                            }
+
+                            file_div.appendChild(file_name);
+                            files_grid.appendChild(file_div);
+                        });
+
+                        comment_div.appendChild(document.createElement('br'));
+                        comment_div.appendChild(files_grid);
+                    }
+
+                    // add delete button
+                    if ((post.open && post.created_by === get_cookie('username')) || get_cookie('user_type') === "1") {
+                        const delete_button = document.createElement('button');
+                        delete_button.innerHTML = 'Delete';
+                        delete_button.className = 'post-comment-delete-button';
+                        delete_button.onclick = () => {
+                            play_click();
+                            fetch('/api/delete_comment_post', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ post_id: post_id, comment_id: index })
+                            }).then(response => {
+                                if (response.status === 204) {
+                                    show_post(post_id, topic_id);
+                                } else {
+                                    console.error('Failed to delete comment');
+                                }
+                            });
+                        };
+                        comment_div.appendChild(document.createElement('br'));
+                        comment_div.appendChild(delete_button);
+                    }
+
+                    comments_div.appendChild(comment_div);
+                }
+
+                current_page = page;
+                render_pagination_controls();
+            }
+
+            function render_pagination_controls() {
+                const old_pagination = document.getElementById('pagination_controls');
+                if (old_pagination) old_pagination.remove();
+
+                const pagination_div = document.createElement('div');
+                pagination_div.id = 'pagination_controls';
+                pagination_div.style.marginTop = '10px';
+
+                const comments_source = search_query ? filtered_comments : post.comments;
+                const total_pages = Math.ceil(comments_source.length / comments_per_page);
+
+                const prev_btn = document.createElement('button');
+                prev_btn.innerText = 'Prev';
+                prev_btn.disabled = (current_page === 1);
+                prev_btn.onclick = () => {
+                    play_click();
+                    load_comments(current_page - 1);
+                }
+                pagination_div.appendChild(prev_btn);
+
+                for (let i = 1; i <= total_pages; i++) {
+                    const page_btn = document.createElement('button');
+                    page_btn.innerText = i;
+                    page_btn.style.margin = '0 5px';
+                    page_btn.disabled = (i === current_page);
+                    page_btn.onclick = () => {
+                        play_click();
+                        load_comments(i);
+                    }
+                    pagination_div.appendChild(page_btn);
+                }
+
+                const next_btn = document.createElement('button');
+                next_btn.innerText = 'Next';
+                next_btn.disabled = (current_page === total_pages);
+                next_btn.onclick = () => {
+                    play_click();
+                    load_comments(current_page + 1);
+                }
+                pagination_div.appendChild(next_btn);
+
+                comments_div.after(pagination_div);
+            }
+
+
+            load_comments(1);
+
+            post_window.appendChild(comments_div);
+        } else {
+            const no_comments = document.createElement('p');
+            no_comments.innerHTML = 'No replies yet. Be the first to reply!';
+            no_comments.className = 'post-no-comments';
+
+            post_window.appendChild(no_comments);
+        }
+
+        if (post.open && (post.created_by === get_cookie('username') || get_cookie('user_type') === "1")) {
+            const close_button = document.createElement('button');
+            close_button.innerHTML = 'Close Post';
+            close_button.className = 'post-close-button';
+            close_button.onclick = () => {
+                play_click();
+                fetch('/api/close_post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id: post_id, open: false })
+                }).then(response => {
+                      if (response.httpRequestStatusCode !== 204) {
+                          const json = JSON.parse(text);
+                          if (json.error) {
+                              console.error(json.error);
+                          } else {
+                              show_post(post_id, topic_id);
+                          }
+                      }
+                      show_post(post_id, topic_id);
+                  });
+            }
+
+            post_window.appendChild(document.createElement('br'));
+            post_window.appendChild(close_button);
+        } else if (!post.open && (post.created_by === get_cookie('username') || get_cookie('user_type') === "1")) {
+            const reopen_button = document.createElement('button');
+            reopen_button.innerHTML = 'Reopen Post';
+            reopen_button.className = 'post-reopen-button';
+            reopen_button.onclick = () => {
+                play_click();
+                fetch('/api/close_post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id: post_id, open: true })
+                }).then(response => {
+                      if (response.httpRequestStatusCode !== 204) {
+                          const json = JSON.parse(text);
+                          if (json.error) {
+                              console.error(json.error);
+                          } else {
+                              show_post(post_id, topic_id);
+                          }
+                      }
+                      show_post(post_id, topic_id);
+                  });
+            }
+
+            post_window.appendChild(document.createElement('br'));
+            post_window.appendChild(reopen_button);
+        }
+
+        // delete post
+        if (get_cookie('user_type') === "1" || (post.open && post.created_by === get_cookie('username'))) {
+            const delete_button = document.createElement('button');
+            delete_button.innerHTML = 'Delete Post';
+            delete_button.className = 'post-delete-button';
+            delete_button.style.marginLeft = "10px";
+            delete_button.onclick = () => {
+                play_click();
+                fetch('/api/delete_post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id: post_id })
+                }).then(response => {
+                    if (response.status === 204) {
+                        show_topic(topic_id);
+                    } else {
+                        console.error('Failed to delete post');
+                    }
+                });
+            }
+
+            post_window.appendChild(delete_button);
+        }
+    })
+}
+
 function show_topic(topic_id = '', parent_topic_id = '') {
+    hide_all_windows();
     set_path('/topic');
-    hide_initial();
 
     if (topic_id !== '') {
         set_path('/topic/' + topic_id);
     }
 
-    const forum = create_window('forum-window');
+    const forum = create_window('forum-window-' + (topic_id || 'root') + '-' + (parent_topic_id || 'root'), { close_button: true, classes: ["forum_window"], close_on_escape: true, function_on_close: () => {
+        hide_all_windows();
+        if (parent_topic_id !== '') {
+            show_topic(parent_topic_id);
+        } else if (topic_id !== '') {
+            // dig and get the topic this topic is in
+            get_topics().then(topics => {
+                let parent_topic = '';
+                topics.forEach(t => {
+                    if (t.topics && t.topics.includes(topic_id)) {
+                        parent_topic = t.identifier;
+                    }
+                });
+                if (parent_topic !== '') {
+                    show_topic(parent_topic);
+                } else {
+                    show_topic();
+                }
+            });
+        } else {
+            hide_all_windows();
+        }
+    }});
 
     const topics_list = document.createElement('div');
     topics_list.className = 'forum-topics-list';
     topics_list.id = 'forum-topics-list';
 
+    let current_topic;
     const topics = get_topics();
 
     // iterate over topics and create elements
     topics.then(topics => {
-        topics.forEach(topic => {
-            if (topic_id === '' || topic_id === null) { // root topic then, we'll show all topics that are not referenced anywhere
-                let found = false;
-                // in that case, the topic.identifier must not be found in any topic's topics array
-                topics.forEach(t => {
-                    if (t.topics && t.topics.includes(topic.identifier)) {
-                        found = true;
-                    }
-                });
+        topics.forEach(async topic => {
+            let is_ours = false;
+            let current_is_subtopic = false;
 
-                if (found) {
-                    return; // skip this topic if it is a subtopic
-                }
-            } else if (parent_topic_id !== '' && parent_topic_id !== null) {
-                // our topic_id must be found in the parent's topics array
-                if (!topic.topics || !topic.topics.includes(parent_topic_id)) {
-                    return; // skip this topic if it is not a subtopic of the given parent_topic_id
-                }
+            if (topic.identifier == topic_id && topic_id !== null && topic_id !== '') {
+                current_topic = topic;
             }
-            // same id = skip
-            if (topic.identifier === topic_id) {
+
+            // check if this topic is part of any other topics' topics list
+            topics.forEach(t => {
+                if (t.topics && t.topics.includes(topic.identifier)) {
+                    current_is_subtopic = true;
+                }
+                if (t.identifier === topic_id && topic_id !== '' && t.topics && t.topics.includes(topic.identifier)) {
+                    is_ours = true;
+                }
+            });
+
+            if (current_is_subtopic && topic_id === '') {
+                return;
+            }
+
+            if (topic.identifier === topic_id && topic_id !== '') {
+                return;
+            }
+
+            if (!current_is_subtopic && topic_id !== '') {
+                return;
+            }
+
+            if (topic_id === '' && current_is_subtopic) {
+                return;
+            }
+
+            if (!is_ours && topic_id !== '') {
                 return;
             }
 
             const topic_div = document.createElement('div');
             topic_div.className = 'forum-topic';
-            topic_div.id = topic.id;
+            topic_div.id = topic.identifier;
+            topic_div.style.padding = "10px";
+            topic_div.style.textAlign = 'left';
 
             const title = document.createElement('strong');
             title.innerHTML = topic.title;
@@ -5338,18 +5947,97 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                 description.innerHTML = description.innerHTML.substring(0, 100) + '...';
             }
 
-            const author = document.createElement('p');
-            author.innerHTML = `Posted by ${topic.created_by} on ${new Date(topic.created_at).toLocaleDateString()}`;
-            author.className = 'forum-topic-author';
+            const topic_header = document.createElement('div');
+            topic_header.style.display = 'flex';
+            topic_header.style.alignItems = 'center';
+            topic_header.style.gap = '5px';
+            topic_header.className = 'post-topic-header';
+
+            const profile = await get_profile_for_user(topic.created_by);
+            if (!profile || !profile.profile_key) {
+                const icon = document.createElement('i');
+                icon.className = "fa-solid fa-circle-user";
+                icon.style.marginRight = '5px';
+                comment_header.appendChild(icon);
+            } else {
+                const profile_img = document.createElement('img');
+                profile_img.src = `/download/${profile.profile_key}`;
+                profile_img.className = 'post-comment-profile';
+                profile_img.style.marginRight = '5px';
+                profile_img.style.maxWidth = '15px';
+                profile_img.style.maxHeight = '15px';
+                profile_img.style.borderRadius = '50%';
+                topic_header.appendChild(profile_img);
+            }
+
+            const topic_author = document.createElement('p');
+            topic_author.style.margin = '0';
+            topic_author.style.fontWeight = 'bold';
+            topic_author.onclick = () => {
+                view_profile(topic.created_by);
+            };
+
+            const formatted_date = new Date(topic.created_at).toLocaleDateString();
+            topic_author.innerHTML = `${profile?.display_name || topic.created_by} on ${formatted_date}`;
+            topic_header.appendChild(topic_author);
 
             topic_div.appendChild(title);
-            topic_div.appendChild(author);
+            topic_div.appendChild(topic_header);
             topic_div.appendChild(description);
 
             topic_div.onclick = () => {
                 play_click();
                 show_topic(topic.identifier, topic_id);
             };
+
+            // add delete button
+            if (get_cookie('user_type') === "1" || (topic.open && topic.created_by === get_cookie('username'))) {
+                const delete_button = document.createElement('button');
+                delete_button.innerHTML = 'Delete Topic';
+                delete_button.className = 'forum-topic-delete-button';
+                delete_button.onclick = () => {
+                    play_click();
+                    fetch('/api/delete_topic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ topic_id: topic.identifier })
+                    }).then(response => {
+                        if (response.status === 204) {
+                            show_topic(parent_topic_id);
+                        } else {
+                            console.error('Failed to delete topic');
+                        }
+                    });
+                }
+
+                topic_div.appendChild(delete_button);
+            }
+            // add close/reopen button
+            if (get_cookie('user_type') === "1" || (topic.open && topic.created_by === get_cookie('username'))) {
+                const close_button = document.createElement('button');
+                close_button.innerHTML = topic.open ? 'Close Topic' : 'Reopen Topic';
+                close_button.className = 'forum-topic-close-button';
+                close_button.onclick = () => {
+                    play_click();
+                    fetch('/api/close_topic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ topic_id: topic.identifier, open: !topic.open })
+                    }).then(response => {
+                        if (response.status === 204) {
+                            show_topic(topic_id);
+                        } else {
+                            console.error('Failed to close/reopen topic');
+                        }
+                    });
+                }
+
+                topic_div.appendChild(close_button);
+            }
 
             topics_list.appendChild(topic_div);
         });
@@ -5361,39 +6049,110 @@ function show_topic(topic_id = '', parent_topic_id = '') {
 
     const posts = get_posts(topic_id);
     posts.then(posts => {
-        posts.forEach(post => {
+        posts.forEach(async post => {
+            if (topic_id === '') {
+                return;
+            }
+
+            if (post.topic_id !== topic_id) {
+                return;
+            }
+
             const post_div = document.createElement('div');
             post_div.className = 'forum-post';
-            post_div.id = post.id;
+            post_div.id = post.identifier;
+            post_div.style.textAlign = 'left';
+            post_div.style.padding = "10px";
+            post_div.onclick = () => {
+                play_click();
 
-            const author = document.createElement('strong');
-            author.innerHTML = post.created_by;
-            author.className = 'forum-post-author';
+                show_post(post.identifier, topic_id);
+            }
+
+            const post_span = document.createElement('span');
+            post_span.className = 'forum-post';
+            post_span.id = post.identifier + "_div";
+
+            const title = document.createElement('p');
+            title.innerHTML = post.title || 'No title';
+            title.className = 'forum-post-title';
+
+            const post_header = document.createElement('div');
+            post_header.style.display = 'flex';
+            post_header.style.alignItems = 'center';
+            post_header.style.gap = '5px';
+            post_header.className = 'post-post-header';
+
+            const profile = await get_profile_for_user(post.created_by);
+            if (!profile || !profile.profile_key) {
+                const icon = document.createElement('i');
+                icon.className = "fa-solid fa-circle-user";
+                icon.style.marginRight = '5px';
+                comment_header.appendChild(icon);
+            } else {
+                const profile_img = document.createElement('img');
+                profile_img.src = `/download/${profile.profile_key}`;
+                profile_img.className = 'post-comment-profile';
+                profile_img.style.marginRight = '5px';
+                profile_img.style.maxWidth = '15px';
+                profile_img.style.maxHeight = '15px';
+                profile_img.style.borderRadius = '50%';
+                post_header.appendChild(profile_img);
+            }
+
+            const post_author = document.createElement('p');
+            post_author.style.margin = '0';
+            post_author.style.fontWeight = 'bold';
+            post_author.onclick = () => {
+                view_profile(post.created_by);
+            };
+
+            const formatted_date = new Date(post.created_at).toLocaleDateString();
+            post_author.innerHTML = `${profile?.display_name || post.created_by} on ${formatted_date}`;
+            post_header.appendChild(post_author);
 
             const content = document.createElement('p');
-            content.innerHTML = post.text;
             content.className = 'forum-post-content';
 
-            const date = document.createElement('p');
-            date.innerHTML = new Date(post.created_at).toLocaleDateString();
-            date.className = 'forum-post-date';
+            if (post.text) {
+                content.innerHTML = post.text.substring(0, 50).replace(/\n/g, ' ');
+                if (post.text.length > 50) {
+                    content.innerHTML += '...';
+                }
+            }
 
-            post_div.appendChild(author);
-            post_div.appendChild(date);
-            post_div.appendChild(content);
+            post_span.appendChild(title);
+            post_span.appendChild(post_header);
+            post_span.appendChild(content);
 
+            post_div.appendChild(post_span);
             posts_div.appendChild(post_div);
         });
     });
 
+    const topics_title = document.createElement('h2');
+    topics_title.innerHTML = 'Topics';
+    topics_title.className = 'forum-topics-title';
+
+    forum.appendChild(topics_title);
+
     if (is_logged_in() && get_cookie('user_type') === '1') {
         const create_topic_button = document.createElement('button');
         create_topic_button.innerHTML = 'Create Topic';
+        create_topic_button.style.marginRight = '10px';
         create_topic_button.className = 'forum-create-topic-button';
         create_topic_button.onclick = () => {
             play_click();
 
-            const window = create_window('create-topic-window', {back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+            const window = create_window('create-topic-window', {classes: ["forum_window"], back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+
+            const title = document.createElement('h2');
+            title.innerHTML = 'Create Topic';
+            title.className = 'forum-create-topic-title';
+
+            const paragraph = document.createElement('p');
+            paragraph.innerHTML = 'Enter a title and description for your fancy topic. These will (obviously) be shown to users.';
+            paragraph.className = 'forum-create-topic-paragraph';
 
             const title_input = document.createElement('input');
             title_input.type = 'text';
@@ -5403,6 +6162,16 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             const description_input = document.createElement('textarea');
             description_input.name = 'description';
             description_input.placeholder = 'Description';
+
+            const closed = document.createElement('input');
+            closed.type = 'checkbox';
+            closed.name = 'closed';
+            closed.id = 'forum-create-topic-closed';
+
+            const closed_label = document.createElement('label');
+            closed_label.for = 'closed';
+            closed_label.innerHTML = 'Closed';
+            closed_label.className = 'forum-create-topic-closed-label';
 
             const button = document.createElement('button');
             button.innerHTML = 'Create Topic';
@@ -5416,9 +6185,13 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                         description: description_input.value,
                     };
 
-                    if (parent_topic_id !== '' && parent_topic_id !== null) {
-                        json.parent_topics = [parent_topic_id];
+                    if (topic_id !== '' && topic_id !== null) {
+                        json.parent_topics = [topic_id];
                     }
+                    if (closed && closed.checked) {
+                        json.closed = true;
+                    }
+
                     fetch('/api/create_topic', {
                         method: 'POST',
                         headers: {
@@ -5426,35 +6199,58 @@ function show_topic(topic_id = '', parent_topic_id = '') {
                         },
                         body: JSON.stringify(json)
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
+                        .then(response => {
+                            hide_all_windows();
+
+                            if (response.status === 204 || response.status === 200) {
                                 show_topic(parent_topic_id);
                             } else {
-                                alert('Error creating topic: ' + data.error);
+                                console.log("failed to create topic");
                             }
                         });
                 }
             }
 
+            window.appendChild(title);
+            window.appendChild(paragraph);
             window.appendChild(title_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(description_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
+            window.appendChild(closed);
+            window.appendChild(closed_label);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(button);
         };
         forum.appendChild(create_topic_button);
     }
-    if (is_logged_in() && topic_id !== '' && topic_id !== null) {
+
+    const posts_title = document.createElement('h2');
+    posts_title.innerHTML = 'Posts';
+    posts_title.className = 'forum-posts-title';
+
+    forum.appendChild(topics_list);
+    forum.appendChild(posts_title);
+
+    if (is_logged_in() && topic_id !== '' && topic_id !== null && (get_cookie("user_type") === '1' || current_topic.open)) {
         const create_post_button = document.createElement('button');
         create_post_button.innerHTML = 'Create Post';
         create_post_button.className = 'forum-create-post-button';
         create_post_button.onclick = () => {
             play_click();
 
-            const window = create_window('create-post-window', {back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
+            const window = create_window('create-post-window', {classes: ["forum_window"], back_button: null, close_button: true, close_on_click_outside: true, close_on_escape: true});
 
             const title = document.createElement('h2');
             title.innerHTML = 'Create Post';
             title.className = 'forum-create-post-title';
+
+            const paragraph = document.createElement('p');
+            paragraph.innerHTML = 'Enter a title and content for your post. You can also upload files.';
+            paragraph.className = 'forum-create-post-paragraph';
 
             const title_input = document.createElement('input');
             title_input.type = 'text';
@@ -5469,42 +6265,93 @@ function show_topic(topic_id = '', parent_topic_id = '') {
             content_input.style.height = '200px';
             content_input.style.width = '80%';
 
+            const file_upload = document.createElement('input');
+            file_upload.type = 'file';
+            file_upload.name = 'file';
+            file_upload.accept = '*/*';
+            file_upload.className = 'forum-create-topic-file-upload';
+            file_upload.multiple = true;
+
+            const closed = document.createElement('input');
+            closed.type = 'checkbox';
+            closed.name = 'closed';
+            closed.id = 'forum-create-post-closed';
+
+            const closed_label = document.createElement('label');
+            closed_label.for = 'closed';
+            closed_label.innerHTML = 'Closed';
+            closed_label.className = 'forum-create-post-closed-label';
+
             const button = document.createElement('button');
             button.innerHTML = 'Create Post';
             button.className = 'forum-create-post-submit-button';
             button.onclick = () => {
                 if (content_input.value) {
+                    const form_data = new FormData();
+
+                    const json = {
+                        topic_id: topic_id,
+                        title: title_input.value,
+                        text: content_input.value,
+                    };
+
+                    if (closed && closed.checked) {
+                        json.open = !closed;
+                    }
+
+                    form_data.append('json', new Blob([JSON.stringify(json)], { type: 'application/json' }));
+
+                    if (file_upload.files.length > 0) {
+                        for (let i = 0; i < file_upload.files.length; i++) {
+                            if (file_upload.files[i].name === 'json') {
+                                continue;
+                            }
+
+                            form_data.append('file_' + i, file_upload.files[i]);
+                        }
+                    }
+
                     fetch('/api/create_post', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            topic_id: topic_id,
-                            title: title_input.value,
-                            text: content_input.value,
-                        })
+                        body: form_data
                     })
-                        .then(response => response.json())
                         .then(data => {
-                            if (data.success) {
+                            hide_all_windows();
+
+                            if (data.status === 204 || data.status === 200) {
                                 show_topic(topic_id);
                             } else {
                                 alert('Error creating post: ' + data.error);
                             }
+                        })
+                        .catch(error => {
+                            console.error('Error creating post:', error);
+                            alert('Error creating post: ' + error.message);
                         });
                 }
             }
 
             window.appendChild(title);
+            window.appendChild(paragraph);
             window.appendChild(title_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(content_input);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
+            window.appendChild(closed);
+            window.appendChild(closed_label);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
+            window.appendChild(file_upload);
+            window.appendChild(document.createElement('br'));
+            window.appendChild(document.createElement('br'));
             window.appendChild(button);
         };
+
         forum.appendChild(create_post_button);
     }
 
-    forum.appendChild(topics_list);
     forum.appendChild(posts_div);
 }
 
@@ -5516,6 +6363,9 @@ function show_credits() {
     credits.style.overflow = "hidden";
     credits.style.minWidth = "80%";
     credits.style.minHeight = "80%";
+    credits.onclick = () => {
+        hide_all_windows();
+    }
 
     const roll_credits = (list, interval, restart_index = 1) => {
         let index = 0;
@@ -5739,45 +6589,46 @@ function get_grid(elements) {
 function get_link_box(p) {
     const link_box = document.createElement('div');
     link_box.className = 'link_box';
-
-    if (p.location) {
-        link_box.setAttribute('onclick', `location.href='${p.location}';`);
-    } else if (p.onclick) {
-        link_box.setAttribute('onclick', p.onclick);
-    }
+    link_box.style.overflow = 'hidden';
+    link_box.style.position = 'relative';
+    link_box.style.zIndex = '1';
 
     if (p.id) {
         link_box.id = p.id;
     }
 
-    if (p.background_color || p.color) {
-        let style = '';
-        if (p.background_color) {
-            style += `background-color: ${p.background_color};`;
-        }
-        if (p.color) {
-            style += `color: ${p.color};`;
-        }
-        link_box.setAttribute('style', style);
+    if (p.location) {
+        link_box.onclick = () => location.href = p.location;
+        link_box.style.cursor = 'pointer';
+    } else if (p.onclick) {
+        link_box.setAttribute('onclick', p.onclick);
     }
 
-
-    const title = document.createElement('h2');
-    title.className = 'link_box_title';
-    title.textContent = p.title;
-
-    const description = document.createElement('p');
-    description.className = 'link_box_description';
-    description.textContent = p.description;
+    if (p.background_color) {
+        link_box.style.backgroundColor = p.background_color;
+    }
+    if (p.color) {
+        link_box.style.color = p.color;
+    }
 
     if (p.img) {
         const icon = document.createElement('img');
         icon.src = p.img;
+        icon.alt = '';
         icon.style.width = '24px';
+        icon.style.verticalAlign = 'middle';
+        icon.style.marginRight = '8px';
         link_box.appendChild(icon);
     }
 
+    const title = document.createElement('h2');
+    title.className = 'link_box_title';
+    title.textContent = p.title;
     link_box.appendChild(title);
+
+    const description = document.createElement('p');
+    description.className = 'link_box_description';
+    description.textContent = p.description;
     link_box.appendChild(description);
 
     return link_box;
@@ -5790,21 +6641,21 @@ function init_page() {
         description: "Browse channels uploaded by others.",
         background_color: "",
         id: "browse-button",
-        onclick: "play_click(); show_browse()"
+        onclick: "hide_all_windows(); play_click(); show_browse()"
     }));
     list.push(get_link_box({
         title: "Sandbox",
         description: "Check out files uploaded by users.",
         background_color: "",
         id: "sandbox-button",
-        onclick: "play_click(); show_sandbox()"
+        onclick: "hide_all_windows(); play_click(); show_sandbox()"
     }))
     list.push(get_link_box({
        title: "Forum",
        description: "Check out the Forwarder Factory forum.",
         background_color: "",
         id: "forum-button",
-        onclick: "play_click(); show_topic()",
+        onclick: "hide_all_windows(); play_click(); show_topic()",
     }))
 
     if (get_cookie("username") === null) {
@@ -5812,13 +6663,13 @@ function init_page() {
             title: "Log in",
             description: "Log in to your account.",
             id: "login-button",
-            onclick: "play_click(); show_login()"
+            onclick: "hide_all_windows(); play_click(); show_login()"
         }));
         list.push(get_link_box({
             title: "Register",
             description: "Register a new account.",
             id: "register-button",
-            onclick: "play_click(); show_register()"
+            onclick: "hide_all_windows(); play_click(); show_register()"
         }));
     } else {
         if (get_cookie("user_type") === "1") {
@@ -5826,20 +6677,20 @@ function init_page() {
                 title: "Admin",
                 description: "Access the admin panel.",
                 id: "admin-button",
-                onclick: "play_click(); show_admin()"
+                onclick: "hide_all_windows(); play_click(); show_admin()"
             }));
         }
         list.push(get_link_box({
             title: "Upload",
             description: "Upload a forwarder or channel.",
             id: "upload-button",
-            onclick: "play_click(); show_upload()"
+            onclick: "hide_all_windows(); play_click(); show_upload()"
         }));
         list.push(get_link_box({
             title: "Log out",
             description: "Log out of your account.",
             id: "logout-button",
-            onclick: "play_click(); show_logout()"
+            onclick: "hide_all_windows(); play_click(); show_logout()"
         }));
     }
 
@@ -5847,25 +6698,96 @@ function init_page() {
        title: "Discord",
        description: "Join our awesome Discord server.",
        id: "discord-button",
-       onclick: "play_click(); show_discord()",
-       img: "/img/discord.svg"
+       onclick: "hide_all_windows(); play_click(); show_discord()",
     }));
     list.push(get_link_box({
         title: "Announcements",
         description: "View the latest announcements.",
         id: "announcements-button",
-        onclick: "play_click(); get_announcements()",
-        img: "/img/announcements.svg"
+        onclick: "hide_all_windows(); play_click(); get_announcements()",
     }));
     list.push(get_link_box({
         title: "Credits",
         description: "View the credits for Forwarder Factory.",
         id: "credits-button",
-        onclick: "play_click(); show_credits()"
+        onclick: "hide_all_windows(); play_click(); show_credits()"
     }));
 
     const grid = get_grid(list, 'initial-link-grid');
     document.body.appendChild(grid);
+
+    // special case: credits-button should have fancy stars
+    // just copy from the credits window
+    const credits_button = document.getElementById('credits-button');
+    if (credits_button) {
+        generate_stars(50, credits_button);
+    }
+
+    // special case: discord-button should have a grid of sprites
+    const discord_button = document.getElementById('discord-button');
+    if (discord_button) {
+        generate_sprites(discord_button, '/img/discord.svg');
+    }
+
+    const announcements_button = document.getElementById('announcements-button');
+    if (announcements_button) {
+        generate_sprites(announcements_button, '/img/announcements.svg', { invert: true, opacity: 0.5 });
+    }
+
+    const browse_button = document.getElementById('browse-button');
+    if (browse_button) {
+        const deg = 1000;
+        generate_sprites(browse_button, '/img/background-logo-1.png', { opacity: 0.2, hue: deg });
+        // on hover, random colors
+        browse_button.onmouseover = () => {
+            const sprites = browse_button.querySelectorAll('.sprite');
+            sprites.forEach(sprite => {
+                sprite.style.filter = `hue-rotate(${Math.random() * 360}deg)`;
+            });
+        };
+        browse_button.onmouseleave = () => {
+            // revert
+            const sprites = browse_button.querySelectorAll('.sprite');
+            sprites.forEach(sprite => {
+                sprite.style.filter = 'hue-rotate(' + deg + 'deg)';
+            });
+        }
+    }
+
+    const sandbox_button = document.getElementById('sandbox-button');
+    if (sandbox_button) {
+        generate_sprites(sandbox_button, '/img/shovel.svg', { opacity: 0.1 });
+    }
+
+    const forum_button = document.getElementById('forum-button');
+    if (forum_button) {
+        generate_sprites(forum_button, '/img/messages.svg', { opacity: 0.1 });
+    }
+
+    const login_button = document.getElementById('login-button');
+    if (login_button) {
+        generate_sprites(login_button, '/img/question-mark-block.svg', { opacity: 0.1 });
+    }
+
+    const register_button = document.getElementById('register-button');
+    if (register_button) {
+        generate_sprites(register_button, '/img/coin.svg', { opacity: 0.1 });
+    }
+
+    const admin_button = document.getElementById('admin-button');
+    if (admin_button) {
+        generate_sprites(admin_button, '/img/hammer.svg', { opacity: 0.1 });
+    }
+
+    const upload_button = document.getElementById('upload-button');
+    if (upload_button) {
+        generate_sprites(upload_button, '/img/retro-star.svg', { opacity: 0.1 });
+    }
+
+    const logout_button = document.getElementById('logout-button');
+    if (logout_button) {
+        generate_sprites(logout_button, '/img/wave.svg', { opacity: 0.1 });
+    }
 }
 
 async function get_profile_for_user(username) {
@@ -5887,7 +6809,7 @@ async function get_profile_for_user(username) {
 
         const data = await response.json();
 
-        // Make sure the structure is what you expect
+        // make sure the structure is what you expect
         if (data.users && data.users[username]) {
             return data.users[username];
         } else {
@@ -5951,6 +6873,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (get_path().startsWith("/topic/")) {
         const topic_id = get_path().substring(7);
         show_topic(topic_id);
+    }
+    if (get_path().startsWith("/post/")) {
+        const post_id = get_path().substring(6);
+        show_post(post_id);
     }
 
     print_username(username, display_name, profile_key);

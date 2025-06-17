@@ -43,13 +43,13 @@ mkdir -p build && cd build || exit 1
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
 make && make install || exit 1
 cd ..; rm -rf build
+
 cp -r css/ /etc/ff/
 cp -r js/ /etc/ff/
 cp -r html/ /etc/ff/
-
-git clone https://github.com/ForwarderFactory/ff-web-assets .assets/
-cp -r .assets/* /etc/ff/
-rm -rf .assets/
+cp -r img/ /etc/ff/
+cp -r fonts/ /etc/ff/
+cp -r audio/ /etc/ff/
 
 [ ! -f "/etc/ff/config.yaml" ] && ff-web -gc > /etc/ff/config.yaml
 
