@@ -251,7 +251,11 @@ limhamn::http::server::response ff::try_upload_post(const limhamn::http::server:
 		}
 		topic_json["posts"].push_back(post_id);
 
+		ff::logger.write_to_log(limhamn::logger::type::notice, "Inserting post with ID: " + post_id + " into the database.\n");
+
 		db.exec("INSERT INTO posts (identifier, json) VALUES (?, ?)", post_id, db_json.dump());
+
+		ff::logger.write_to_log(limhamn::logger::type::notice, "Post with ID: " + post_id + " inserted into the database.\n");
 
 		ff::set_json_in_table(db, "topics", "identifier", topic_id, topic_json.dump());
 	} catch (const std::exception& e) {
