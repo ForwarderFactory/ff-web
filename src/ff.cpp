@@ -250,7 +250,7 @@ void ff::start_server() {
             .default_rate_limit = settings.rate_limit,
             .trust_x_forwarded_for = settings.trust_x_forwarded_for,
 #ifndef FF_DEBUG
-        	.secure = true,
+        	.session_is_secure = true,
 #endif
             }, [&](const limhamn::http::server::request& request) -> limhamn::http::server::response {
             ff::logger.write_to_log(limhamn::logger::type::access, "Request received from " + request.ip_address + " to " + request.endpoint + " received, handling it.\n");
