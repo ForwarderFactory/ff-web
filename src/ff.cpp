@@ -6,9 +6,11 @@
 #include <sstream>
 #include <filesystem>
 #include <ff.hpp>
+#include <endpoint_handlers.hpp>
 #include <scrypto.hpp>
 #include <nlohmann/json.hpp>
 #include <limhamn/http/http_utils.hpp>
+#include <static_exists.hpp>
 
 void ff::print_help(const bool stream) {
     std::stringstream ss;
@@ -290,29 +292,29 @@ void ff::start_server() {
                 {"/api/comment_file", ff::handle_api_comment_file_endpoint},
                 {"/api/delete_comment_forwarder", ff::handle_api_delete_comment_forwarder_endpoint},
                 {"/api/delete_comment_file", ff::handle_api_delete_comment_file_endpoint},
-                {"/api/update_profile", ff::handle_api_update_profile},
-                {"/api/get_profile", ff::handle_api_get_profile},
-                {"/api/create_announcement", ff::handle_api_create_announcement},
-                {"/api/get_announcements", ff::handle_api_get_announcements},
+                {"/api/update_profile", ff::handle_api_update_profile_endpoint},
+                {"/api/get_profile", ff::handle_api_get_profile_endpoint},
+                {"/api/create_announcement", ff::handle_api_create_announcement_endpoint},
+                {"/api/get_announcements", ff::handle_api_get_announcements_endpoint},
                 {"/api/delete_announcement", ff::handle_api_delete_announcement},
-                {"/api/edit_announcement", ff::handle_api_edit_announcement},
+                {"/api/edit_announcement", ff::handle_api_edit_announcement_endpoint},
                 {"/api/stay_logged_in", ff::handle_api_stay_logged_in},
                 {"/api/try_logout", ff::handle_api_try_logout_endpoint},
                 {"/api/delete_forwarder", ff::handle_api_delete_forwarder_endpoint},
                 {"/api/delete_file", ff::handle_api_delete_file_endpoint},
 
-                {"/api/create_post", ff::handle_api_create_post},
-                {"/api/delete_post", ff::handle_api_delete_post},
-                {"/api/edit_post", ff::handle_api_edit_post},
-                {"/api/close_post", ff::handle_api_close_post},
-                {"/api/get_posts", ff::handle_api_get_posts},
-                {"/api/comment_post", ff::handle_api_comment_post},
-                {"/api/delete_comment_post", ff::handle_api_delete_comment_post},
-                {"/api/create_topic", ff::handle_api_create_topic},
-                {"/api/delete_topic", ff::handle_api_delete_topic},
-                {"/api/get_topics", ff::handle_api_get_topics},
-                {"/api/edit_topic", ff::handle_api_edit_topic},
-                {"/api/close_topic", ff::handle_api_close_topic},
+                {"/api/create_post", ff::handle_api_create_post_endpoint},
+                {"/api/delete_post", ff::handle_api_delete_post_endpoint},
+                {"/api/edit_post", ff::handle_api_edit_post_endpoint},
+                {"/api/close_post", ff::handle_api_close_post_endpoint},
+                {"/api/get_posts", ff::handle_api_get_posts_endpoint},
+                {"/api/comment_post", ff::handle_api_comment_post_endpoint},
+                {"/api/delete_comment_post", ff::handle_api_delete_comment_post_endpoint},
+                {"/api/create_topic", ff::handle_api_create_topic_endpoint},
+                {"/api/delete_topic", ff::handle_api_delete_topic_endpoint},
+                {"/api/get_topics", ff::handle_api_get_topics_endpoint},
+                {"/api/edit_topic", ff::handle_api_edit_topic_endpoint},
+                {"/api/close_topic", ff::handle_api_close_topic_endpoint},
                 //{"/api/pin_post_to_topic", ff::handle_api_pin_post_to_topic},
             };
             const std::unordered_map<std::string, std::function<limhamn::http::server::response(const limhamn::http::server::request&, ff::database&)>> setup_handlers{

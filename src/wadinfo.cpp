@@ -1,5 +1,11 @@
-#include <ff.hpp>
+#include <string>
+#include <array>
+#include <filesystem>
+#include <sstream>
 #include <scrypto.hpp>
+#include <limhamn/logger/logger.hpp>
+#include <wad_info.hpp>
+#include <ff.hpp>
 
 ff::WADInfo ff::get_info_from_wad(const std::string& wad_path) {
 	const auto recv = [](const std::string& cmd) -> std::string {

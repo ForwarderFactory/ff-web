@@ -2,8 +2,9 @@
 #include <scrypto.hpp>
 #include <limhamn/http/http_utils.hpp>
 #include <nlohmann/json.hpp>
+#include <endpoint_handlers.hpp>
 
-limhamn::http::server::response ff::try_upload_post(const limhamn::http::server::request& req, database& db) {
+limhamn::http::server::response ff::handle_try_upload_post_endpoint(const limhamn::http::server::request& req, database& db) {
 	limhamn::http::server::response response;
 	response.content_type = "application/json";
 
@@ -278,7 +279,7 @@ limhamn::http::server::response ff::try_upload_post(const limhamn::http::server:
 	return response;
 }
 
-limhamn::http::server::response ff::try_upload_post_comment(const limhamn::http::server::request& req, database& db) {
+limhamn::http::server::response ff::handle_try_upload_post_comment_endpoint(const limhamn::http::server::request& req, database& db) {
 	limhamn::http::server::response response;
 	response.content_type = "application/json";
 

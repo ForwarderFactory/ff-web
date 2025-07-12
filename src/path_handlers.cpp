@@ -4,6 +4,8 @@
 #include <limhamn/http/http_utils.hpp>
 #include <nlohmann/json.hpp>
 #include <maddy/parser.h>
+#include <static_exists.hpp>
+#include <endpoint_handlers.hpp>
 
 limhamn::http::server::response ff::handle_root_endpoint(const limhamn::http::server::request&, database&) {
     limhamn::http::server::response response{};
@@ -1419,7 +1421,7 @@ limhamn::http::server::response ff::handle_api_set_approval_for_uploads_endpoint
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_update_profile(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_update_profile_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     if (request.body.empty()) {
@@ -1464,7 +1466,7 @@ limhamn::http::server::response ff::handle_api_update_profile(const limhamn::htt
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_get_profile_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
 
     if (request.method != "POST") {
@@ -1571,7 +1573,7 @@ limhamn::http::server::response ff::handle_api_get_profile(const limhamn::http::
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_create_announcement(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_create_announcement_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -1747,7 +1749,7 @@ limhamn::http::server::response ff::handle_api_create_announcement(const limhamn
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_announcements(const limhamn::http::server::request&, database& db) {
+limhamn::http::server::response ff::handle_api_get_announcements_endpoint(const limhamn::http::server::request&, database& db) {
     limhamn::http::server::response response{};
 
     const auto query = db.query("SELECT * FROM general WHERE id=1;");
@@ -1980,7 +1982,7 @@ limhamn::http::server::response ff::handle_api_delete_announcement(const limhamn
     }
 }
 
-limhamn::http::server::response ff::handle_api_edit_announcement(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_edit_announcement_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -3381,7 +3383,7 @@ limhamn::http::server::response ff::handle_api_try_logout_endpoint(const limhamn
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_create_topic(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_create_topic_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -3567,7 +3569,7 @@ limhamn::http::server::response ff::handle_api_create_topic(const limhamn::http:
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_delete_topic(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_delete_topic_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -3719,7 +3721,7 @@ limhamn::http::server::response ff::handle_api_delete_topic(const limhamn::http:
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_topics(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_get_topics_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -3791,7 +3793,7 @@ limhamn::http::server::response ff::handle_api_get_topics(const limhamn::http::s
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_close_topic(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_close_topic_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -3932,7 +3934,7 @@ limhamn::http::server::response ff::handle_api_close_topic(const limhamn::http::
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_edit_topic(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_edit_topic_endpoint(const limhamn::http::server::request& request, database& db) {
 	limhamn::http::server::response response{};
 	response.content_type = "application/json";
 
@@ -4073,11 +4075,11 @@ limhamn::http::server::response ff::handle_api_edit_topic(const limhamn::http::s
 	return response;
 }
 
-limhamn::http::server::response ff::handle_api_create_post(const limhamn::http::server::request& request, database& db) {
-	return ff::try_upload_post(request, db);
+limhamn::http::server::response ff::handle_api_create_post_endpoint(const limhamn::http::server::request& request, database& db) {
+	return ff::handle_try_upload_post_endpoint(request, db);
 }
 
-limhamn::http::server::response ff::handle_api_delete_post(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_delete_post_endpoint(const limhamn::http::server::request& request, database& db) {
     limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -4255,7 +4257,7 @@ limhamn::http::server::response ff::handle_api_delete_post(const limhamn::http::
     }
 }
 
-limhamn::http::server::response ff::handle_api_close_post(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_close_post_endpoint(const limhamn::http::server::request& request, database& db) {
 	limhamn::http::server::response response{};
 	response.content_type = "application/json";
 
@@ -4417,7 +4419,7 @@ limhamn::http::server::response ff::handle_api_close_post(const limhamn::http::s
 	return response;
 }
 
-limhamn::http::server::response ff::handle_api_get_posts(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_get_posts_endpoint(const limhamn::http::server::request& request, database& db) {
 	limhamn::http::server::response response{};
     response.content_type = "application/json";
 
@@ -4488,7 +4490,7 @@ limhamn::http::server::response ff::handle_api_get_posts(const limhamn::http::se
     return response;
 }
 
-limhamn::http::server::response ff::handle_api_edit_post(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_edit_post_endpoint(const limhamn::http::server::request& request, database& db) {
 	limhamn::http::server::response response{};
 	response.content_type = "application/json";
 
@@ -4653,11 +4655,11 @@ limhamn::http::server::response ff::handle_api_edit_post(const limhamn::http::se
     }
 }
 
-limhamn::http::server::response ff::handle_api_comment_post(const limhamn::http::server::request& request, database& db) {
-	return ff::try_upload_post_comment(request, db);
+limhamn::http::server::response ff::handle_api_comment_post_endpoint(const limhamn::http::server::request& request, database& db) {
+	return ff::handle_try_upload_post_comment_endpoint(request, db);
 }
 
-limhamn::http::server::response ff::handle_api_delete_comment_post(const limhamn::http::server::request& request, database& db) {
+limhamn::http::server::response ff::handle_api_delete_comment_post_endpoint(const limhamn::http::server::request& request, database& db) {
 	limhamn::http::server::response response{};
 	response.content_type = "application/json";
 

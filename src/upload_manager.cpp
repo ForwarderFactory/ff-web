@@ -3,6 +3,7 @@
 #include <ff.hpp>
 #include <nlohmann/json.hpp>
 #include <limhamn/http/http_utils.hpp>
+#include <wad_info.hpp>
 
 std::pair<ff::UploadStatus, std::string> ff::try_upload_forwarder(const limhamn::http::server::request& req, database& db) {
     std::string json{};
